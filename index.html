@@ -117,6 +117,9 @@
           cursor:pointer;font-family:inherit}
   .topBtn:active{transform:scale(.96)}
   .topBtn .num{font-size:11px;color:var(--sub);font-weight:500}
+  .topBtns{display:flex;align-items:center;gap:8px}
+  .badge{width:9px;height:9px;border-radius:50%;background:var(--err);display:inline-block;
+         box-shadow:0 0 0 3px rgba(255,96,96,.18);animation:blink 1.2s infinite}
 
   /* ===== 底部抽屉 ===== */
   .mask{position:fixed;inset:0;background:rgba(6,7,12,.6);z-index:50;opacity:0;transition:opacity .2s}
@@ -130,10 +133,6 @@
   .sheetHandle{width:40px;height:4px;border-radius:4px;background:#3a3d50;margin:2px auto 10px;flex:none}
   .sheetHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex:none}
   .sheetTitle{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
-  .tabs{display:flex;gap:8px;margin-bottom:10px;flex:none}
-  .tab{flex:1;border:1px solid var(--line);background:transparent;color:var(--sub);border-radius:10px;
-       padding:9px;font-size:13px;font-family:inherit;cursor:pointer;transition:.15s}
-  .tab.on{background:rgba(91,140,255,.16);border-color:var(--accent);color:#fff;font-weight:600}
   .sheetBody{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
   .sheetBody .playlist{margin-top:8px}
 
@@ -173,7 +172,10 @@
   <section class="card hidden" id="cardPlayer">
     <div class="topBar">
       <span class="pill"><span class="dot ok" id="dotPill"></span><span id="pillText">已连接</span></span>
-      <button class="topBtn" id="btnOpenList">☰ 播放列表 <span class="num" id="listCount">0</span></button>
+      <div class="topBtns">
+        <button class="topBtn" id="btnOpenChat">消息<span class="badge hidden" id="chatDot"></span></button>
+        <button class="topBtn" id="btnOpenList">☰ 歌单 <span class="num" id="listCount">0</span></button>
+      </div>
     </div>
     <div class="songName" id="songName">—</div>
     <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
@@ -211,20 +213,16 @@
   <!-- 轻提示 -->
   <div class="toast" id="toast"></div>
 
-  <!-- 播放列表 / 聊天 抽屉 -->
+  <!-- 抽屉：播放列表 与 消息，各自独立 -->
   <div class="mask hidden" id="mask"></div>
-  <section class="sheet" id="sheet">
+
+  <section class="sheet" id="sheetList">
     <div class="sheetHandle"></div>
     <div class="sheetHead">
       <div class="sheetTitle">播放列表 <span class="tag" id="tagRole"></span></div>
-      <button class="topBtn" id="sheetClose">收起</button>
+      <button class="topBtn" id="closeList">收起</button>
     </div>
-    <div class="tabs">
-      <button class="tab on" id="tabBtnList">歌单 <span class="num" id="tabCount">0</span></button>
-      <button class="tab" id="tabBtnChat">聊天</button>
-    </div>
-
-    <div class="sheetBody" id="tabList">
+    <div class="sheetBody">
       <div class="row">
         <button class="btn primary" id="btnAddSongs">添加歌曲（可多选）</button>
       </div>
@@ -235,8 +233,15 @@
         你在自己这边用「添加歌曲」加进去，然后两边点<b>同一首歌</b>，同步依然有效（播放/暂停/进度仍会跟随）。
       </div>
     </div>
+  </section>
 
-    <div class="sheetBody hidden" id="tabChat">
+  <section class="sheet" id="sheetChat">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">消息</div>
+      <button class="topBtn" id="closeChat">收起</button>
+    </div>
+    <div class="sheetBody">
       <div class="chatList" id="chatList"><div class="chatEmpty">说点什么，对方马上能看到</div></div>
       <div class="row" style="margin-top:8px">
         <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…" autocomplete="off" />
@@ -528,6 +533,7 @@ const APP = {
   lastAnswer: null,
   iceBuf: [],            // 远端描述还没设好时，先攒着 ICE 候选
   tryCount: 0,           // 本次进房间已经重试了几次直连
+  unread: 0,             // 未读消息条数（决定红点）
   offerTimer: null,
   needSent: new Set(),   // 已经催过对方补传的歌曲 id
   peerTracks: [],        // 对方最近一次报上来的歌单
@@ -549,15 +555,13 @@ const UI = {
   inpCode: $("#inpCode"),
   cardConn: $("#cardConn"),
   cardPlayer: $("#cardPlayer"),
-  sheet: $("#sheet"),
+  sheetList: $("#sheetList"),
+  sheetChat: $("#sheetChat"),
   mask: $("#mask"),
   btnOpenList: $("#btnOpenList"),
+  btnOpenChat: $("#btnOpenChat"),
+  chatDot: $("#chatDot"),
   listCount: $("#listCount"),
-  tabCount: $("#tabCount"),
-  tabBtnList: $("#tabBtnList"),
-  tabBtnChat: $("#tabBtnChat"),
-  tabList: $("#tabList"),
-  tabChat: $("#tabChat"),
   toast: $("#toast"),
   dotPill: $("#dotPill"),
   pillText: $("#pillText"),
@@ -596,33 +600,44 @@ function setPill(text, state) {
   UI.dotPill.className = "dot" + (state ? " " + state : "");
 }
 
-/* 底部抽屉：歌单 / 聊天 */
-function openSheet(tab) {
-  switchTab(tab || "list");
-  if (tab !== "chat") renderPlaylist();
+/* 底部抽屉：播放列表 和 消息 是两个独立的界面 */
+let _maskHideTimer = null;
+function openSheet(which) {
+  clearTimeout(_maskHideTimer);
+  closeSheets();
+  const el = which === "chat" ? UI.sheetChat : UI.sheetList;
+  if (which !== "chat") renderPlaylist();
   UI.mask.classList.remove("hidden");
   requestAnimationFrame(() => {
     UI.mask.classList.add("on");
-    UI.sheet.classList.add("on");
+    el.classList.add("on");
   });
+  if (which === "chat") {
+    clearUnread();
+    setTimeout(() => { try { UI.chatInput.focus(); } catch (e) {} }, 260);
+  }
 }
-function closeSheet() {
-  UI.sheet.classList.remove("on");
+function closeSheets() {
+  UI.sheetList.classList.remove("on");
+  UI.sheetChat.classList.remove("on");
   UI.mask.classList.remove("on");
-  setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
+  clearTimeout(_maskHideTimer);
+  _maskHideTimer = setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
 }
-function switchTab(tab) {
-  const isChat = tab === "chat";
-  UI.tabBtnList.classList.toggle("on", !isChat);
-  UI.tabBtnChat.classList.toggle("on", isChat);
-  show(UI.tabList, !isChat);
-  show(UI.tabChat, isChat);
+
+/* 消息红点：收到对方消息时亮起，打开消息界面后熄灭 */
+function markUnread() {
+  APP.unread = (APP.unread || 0) + 1;
+  show(UI.chatDot, true);
+}
+function clearUnread() {
+  APP.unread = 0;
+  show(UI.chatDot, false);
 }
 
 function syncListCount() {
   const n = APP.tracks.length;
   if (UI.listCount) UI.listCount.textContent = n;
-  if (UI.tabCount) UI.tabCount.textContent = n;
 }
 
 /* 顶部轻提示，不占版面，任何时候都看得见 */
@@ -910,10 +925,8 @@ function onMqttMessage(topic, payload) {
     case "chat":
       if (typeof m.text === "string" && m.text) {
         addChat(m.text.slice(0, 200), false);
-        /* 抽屉没打开（或没停在聊天页）时，用轻提示提醒一下 */
-        if (!UI.sheet.classList.contains("on") || UI.tabChat.classList.contains("hidden")) {
-          toast("对方：" + m.text.slice(0, 60));
-        }
+        /* 没停在消息界面时亮红点 */
+        if (!UI.sheetChat.classList.contains("on")) markUnread();
       }
       break;
   }
@@ -1843,15 +1856,12 @@ const pickSongs = () => { rememberPlayState(); picker.click(); };
 $("#btnAddSongs").onclick = pickSongs;
 $("#btnAddSongsMain").onclick = pickSongs;
 
-/* 播放列表 / 聊天 抽屉 */
+/* 播放列表 / 消息 两个独立抽屉 */
 UI.btnOpenList.onclick = () => openSheet("list");
-$("#sheetClose").onclick = closeSheet;
-UI.mask.onclick = closeSheet;
-UI.tabBtnList.onclick = () => switchTab("list");
-UI.tabBtnChat.onclick = () => {
-  switchTab("chat");
-  setTimeout(() => { try { UI.chatInput.focus(); } catch (e) {} }, 260);
-};
+UI.btnOpenChat.onclick = () => openSheet("chat");
+$("#closeList").onclick = closeSheets;
+$("#closeChat").onclick = closeSheets;
+UI.mask.onclick = closeSheets;
 picker.onchange = () => {
   const files = picker.files ? Array.from(picker.files) : [];
   if (files.length) addFiles(files);
