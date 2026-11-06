@@ -166,17 +166,97 @@
          padding:9px 14px;font-size:13px;line-height:1.5;text-align:center;color:var(--fg);
          opacity:0;pointer-events:none;transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* ===== 首页：两个入口 + 个人资料 ===== */
+  .homeTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .homeTitle{font-size:16px;font-weight:700;margin-bottom:4px}
+  .profileBtn{display:inline-flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);
+    border-radius:999px;padding:6px 12px 6px 6px;color:var(--fg);font-family:inherit;font-size:12.5px;
+    font-weight:600;cursor:pointer;max-width:54%}
+  .profileBtn:active{transform:scale(.97)}
+  .profileBtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:#2a2c3a;display:block;flex:none}
+  .modeCard{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card2);
+    border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--fg);font-family:inherit;
+    cursor:pointer;margin-top:10px}
+  .modeCard:active{transform:scale(.985);border-color:var(--accent)}
+  .modeIcon{width:44px;height:44px;border-radius:12px;background:rgba(91,140,255,.16);display:flex;
+    align-items:center;justify-content:center;font-size:21px;flex:none}
+  .modeText{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+  .modeText b{font-size:15px}
+  .modeText span{font-size:12px;color:var(--sub);line-height:1.45}
+  .modeArrow{color:var(--sub);font-size:20px;flex:none}
+
+  .whoRow{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+  .whoItem{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--sub);max-width:47%}
+  .whoItem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .whoItem .avatar{width:28px;height:28px}
+
+  /* 只有对应模式才显示的元素 */
+  body:not(.mode-duet) .duetOnly{display:none !important}
+  body:not(.mode-solo) .soloOnly{display:none !important}
+
+  /* ===== 个人资料 ===== */
+  .avatarBig{width:88px;height:88px;border-radius:50%;object-fit:cover;background:#2a2c3a;display:block;
+    margin:2px auto 8px;border:2px solid var(--line)}
+  .avatarGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+  .avatarOpt{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .avatarOpt img{width:48px;height:48px;border-radius:50%;display:block}
+  .avatarOpt.on{border-color:var(--accent);background:rgba(91,140,255,.16)}
+  .profName{letter-spacing:0 !important;text-transform:none !important;text-align:left !important}
+
+  /* ===== 歌单（单机模式） ===== */
+  .plChips{display:flex;align-items:center;gap:8px;margin-top:8px;overflow-x:auto;padding-bottom:2px}
+  .plChips .chip{white-space:nowrap}
+  .plsItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);
+    border-radius:12px;padding:10px;cursor:pointer}
+  .plsItem:active{transform:scale(.99)}
+  .plsItem.cur{border-color:var(--accent);background:rgba(91,140,255,.12)}
+  .plsHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .plsHead .plName{flex:1;min-width:0}
+  .chooserList{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .plsTip{font-size:12px;color:var(--sub);line-height:1.6;margin:10px 0 0}
+
+  /* ===== 聊天头像 ===== */
+  .chatLine{display:flex;align-items:flex-end;gap:6px;max-width:100%}
+  .chatLine.me{justify-content:flex-end}
+  .chatAva{width:26px;height:26px;border-radius:50%;object-fit:cover;background:#2a2c3a;flex:none}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>双人同步播放器</h1>
-    <p class="sub">两个人在异地，也能一起听同一个歌单</p>
+    <h1>一起听</h1>
+    <p class="sub">一个人安静听，或者两个人一起听</p>
   </header>
 
+  <!-- 首页：两个入口 + 个人资料 -->
+  <section class="card" id="cardHome">
+    <div class="homeTop">
+      <div>
+        <div class="homeTitle">今天怎么听？</div>
+        <p class="sub" style="margin:0">选一个模式开始</p>
+      </div>
+      <button class="profileBtn" id="btnProfile">
+        <img class="avatar" id="homeAvatar" alt="" />
+        <span id="homeName">设置资料</span>
+      </button>
+    </div>
+    <button class="modeCard" id="btnSolo">
+      <div class="modeIcon">🎧</div>
+      <div class="modeText"><b>单机听歌</b><span>全部音乐、自建歌单、收藏、最近播放</span></div>
+      <div class="modeArrow">›</div>
+    </button>
+    <button class="modeCard" id="btnDuet">
+      <div class="modeIcon">👥</div>
+      <div class="modeText"><b>一起听歌</b><span>和对方同步播放、聊天，房主房客权限相同</span></div>
+      <div class="modeArrow">›</div>
+    </button>
+  </section>
+
   <!-- 第一步：连接 -->
-  <section class="card" id="cardConn">
+  <section class="card hidden" id="cardConn">
     <div class="label">第一步 · 建立连接</div>
     <div class="row" id="rowCreate">
       <button class="btn primary" id="btnCreate">我是房主，创建房间</button>
@@ -214,12 +294,17 @@
   <!-- 主界面：连接成功后显示 -->
   <section class="card hidden" id="cardPlayer">
     <div class="topBar">
+      <button class="topBtn" id="btnBackHome" title="返回首页">‹ 首页</button>
       <span class="pill"><span class="dot ok" id="dotPill"></span><span id="pillText">已连接</span></span>
       <div class="topBtns">
-        <button class="topBtn" id="btnReconnectTop" title="连接不稳时手动重连">↻</button>
-        <button class="topBtn" id="btnOpenChat">消息<span class="badge hidden" id="chatDot"></span></button>
+        <button class="topBtn duetOnly" id="btnReconnectTop" title="连接不稳时手动重连">↻</button>
+        <button class="topBtn duetOnly" id="btnOpenChat">消息<span class="badge hidden" id="chatDot"></span></button>
         <button class="topBtn" id="btnOpenList">☰ 歌单 <span class="num" id="listCount">0</span></button>
       </div>
+    </div>
+    <div class="whoRow duetOnly" id="whoRow">
+      <div class="whoItem"><img class="avatar" id="meAvatar" alt="" /><span id="meName">我</span></div>
+      <div class="whoItem" style="margin-left:auto"><span id="peerName">对方</span><img class="avatar" id="peerAvatar" alt="" /></div>
     </div>
     <div class="songName" id="songName">—</div>
     <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
@@ -233,7 +318,7 @@
       <button class="btnSkip small" id="btnShuffle" title="随机播放">🔀</button>
       <button class="btnSkip small" id="btnRepeat" title="循环模式">🔁</button>
       <span class="modeHint" id="modeHint">顺序播放</span>
-      <div class="syncInfo" style="flex:1;justify-content:flex-end"><span>偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span></div>
+      <div class="syncInfo duetOnly" style="flex:1;justify-content:flex-end"><span>偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span></div>
     </div>
     <div class="volRow">
       <span>音量</span>
@@ -247,15 +332,16 @@
     </div>
     <details>
       <summary>使用说明 / 常见问题</summary>
-      <p><b>1. 房间号 / 大厅</b>：房主创建后得到 6 位房间号，也可以用「复制邀请链接」「二维码」邀请；不想输号就点「看看有哪些房间」，对方在用就会出现在列表里，点「加入」直接进。</p>
-      <p><b>2. 歌单</b>：点右上角「☰ 歌单」打开抽屉。两边都能添加歌，加完对方会自动收到（点对点直传，一首传完再传下一首）。</p>
-      <p><b>3. 找歌 / 排序</b>：歌单顶部可搜索、按「★ 收藏 / 最近」筛选；点「排序」进入排序模式，拖左边的 ☰ 或用 ↑ ↓ 调整（两边同步）。</p>
+      <p><b>1. 两个模式</b>：首页先选「单机听歌」或「一起听歌」。单机听歌自己听，不联网；一起听歌再创建房间或输入房间号。点左上角「‹ 首页」随时切回来。</p>
+      <p><b>2. 房间号 / 大厅</b>：房主创建后得到 6 位房间号，也可以用「复制邀请链接」「二维码」邀请；不想输号就点「看看有哪些房间」，对方在用就会出现在列表里，点「加入」直接进。</p>
+      <p><b>3. 单机听歌</b>：分「全部音乐 / 我的歌单 / ★ 收藏 / 最近」。全部音乐里点歌就播，并按当前列表自动连播；点行尾的 ＋ 把歌加进自建歌单；「我的歌单」里可以新建、重命名、删除、加歌、移出。</p>
       <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后两端同步。</p>
       <p><b>5. 控制</b>：两边权力完全对等，谁都能播放、暂停、拖动、切歌。</p>
       <p><b>6. 歌词</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，两边都会滚动显示。</p>
       <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息对方立刻能看到。</p>
       <p><b>8. 两个歌单</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、对方传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，两台设备按添加顺序显示同一份歌单；对方没有这首歌会自动传过去。开始播放要手动点播放键，没加载完会等加载完自动开播。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 直连已建立 / 重试第几次」。实在卡住就点右上角 ↻ 或连接页的「重新连接」。</p>
-      <p><b>9. 限制</b>：音量各自独立；聊天记录不保存；收藏和「最近播放」只在自己这边生效。</p>
+      <p><b>9. 个人资料</b>：首页右上角点自己的头像/名字，可以选内置头像、从相册选图、改用户名；进入「一起听」后两端的顶栏和聊天都会显示头像和名字，不需要密码。</p>
+      <p><b>10. 限制</b>：音量各自独立；聊天记录不保存；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
     </details>
   </section>
 
@@ -268,21 +354,24 @@
   <section class="sheet" id="sheetList">
     <div class="sheetHandle"></div>
     <div class="sheetHead">
-      <div class="sheetTitle">歌单 <span class="tag" id="tagRole"></span></div>
+      <div class="sheetTitle"><span id="listTitle">歌单</span> <span class="tag duetOnly" id="tagRole"></span></div>
       <button class="topBtn" id="closeList">收起</button>
     </div>
     <div class="sheetBody">
       <div class="row">
-        <button class="btn primary" id="btnAddSongs">添加歌曲到我的列表（可多选）</button>
+        <button class="btn primary" id="btnAddSongs">＋ 添加歌曲</button>
         <button class="btn" id="btnScan" style="flex:0 0 134px;font-size:14px">扫描本地歌曲</button>
       </div>
       <div class="row" style="margin-top:8px">
         <input type="text" id="plSearch" class="chatInput" placeholder="搜索歌曲名…" autocomplete="off" />
-        <button class="topBtn" id="btnReorder" style="flex:none">排序</button>
+        <button class="topBtn duetOnly" id="btnReorder" style="flex:none">排序</button>
+        <button class="topBtn soloOnly" id="btnNewPl" style="flex:none">＋ 新建歌单</button>
       </div>
-      <div class="row" style="margin-top:8px">
-        <button class="chip on" data-tab="all">一起听</button>
-        <button class="chip" data-tab="lib">我的歌曲</button>
+      <div class="plChips">
+        <button class="chip duetOnly" data-tab="duet">一起听</button>
+        <button class="chip duetOnly" data-tab="lib">我的歌曲</button>
+        <button class="chip soloOnly" data-tab="all">全部音乐</button>
+        <button class="chip soloOnly" data-tab="pls">我的歌单</button>
         <button class="chip" data-tab="fav">★ 收藏</button>
         <button class="chip" data-tab="recent">最近</button>
         <span class="tag" id="plFilterCount" style="margin-left:auto"></span>
@@ -324,6 +413,43 @@
         <button class="btn primary" id="scanAddBtn" style="padding:11px">加入歌单（<span id="scanPick">0</span>）</button>
       </div>
       <div class="scanList" id="scanList"></div>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetProfile">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">个人资料</div>
+      <button class="topBtn" id="closeProfile">收起</button>
+    </div>
+    <div class="sheetBody">
+      <img class="avatarBig" id="profPreview" alt="" />
+      <div class="row">
+        <button class="btn" id="btnPickAvatar" style="padding:11px;font-size:13.5px">从相册选一张</button>
+      </div>
+      <div class="label" style="margin-top:14px">选一个内置头像</div>
+      <div class="avatarGrid" id="avatarGrid"></div>
+      <div class="label" style="margin-top:16px">用户名</div>
+      <input type="text" id="profName" class="profName" maxlength="12" placeholder="给自己起个名字" autocomplete="off" />
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="btnSaveProfile">保存</button>
+      </div>
+      <p class="plsTip">名字和头像会显示在首页和「一起听」里，对方能直接看到，不需要密码。</p>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetChoose">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">加到哪个歌单？</div>
+      <button class="topBtn" id="closeChoose">收起</button>
+    </div>
+    <div class="sheetBody">
+      <div class="chooserList" id="chooseList"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="btnChooseNew">＋ 新建歌单</button>
+      </div>
+      <p class="plsTip">长列表可以先用「我的歌单」管理，再回来加歌。</p>
     </div>
   </section>
 
@@ -2924,6 +3050,17 @@ const ICE = {
 };
 const TOPIC_PREFIX = "duetlisten/v1/";
 
+/* 内置头像（SVG data URI，离线可用，来源 DiceBear Adventurer） */
+const AVATARS = {
+  sunny: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjIgNzYyIiBmaWxsPSJub25lIiBzaGFwZS1yZW5kZXJpbmc9ImF1dG8iPjxtZXRhZGF0YSB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6ZGN0ZXJtcz0iaHR0cDovL3B1cmwub3JnL2RjL3Rlcm1zLyI+PHJkZjpSREY+PHJkZjpEZXNjcmlwdGlvbj48ZGM6dGl0bGU+QWR2ZW50dXJlcjwvZGM6dGl0bGU+PGRjOmNyZWF0b3I+TGlzYSBXaXNjaG9mc2t5PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL3d3dy5maWdtYS5jb20vY29tbXVuaXR5L2ZpbGUvMTE4NDU5NTE4NDEzNzg4MTc5NjwvZGM6c291cmNlPjxkY3Rlcm1zOmxpY2Vuc2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLzwvZGN0ZXJtczpsaWNlbnNlPjxkYzpyaWdodHM+UmVtaXggb2Yg4oCeQWR2ZW50dXJlcuKAnSAoaHR0cHM6Ly93d3cuZmlnbWEuY29tL2NvbW11bml0eS9maWxlLzExODQ1OTUxODQxMzc4ODE3OTYpIGJ5IOKAnkxpc2EgV2lzY2hvZnNreeKAnSwgbGljZW5zZWQgdW5kZXIg4oCeQ0MgQlkgNC4w4oCdIChodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLyk8L2RjOnJpZ2h0cz48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC9tZXRhZGF0YT48bWFzayBpZD0idmlld2JveE1hc2siPjxyZWN0IHdpZHRoPSI3NjIiIGhlaWdodD0iNzYyIiByeD0iMCIgcnk9IjAiIHg9IjAiIHk9IjAiIGZpbGw9IiNmZmYiIC8+PC9tYXNrPjxnIG1hc2s9InVybCgjdmlld2JveE1hc2spIj48cmVjdCBmaWxsPSIjNWI4Y2ZmIiB3aWR0aD0iNzYyIiBoZWlnaHQ9Ijc2MiIgeD0iMCIgeT0iMCIgLz48cGF0aCBkPSJNMzk2IDE2NC44YTIyNC44IDIyNC44IDAgMCAxIDEwNC44IDQyLjRjNi4yIDQuOSAxMi41IDkuNCAxOCAxNWEyMjUuNCAyMjUuNCAwIDAgMSA3MS44IDE0OSA1OC41IDU4LjUgMCAwIDEgNTAuOSA0Mi4yIDcxIDcxIDAgMCAxLTI3LjYgNzYuNWMtMTEgNy43LTI0LjUgMTItMzggMTEuNy01IDAtMTAtMS42LTE1LTEuOC0xLjkgMi4yLTMuMyA0LjktNC44IDcuM0EyMjMuMyAyMjMuMyAwIDAgMSAzODkgNjA5LjhjLTExIC43LTIxLjkgMi0zMyAuN2EyMjMuNyAyMjMuNyAwIDAgMS0xNzguOC0zNDIuM0EyMjMuNCAyMjMuNCAwIDAgMSAzNTIgMTYzLjVjMTQuNi0xLjQgMjkuNC0uMyA0NCAxLjNaIiBmaWxsPSIjMDAwIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00OTguOCAyMTMuMkEyMTYgMjE2IDAgMCAwIDM2MyAxNjljLTEzLS4yLTI2LjIgMS42LTM5IDRhMjE4IDIxOCAwIDAgMC0xMTMuNiAzNjUuNSAyMTguNSAyMTguNSAwIDAgMCAyNjAuNCA0MC4yYzM1LTE4LjggNjQuMi00Ny4zIDg0LjQtODEuNWwtMy0xLjZjLTIuOC0xLjQtNS43LTMtOC01LTIuMi0yLS4zLTUuOCAyLjctNC43IDEuNS43IDMgMS42IDQuNCAyLjRhNTUgNTUgMCAwIDAgNTkuNi0zLjYgNjQuNSA2NC41IDAgMCAwIDI1LTY5LjggNTMuMSA1My4xIDAgMCAwLTI0LTMxIDUyLjYgNTIuNiAwIDAgMC00Ny0yLjhjLTEuNi44LTMuNCAxLjUtNSAxLjMtMi41LS4yLTIuOC00LjItLjYtNS4yIDgtNCAxNi41LTUuNiAyNS40LTYuNGEyMTcgMjE3IDAgMCAwLTcyLTE0Ni40Yy00LjQtNC04LjctOC4xLTEzLjktMTEuM1ptMTA3LjYgMTk2LjJjMi0xLjIgMS4zLTUuMS0xLjQtNS0yIDAtNC4yLjgtNi4yIDEuNmwtMS40LjRhOTUuMSA5NS4xIDAgMCAwLTI1LjUgMTIuNGMtMi4yIDItMi4yIDQuNC4xIDYuMmE5MiA5MiAwIDAgMCA1LjIgMi44IDM2IDM2IDAgMCAxIDEzIDkuMmMtLjIgMS45LTIgMy40LTMuNCA0LjVsLS4yLjJjLTMuOSAzLTguOCA1LTEzLjYgNy0yLjUgMS00LjkgMi03LjEgMy4xLTEuNy44LTIuNiAyLjItMS42IDMuOSAxIDIgMy4yIDEuMSA1IC41bC42LS4yIDUuNC0yLjNjNS40LTIuMyAxMS00LjUgMTUuNC04IDIuNy0yLjEgNS4xLTUuMSA1LjQtOC43LS41LTMuNC0yLjctNS43LTUuMy03LjhhODMgODMgMCAwIDAtMTEuNi03LjJsLTEuMS0uNmM1LjQtMyAxMC44LTUuNiAxNi42LTcuN2w1LTEuN2E1MiA1MiAwIDAgMCA2LjctMi42WiIgZmlsbD0iI2YyZDNiMSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTU0Ny41IDQyNC44YTY1LjIgNjUuMiAwIDEgMSAxOC44IDEyOSA2NS4yIDY1LjIgMCAwIDEtMTguOC0xMjlaIiBmaWxsPSIjMDAwIi8+PHBhdGggZD0iTTU0OS4yIDQzMC4zYTU5LjYgNTkuNiAwIDEgMSAxNS4zIDExOC4zIDU5LjYgNTkuNiAwIDAgMS0xNS4zLTExOC4zWiIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0zODEuMiA0NDcuMWE1NS4zIDU1LjMgMCAwIDEgNjAgNDUuNCA1NC45IDU0LjkgMCAwIDEtMTAzLjggMzMuMSA1NC4yIDU0LjIgMCAwIDEtNC43LTMyLjYgNTQuNSA1NC41IDAgMCAxIDQ4LjUtNDUuOVoiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNMzc4LjIgNDUzLjNhNDkuNCA0OS40IDAgMSAxLTYgOTUuNUE0OS41IDQ5LjUgMCAwIDEgMzUyIDQ2N2M3LjEtNy4xIDE2LjMtMTEuOSAyNi4yLTEzLjdaIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTU1OC44IDQ1Ni43Yy0zLjkgNC02LjcgOC42LTYuNyAxNC4zYTIwLjcgMjAuNyAwIDAgMCAxMi41IDIwLjRjNiAyLjUgMTIuMyAxLjQgMTcuNy0yYTM2LjMgMzYuMyAwIDEgMS01Mi44LTMxIDM4LjUgMzguNSAwIDAgMSAyOS4zLTEuN1pNMzkyIDQ2Ny45YTM1IDM1IDAgMCAxIDIyLjcgNC4zYy0zIDMtNS40IDYuMy01LjUgMTAuOGExNC42IDE0LjYgMCAwIDAgMTEuOCAxNS41YzMuNC42IDYuMi0uNSA5LjQtMS40YTM0LjQgMzQuNCAwIDAgMS0xNC44IDMxLjUgMzMuMyAzMy4zIDAgMSAxLTIzLjYtNjAuN1oiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNTI3LjQgNDg5LjVjMi4zLTEgNC44LTEuMyA3IC4yIDMuNSAyLjMgMy41IDcuNS44IDEwLjVzLTcuOCAzLjItMTAuNC0uMWMtMi44LTMuNC0xLjMtOC43IDIuNi0xMC42Wk0zNzkuNCA0OTUuNmM0LjgtMS43IDkuNCAzLjUgNy4xIDgtMS42IDMuNi03IDQuMy05LjQgMS4zLTIuNi0zLTEuNS04IDIuMy05LjNaTTUzNi41IDUwNC43YzIuNS0uOCA1LjMtLjYgNy44LjEgNi4xIDIuNCA4IDExLjIgMy42IDE2LTQgNC44LTExLjggNS0xNS44IDAtNC40LTUuMy0yLjQtMTMuOSA0LjQtMTYuMVpNMzg2LjUgNTEyLjdjMy40LTEgNy4xLS42IDkuNiAyLjIgMy41IDMuNCAzLjQgOS42LS42IDEyLjYtNCAzLjUtMTAuNyAxLjgtMTMuMi0yLjgtMi42LTQuMy0uNi0xMC4zIDQuMi0xMloiIGZpbGw9IiNmZmYiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJNNTMxIDM1My45YzE3IDIgMzQgNy40IDQ4LjYgMTYuNWE1NyA1NyAwIDAgMSAxOC4zIDE2LjljLjkgMS4yIDEuMiAzLjUtLjIgNC4zLTEuMiAxLjItMi45LjUtNC4yIDBhMTQzIDE0MyAwIDAgMC01NC0xNWMtMTMuNC0uOS0yOC4yLTEtNDEgMy44LTMgMS01LjYgMy04LjUgMy44LTEuNC4zLTIuNS0xLTMtMi4yYTE4IDE4IDAgMCAxIC4zLTE0LjggMjMgMjMgMCAwIDEgMTMuMy0xMC43QTcyLjUgNzIuNSAwIDAgMSA1MzEgMzU0Wk00MTQgNDA4YzguMiAyLjQgMTQuNiAxMC45IDEzLjYgMTkuNS0xLjkuNi0zLjYgMS01LjYuN2ExMDggMTA4IDAgMCAwLTQyLjggNS45Yy0xNCA0LjctMjguNSAxMS42LTM5LjQgMjEuOC0xLjQgMS4zLTQuMyAzLTUuNi43LTEuNy0yLjMgMC00IDEuNC02YTEyOCAxMjggMCAwIDEgNDktMzljOC44LTMuNiAyMC02LjUgMjkuNC0zLjVaIiBmaWxsPSIjMDAwIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTUzNSA1NjNhMzEuNCAzMS40IDAgMCAxIDIyLjcgMTcuMyA0OCA0OCAwIDAgMSAzLjUgMjMuNyA1MyA1MyAwIDAgMS0xNSAzMC4yIDY1LjcgNjUuNyAwIDAgMS0zMy4yIDE4LjkgMTQwLjUgMTQwLjUgMCAwIDEtNjIgLjMgODUuNCA4NS40IDAgMCAxLTM4LjYtMTkuOGMtNC41LTQuMi05LTkuMS0xMS0xNUEzMCAzMCAwIDAgMSA0MDMgNTk1YzMuMy02LjMgOS45LTEwLjUgMTctMTAuNyAxMi43LS43IDIzLjkgNC4yIDM2IDQuOCA3LjggMCAxNS45LTEuMSAyMy4yLTQgMTEuMy00LjggMjEuMy0xNC41IDMyLjgtMTkuMSA3LjQtMyAxNS4xLTQuNiAyMy0zWiIgZmlsbD0iIzAwMCIvPjxwYXRoIGQ9Ik01MzggNTY5LjljNyAyLjUgMTIuNyA3LjkgMTUuMSAxNS0zIDIuNS01LjggNS05IDcuMy0zLjYgMi42LTcuMiA0LjQtOS45IDgtMy4yIDQtNiA5LjktMTAuNCAxMi41LTMuNC0uNC02LjYtMi45LTkuOC00LTIuNC0uNy01LjQuNC03LjggMWExNjcuMyAxNjcuMyAwIDAgMS0zNy4yIDUuOSA0NiA0NiAwIDAgMC05LjYgMWMwIDEuMiAwIDIuNC4zIDMuNiAxLjkgMS41IDUgMS4zIDcuMyAxLjUgMTUuMy0uNiAzMC4zLTMuMiA0NS03LjMgMy43IDAgOS40IDUuMiAxMy45IDMuNSA1LjMtMi41IDktOSAxMi40LTEzLjYgMS45LTIuOCA0LjUtNCA3LjEtNS45IDMuNC0yLjIgNi41LTQuNyA5LjYtNy4zYTQ2IDQ2IDAgMCAxLS40IDE3Yy0yLjIgOS4zLTguMSAxNy45LTE1IDI0LjVhNjYuNSA2Ni41IDAgMCAxLTM3LjEgMTYuNiAxNDEgMTQxIDAgMCAxLTM2LjUuOCA4Ny4yIDg3LjIgMCAwIDEtNDguNC0xOS42Yy01LTQuNy05LjgtOC45LTExLjItMTYtMi4zLTguNi40LTIwLjcgMTAuMS0yMy41IDguMi0yIDE3LjguNSAyNiAyLjIgMTIgMi44IDI1IDIuNCAzNi43LTEuNyAxNC00LjkgMjUtMTcgMzguOC0yMS4zYTMwIDMwIDAgMCAxIDIwLS4yWiIgZmlsbD0iI2ZmZiIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxwYXRoIGQ9Ik01MTQgMjEzYzE5LjgtLjQgNDAuMi4yIDU5LjggMy40QzU5MCAyMTkuMyA2MDcgMjIzIDYyMiAyMzBjMTUuMiA3IDI4LjYgMTggMzguNiAzMS40YTI0IDI0IDAgMCAxIDQuNCAxMi4yIDEzNyAxMzcgMCAwIDEgNTQuNyAxOC43QTEyNyAxMjcgMCAwIDEgNzcyIDM1M2ExMjYgMTI2IDAgMCAxIDkgNDNjMCAyMi01LjcgNDQuMS0xNyA2My4yYTQgNCAwIDAgMS00IDJjLTMuNy0uMS03LjMtLjgtMTEtMS4yYTcxLjIgNzEuMiAwIDAgMS0yMC4yIDM2IDExNC41IDExNC41IDAgMCAxLTQ2LjcgMjhjLTIuMS42LTUuMyAxLjctNi42LS43LTItMyAuMy04IC43LTExLjNBMTczIDE3MyAwIDAgMCA2MzUgMzY3YTEyNS4yIDEyNS4yIDAgMCAwLTY4LTQwYy0xLjgtLjUtMy45LS43LTQtMy0uMi01LjktMy0xMC43LTcuNi0xNC4zLTctNS4yLTE1LjktNy42LTI0LjQtNS42LTE3IDMuNC0zMyAxMy42LTQ1LjkgMjVhMTcwIDE3MCAwIDAgMC0zNy43IDUyLjNjLTExLjMgMjIuNC0yMC44IDQ2LTMxLjEgNjguOEEzMjEuMiAzMjEuMiAwIDAgMSAzODMgNTA5Yy0xMSAxNS0yMy44IDI5LTM4LjUgNDAuNWExNzAuOCAxNzAuOCAwIDAgMS00MyAyNC4yQTExMCAxMTAgMCAwIDEgMjcxIDU4MWMtMi41LjEtNC42LTIuNS02LjItNC4xIDIuMy01IDYuOC01LjIgMTAuNy04LjUgNi4xLTUgMTAuMi0xMyAxMi0yMC42IDIuMi05LjYgMi45LTE5IDMuMy0yOC44LjMtMTMtMi42LTI0LjYtNC44LTM3LjItMi41LTE0LjUtNC44LTI5LTYuMi00My44LTEuOC0xNi4xLS40LTMzIDIuNS00OSA0LjMtMjQgMTMuNi00NiAyNS41LTY3LjJhMTczLjUgMTczLjUgMCAwIDEgMzUuNC00Mi41YzMyLTI4LjMgNzAuNi00OC44IDExMi01OSAxOS40LTQuOCAzOC44LTYuNSA1OC44LTcuNFpNNzE5IDU3NmMyLjktLjUgNiAxLjcgOSAyIDIuOC42IDYgLjMgOC44IDEuMSAxLjYgMSAxLjIgMy4yIDEuNCA0LjktLjEgNS44LS4zIDExLjMgMSAxNyAuNSAyLjkgMS43IDYgMS41IDguOC0uMSAyLjMtMyAyLjctNC43IDIuMy04LTEuMi0xNi01LjMtMjMuMi04LjktMi43LTEuNC03LTQuNy02LTguMiAyLjEtNCA1LjktNyA3LjktMTEuMyAxLjQtMi40IDIuMi01LjkgNC40LTcuN1oiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNTQ1LjkgMjE5LjNjMTAuNC45IDIwLjggMS43IDMxIDMuNyAxNSAzIDMwLjkgNi43IDQ0LjYgMTMuNWE5OC41IDk4LjUgMCAwIDEgMzMuOCAyNy4yYzIgMi44IDQuMSA1LjcgMy44IDkuMy4xIDIuMS0uOCA0LjMgMS4yIDUuNyAyIC44IDQuNC44IDYuNSAxLjEgMTkuOSAyLjggMzkuMiAxMC4yIDU1LjggMjEuNWExMTkuOSAxMTkuOSAwIDAgMSA0Ni43IDYxLjRjMTAuMSAzMC43IDYuMyA2NS0xMCA5Mi45LTMtLjUtNi4yLS44LTkuMy0xLS42LTEuMy0xLTQtMy0zLjktMi4xLS4zLTMuMiAxLjYtMy4zIDMuNS0uNiAxMS4yLTYgMjEuOS0xMyAzMC42YTEwNS42IDEwNS42IDAgMCAxLTQ5LjQgMzMuMmM1LjctMjYuMyA0LjktNTMuNy0xLjktNzkuOGExNzMgMTczIDAgMCAwLTU1LTg5LjYgMTI3LjkgMTI3LjkgMCAwIDAtNTUuOC0yNy43Yy0yLTguMi02LjUtMTQuNS0xNC0xOC42YTM4LjggMzguOCAwIDAgMC0zMS4xLTIuNiAxMTQuMyAxMTQuMyAwIDAgMC00Mi42IDI1LjIgMTQ4LjUgMTQ4LjUgMCAwIDAtMjguNyAzNS4zQzQ0MSAzNzkgNDMxLjggNDAwIDQyMyA0MjBjLTExLjQgMjYuNC0yMiA1MS43LTM4IDc1LjgtMTYuNyAyNS0zOC42IDQ4LjUtNjUuMyA2Mi44LTEyLjggNi45LTI2LjkgMTMtNDEuMiAxNS40YTQ4LjcgNDguNyAwIDAgMCAxNi41LTMzYzItMTQgMi44LTI5LjEuMi00My4yLTIuMi0xMi4yLTQuNS0yNC41LTYuNC0zNi44LTEuOC0xMy4yLTMuOC0yNS43LTMuNi0zOSAwLTExLjIgMS4zLTIyLjIgMy40LTMzLjIgNC4yLTIyLjUgMTMtNDMuMyAyNC02My4yYTE3Mi41IDE3Mi41IDAgMCAxIDQwLjQtNDYuN0EyNTMuMSAyNTMuMSAwIDAgMSA0OTYgMjIwYzE2LjQtMS43IDMzLjQtMS40IDQ5LjktLjhaTTcyMS45IDU4Mi41YzMuNS42IDcgMS41IDEwLjYgMS44LS41IDcuMy41IDE0LjQgMS42IDIxLjVhOTggOTggMCAwIDEtMjEuNC05LjggNzIgNzIgMCAwIDAgOS4yLTEzLjVaIiBmaWxsPSIjNTYyMzA2Ii8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjwvZz48L3N2Zz4=",
+  mint: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjIgNzYyIiBmaWxsPSJub25lIiBzaGFwZS1yZW5kZXJpbmc9ImF1dG8iPjxtZXRhZGF0YSB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6ZGN0ZXJtcz0iaHR0cDovL3B1cmwub3JnL2RjL3Rlcm1zLyI+PHJkZjpSREY+PHJkZjpEZXNjcmlwdGlvbj48ZGM6dGl0bGU+QWR2ZW50dXJlcjwvZGM6dGl0bGU+PGRjOmNyZWF0b3I+TGlzYSBXaXNjaG9mc2t5PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL3d3dy5maWdtYS5jb20vY29tbXVuaXR5L2ZpbGUvMTE4NDU5NTE4NDEzNzg4MTc5NjwvZGM6c291cmNlPjxkY3Rlcm1zOmxpY2Vuc2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLzwvZGN0ZXJtczpsaWNlbnNlPjxkYzpyaWdodHM+UmVtaXggb2Yg4oCeQWR2ZW50dXJlcuKAnSAoaHR0cHM6Ly93d3cuZmlnbWEuY29tL2NvbW11bml0eS9maWxlLzExODQ1OTUxODQxMzc4ODE3OTYpIGJ5IOKAnkxpc2EgV2lzY2hvZnNreeKAnSwgbGljZW5zZWQgdW5kZXIg4oCeQ0MgQlkgNC4w4oCdIChodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLyk8L2RjOnJpZ2h0cz48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC9tZXRhZGF0YT48bWFzayBpZD0idmlld2JveE1hc2siPjxyZWN0IHdpZHRoPSI3NjIiIGhlaWdodD0iNzYyIiByeD0iMCIgcnk9IjAiIHg9IjAiIHk9IjAiIGZpbGw9IiNmZmYiIC8+PC9tYXNrPjxnIG1hc2s9InVybCgjdmlld2JveE1hc2spIj48cmVjdCBmaWxsPSIjZmZiNDNjIiB3aWR0aD0iNzYyIiBoZWlnaHQ9Ijc2MiIgeD0iMCIgeT0iMCIgLz48cGF0aCBkPSJNMzk2IDE2NC44YTIyNC44IDIyNC44IDAgMCAxIDEwNC44IDQyLjRjNi4yIDQuOSAxMi41IDkuNCAxOCAxNWEyMjUuNCAyMjUuNCAwIDAgMSA3MS44IDE0OSA1OC41IDU4LjUgMCAwIDEgNTAuOSA0Mi4yIDcxIDcxIDAgMCAxLTI3LjYgNzYuNWMtMTEgNy43LTI0LjUgMTItMzggMTEuNy01IDAtMTAtMS42LTE1LTEuOC0xLjkgMi4yLTMuMyA0LjktNC44IDcuM0EyMjMuMyAyMjMuMyAwIDAgMSAzODkgNjA5LjhjLTExIC43LTIxLjkgMi0zMyAuN2EyMjMuNyAyMjMuNyAwIDAgMS0xNzguOC0zNDIuM0EyMjMuNCAyMjMuNCAwIDAgMSAzNTIgMTYzLjVjMTQuNi0xLjQgMjkuNC0uMyA0NCAxLjNaIiBmaWxsPSIjMDAwIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00OTguOCAyMTMuMkEyMTYgMjE2IDAgMCAwIDM2MyAxNjljLTEzLS4yLTI2LjIgMS42LTM5IDRhMjE4IDIxOCAwIDAgMC0xMTMuNiAzNjUuNSAyMTguNSAyMTguNSAwIDAgMCAyNjAuNCA0MC4yYzM1LTE4LjggNjQuMi00Ny4zIDg0LjQtODEuNWwtMy0xLjZjLTIuOC0xLjQtNS43LTMtOC01LTIuMi0yLS4zLTUuOCAyLjctNC43IDEuNS43IDMgMS42IDQuNCAyLjRhNTUgNTUgMCAwIDAgNTkuNi0zLjYgNjQuNSA2NC41IDAgMCAwIDI1LTY5LjggNTMuMSA1My4xIDAgMCAwLTI0LTMxIDUyLjYgNTIuNiAwIDAgMC00Ny0yLjhjLTEuNi44LTMuNCAxLjUtNSAxLjMtMi41LS4yLTIuOC00LjItLjYtNS4yIDgtNCAxNi41LTUuNiAyNS40LTYuNGEyMTcgMjE3IDAgMCAwLTcyLTE0Ni40Yy00LjQtNC04LjctOC4xLTEzLjktMTEuM1ptMTA3LjYgMTk2LjJjMi0xLjIgMS4zLTUuMS0xLjQtNS0yIDAtNC4yLjgtNi4yIDEuNmwtMS40LjRhOTUuMSA5NS4xIDAgMCAwLTI1LjUgMTIuNGMtMi4yIDItMi4yIDQuNC4xIDYuMmE5MiA5MiAwIDAgMCA1LjIgMi44IDM2IDM2IDAgMCAxIDEzIDkuMmMtLjIgMS45LTIgMy40LTMuNCA0LjVsLS4yLjJjLTMuOSAzLTguOCA1LTEzLjYgNy0yLjUgMS00LjkgMi03LjEgMy4xLTEuNy44LTIuNiAyLjItMS42IDMuOSAxIDIgMy4yIDEuMSA1IC41bC42LS4yIDUuNC0yLjNjNS40LTIuMyAxMS00LjUgMTUuNC04IDIuNy0yLjEgNS4xLTUuMSA1LjQtOC43LS41LTMuNC0yLjctNS43LTUuMy03LjhhODMgODMgMCAwIDAtMTEuNi03LjJsLTEuMS0uNmM1LjQtMyAxMC44LTUuNiAxNi42LTcuN2w1LTEuN2E1MiA1MiAwIDAgMCA2LjctMi42WiIgZmlsbD0iI2VjYWQ4MCIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTM4MC4yIDQ0Ny4yYTU1LjIgNTUuMiAwIDAgMSA2MSA0NS41IDU1IDU1IDAgMSAxLTYxLTQ1LjVaIiBmaWxsPSIjMDAwIi8+PHBhdGggZD0iTTM3OC4yIDQ1My4zYTQ5LjQgNDkuNCAwIDAgMSA1NyA1OC4yIDQ5LjMgNDkuMyAwIDEgMS01Ny01OC4yWiIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik01OTAgNDc1YzEzLS43IDI3LTEuNCAzOS44IDEuNCAyLjIuNiAzIDEuMyAyLjMgMy43LTIgMS43LTYgMy4zLTYuOCA2IDAgNiA5IDYgOS43IDEwLjktLjMgMy0yLjQgMy4zLTUgMy4xLTcuNi0uNi0xNS4zLTEuMi0yMy0xLjQtMTYgMC0zMi0uMi00OCAuOS03LjYuNy0xNS4yLjYtMjIuOCAxLjItMTEgMS0yMi4xIDEuMy0zMy4xIDMuMy0yLjcuNS01LjUgMS4xLTguMiAxLTItMS4yLTMuMS01LjUtLjYtNi44IDUuMy0zIDExLjMtNSAxNy4yLTYuOCAxNS01IDMwLjctOC4zIDQ2LjItMTEuNyAxMC43LTIuNCAyMS41LTMuNyAzMi4zLTQuOVpNNDA1LjQgNDc5LjdhMjAuMiAyMC4yIDAgMSAxIDQuNSAzOS41IDIwLjEgMjAuMSAwIDAgMS00LjUtMzkuNVoiIGZpbGw9IiMwMDAiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJNNDU2IDM4MC40YzIuMy0uMSAyLjkgMS43IDIuNyAzLjYtLjUgNC43LS44IDkuOC0yLjQgMTQuMi0xLjMuNC0yLjYuNi00IC45LTEuMS00LjggMC0xMC4zLjctMTUuMS40LTEuNy44LTMuOSAzLTMuNlpNNDc2LjggMzg2LjZjMCAzLjMtLjQgNi40LS43IDkuNiA0MS43LjUgODMuMy40IDEyNSAuOCAyLjIgMCA0IC44IDYgMS42LS43IDEuNS0uMyAzLjgtMi4zIDQtOCAxLjQtMTYuNi42LTI0LjggMS0xNy4zLjYtMzQuNyAxLTUyIDEuNS0xNyAuMi0zNCAxLjItNTEgMS40LTMuNC40LTYuMS0yLjctNy4zLTUuNSAwLTQuNCAxLTkuMSAyLTEzLjUgMS40LTIuNCAzLTEuNiA1LS45Wk00MzkuOCAzOTIuMmMwIDQuOSAwIDEwLjgtMi4yIDE1LjItMy4zIDEuNS03LjIgMS44LTEwLjYgMi41bC03NyAxNGMtNC4yLjgtOC43IDIuMi0xMyAyLjEtMi42LS41LTMuMy0zLjctLjktNSAzLjItMS40IDctMS43IDEwLjQtMi42bDg3LjItMjAuMyAxLjMtNS43YzEuNi0uMiAzLjItLjIgNC44LS4yWiIgZmlsbD0iIzAwMCIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxwYXRoIGQ9Ik01MTkgNTcyLjdjMTIuMy4yIDI0LjUgMiAzNiA2LjVhOTIuNiA5Mi42IDAgMCAxIDQzLjggMzVjMS4yIDEuNS44IDMuNSAxIDUuNC03LjMuNS0xNC41IDAtMjEuNy43LjEgNy40IDAgMTQuNC0zLjggMjEtMi4xIDMuOC01LjYgNy4yLTEwLjMgNy4yLTQuNSAwLTguMi0zLjUtMTAuNC03LjFhNDQuMiA0NC4yIDAgMCAxLTQuNC0yMWMtMjUuNCAwLTUwLjguMi03Ni4yLjQtNy40LS4zLTE0LjYuNi0yMiAuNC03LjUtLjItMTQuMi44LTIxLjUtLjggMC0xLjYtLjUtNCAuNi01LjNhMTIzLjMgMTIzLjMgMCAwIDEgODguOS00Mi40WiIgZmlsbD0iIzAwMCIvPjxwYXRoIGQ9Ik01MDkgNTc5LjVjNy0uNiAxNC0uNSAyMSAwYTg5IDg5IDAgMCAxIDQ4LjcgMjAuOGMtMTEuMy40LTIyLjUuNi0zMy43LjYtMzEgMS4xLTYyIC44LTkzIDEuOCA2LjItNC4yIDEyLjItOC40IDE4LjktMTEuNyAxMS45LTYgMjQuOC0xMCAzOC0xMS41WiIgZmlsbD0iIzhGMkU0NSIvPjxwYXRoIGQ9Ik01NjkgNjA2LjRjNS4yIDAgMTAuNi0uNiAxNS43IDAgMi40IDIgNC4zIDQuOCA2LjMgNy4xLTUuOS42LTExLjkgMC0xNy43LjgtMS4yIDcuMS0uMyAxNi42LTMuNiAyMy40LTEuMiAyLjctMy4zIDQtNS43IDUuNi0yLjMtMS42LTQuNS0zLTUuNy01LjYtMy40LTYuOC0zLjMtMTUuNy00LTIzLjItNS44LS41LTExLjUgMC0xNy4zLS4xLTMyLjguMi02NS42LjItOTguNC41IDIuMi0yIDQuNi01LjYgNy41LTYuMiAxOC0uOCAzNi0uMyA1NC0xLjEgMTEtLjUgMjItLjEgMzMtLjYgMTItLjMgMjQtLjEgMzYtLjZaIiBmaWxsPSIjNkZBOTQyIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PGcgZmlsbD0iIzAwMCI+PHBhdGggZD0iTTU1OCAyNDhjMzcuNyA1IDc0IDE5LjkgMTA0LjQgNDIuNyA0IDMuMyA4LjMgNi4yIDEyLjIgOS43QTIyMy42IDIyMy42IDAgMCAxIDc0OS43IDQzOGMxIDYuNyAyIDEzLjMgMS41IDIwLjItNC4xIDIuOS04LjIgMS42LTEzIDIuNS01LjguNy0xMC44IDMuMS0xNi4yIDUtMi44LjEtMi43LTItMy42LTQgNy41LTUuMyAxOC4yLTcgMjcuMy03LjhhMjE3LjggMjE3LjggMCAwIDAtNzMuMS0xNDcuNGMtNi02LjEtMTMtMTAuMi0xOS43LTE1LjQtMzIuNy0yMy03Mi0zNi41LTExMS45LTM4LjktMTIuOC0uMi0yNi4xLS42LTM4LjggMS4yYTIxOC4zIDIxOC4zIDAgMCAwLTE0MyA3OC42bC00LTEuNmMuNi0xLjkuNy0zLjYgMi01LjJBMjIzLjYgMjIzLjYgMCAwIDEgNTA0IDI0Ny4zbDEyLjUtMWMxNC0xIDI3LjcgMCA0MS41IDEuN1oiLz48cGF0aCBvcGFjaXR5PSIuMSIgZD0iTTU0MSAyNTIuMmM0MCAyLjQgNzkuMiAxNiAxMTIgMzkgNi42IDUgMTMuNyA5LjIgMTkuNSAxNS4zQTIxNy44IDIxNy44IDAgMCAxIDc0NS43IDQ1NGMtOSAuOS0xOS44IDIuNS0yNy4zIDcuOS0zIDIuMi02LjIgNC41LTkuOCA1LjgtMS41LjctMy4zLTEuMi0zLjItMi43LjMtMy41IDEuNS02LjkgMi0xMC40IDIuMi0xMy45LjYtMjguNC00LjYtNDEuNC01LjUuNC0xMC43LjctMTYtMS05LjgtMi45LTE3LjUtOS4yLTI0LjQtMTYuNS04LjUtOS0xNS41LTE5LjgtMjEuMi0zMC44LTkuNy0xOC43LTE2LjQtMzktMjAuOC01OS42YTE4MCAxODAgMCAwIDEtMzUgMTIuNGMtMzggMTAuMS03Ni4zIDE1LjUtMTE1LjQgMTguOC0xNSAxLTMwIDItNDUgMi0xMy43IDAtMjcuNC0uMS00MS0xLjctOC41LS42LTE2LjUtMi45LTI0LjgtNC43YTIxNy45IDIxNy45IDAgMCAxIDE0My03OC42YzEyLjctMS44IDI2LTEuNCAzOC44LTEuMloiLz48L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjwvZz48L3N2Zz4=",
+  berry: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjIgNzYyIiBmaWxsPSJub25lIiBzaGFwZS1yZW5kZXJpbmc9ImF1dG8iPjxtZXRhZGF0YSB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6ZGN0ZXJtcz0iaHR0cDovL3B1cmwub3JnL2RjL3Rlcm1zLyI+PHJkZjpSREY+PHJkZjpEZXNjcmlwdGlvbj48ZGM6dGl0bGU+QWR2ZW50dXJlcjwvZGM6dGl0bGU+PGRjOmNyZWF0b3I+TGlzYSBXaXNjaG9mc2t5PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL3d3dy5maWdtYS5jb20vY29tbXVuaXR5L2ZpbGUvMTE4NDU5NTE4NDEzNzg4MTc5NjwvZGM6c291cmNlPjxkY3Rlcm1zOmxpY2Vuc2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLzwvZGN0ZXJtczpsaWNlbnNlPjxkYzpyaWdodHM+UmVtaXggb2Yg4oCeQWR2ZW50dXJlcuKAnSAoaHR0cHM6Ly93d3cuZmlnbWEuY29tL2NvbW11bml0eS9maWxlLzExODQ1OTUxODQxMzc4ODE3OTYpIGJ5IOKAnkxpc2EgV2lzY2hvZnNreeKAnSwgbGljZW5zZWQgdW5kZXIg4oCeQ0MgQlkgNC4w4oCdIChodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLyk8L2RjOnJpZ2h0cz48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC9tZXRhZGF0YT48bWFzayBpZD0idmlld2JveE1hc2siPjxyZWN0IHdpZHRoPSI3NjIiIGhlaWdodD0iNzYyIiByeD0iMCIgcnk9IjAiIHg9IjAiIHk9IjAiIGZpbGw9IiNmZmYiIC8+PC9tYXNrPjxnIG1hc2s9InVybCgjdmlld2JveE1hc2spIj48cmVjdCBmaWxsPSIjNWI4Y2ZmIiB3aWR0aD0iNzYyIiBoZWlnaHQ9Ijc2MiIgeD0iMCIgeT0iMCIgLz48cGF0aCBkPSJNMzk2IDE2NC44YTIyNC44IDIyNC44IDAgMCAxIDEwNC44IDQyLjRjNi4yIDQuOSAxMi41IDkuNCAxOCAxNWEyMjUuNCAyMjUuNCAwIDAgMSA3MS44IDE0OSA1OC41IDU4LjUgMCAwIDEgNTAuOSA0Mi4yIDcxIDcxIDAgMCAxLTI3LjYgNzYuNWMtMTEgNy43LTI0LjUgMTItMzggMTEuNy01IDAtMTAtMS42LTE1LTEuOC0xLjkgMi4yLTMuMyA0LjktNC44IDcuM0EyMjMuMyAyMjMuMyAwIDAgMSAzODkgNjA5LjhjLTExIC43LTIxLjkgMi0zMyAuN2EyMjMuNyAyMjMuNyAwIDAgMS0xNzguOC0zNDIuM0EyMjMuNCAyMjMuNCAwIDAgMSAzNTIgMTYzLjVjMTQuNi0xLjQgMjkuNC0uMyA0NCAxLjNaIiBmaWxsPSIjMDAwIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00OTguOCAyMTMuMkEyMTYgMjE2IDAgMCAwIDM2MyAxNjljLTEzLS4yLTI2LjIgMS42LTM5IDRhMjE4IDIxOCAwIDAgMC0xMTMuNiAzNjUuNSAyMTguNSAyMTguNSAwIDAgMCAyNjAuNCA0MC4yYzM1LTE4LjggNjQuMi00Ny4zIDg0LjQtODEuNWwtMy0xLjZjLTIuOC0xLjQtNS43LTMtOC01LTIuMi0yLS4zLTUuOCAyLjctNC43IDEuNS43IDMgMS42IDQuNCAyLjRhNTUgNTUgMCAwIDAgNTkuNi0zLjYgNjQuNSA2NC41IDAgMCAwIDI1LTY5LjggNTMuMSA1My4xIDAgMCAwLTI0LTMxIDUyLjYgNTIuNiAwIDAgMC00Ny0yLjhjLTEuNi44LTMuNCAxLjUtNSAxLjMtMi41LS4yLTIuOC00LjItLjYtNS4yIDgtNCAxNi41LTUuNiAyNS40LTYuNGEyMTcgMjE3IDAgMCAwLTcyLTE0Ni40Yy00LjQtNC04LjctOC4xLTEzLjktMTEuM1ptMTA3LjYgMTk2LjJjMi0xLjIgMS4zLTUuMS0xLjQtNS0yIDAtNC4yLjgtNi4yIDEuNmwtMS40LjRhOTUuMSA5NS4xIDAgMCAwLTI1LjUgMTIuNGMtMi4yIDItMi4yIDQuNC4xIDYuMmE5MiA5MiAwIDAgMCA1LjIgMi44IDM2IDM2IDAgMCAxIDEzIDkuMmMtLjIgMS45LTIgMy40LTMuNCA0LjVsLS4yLjJjLTMuOSAzLTguOCA1LTEzLjYgNy0yLjUgMS00LjkgMi03LjEgMy4xLTEuNy44LTIuNiAyLjItMS42IDMuOSAxIDIgMy4yIDEuMSA1IC41bC42LS4yIDUuNC0yLjNjNS40LTIuMyAxMS00LjUgMTUuNC04IDIuNy0yLjEgNS4xLTUuMSA1LjQtOC43LS41LTMuNC0yLjctNS43LTUuMy03LjhhODMgODMgMCAwIDAtMTEuNi03LjJsLTEuMS0uNmM1LjQtMyAxMC44LTUuNiAxNi42LTcuN2w1LTEuN2E1MiA1MiAwIDAgMCA2LjctMi42WiIgZmlsbD0iIzllNTYyMiIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTU1MC4zIDQyNC40YTY1LjcgNjUuNyAwIDAgMSA2OC4yIDQzLjNBNjUgNjUgMCAwIDEgNTk4IDU0MGE2NS40IDY1LjQgMCAxIDEtNDcuNy0xMTUuNloiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNTQ5LjMgNDMwLjNhNTkuNiA1OS42IDAgMSAxIDE1LjEgMTE4LjMgNTkuNiA1OS42IDAgMCAxLTE1LjEtMTE4LjNaIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTM4MS4yIDQ0N0E1NS4zIDU1LjMgMCAwIDEgNDQxIDQ5MmE1NSA1NSAwIDEgMS01OS44LTQ0LjhaIiBmaWxsPSIjMDAwIi8+PHBhdGggZD0iTTM3OC4yIDQ1My4zYTQ5LjEgNDkuMSAwIDAgMSA1Ny4yIDU3LjQgNDkuNCA0OS40IDAgMSAxLTU3LjEtNTcuNFoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNNTI3LjIgNDY2LjJhMjMuOCAyMy44IDAgMSAxIDUuNyA0Ny4xIDIzLjggMjMuOCAwIDAgMS01LjYtNDcuMVpNMzU4LjUgNDgwLjlhMjEuOCAyMS44IDAgMCAxIDI4IDE2LjVBMjEuNyAyMS43IDAgMCAxIDM2OSA1MjNhMjEuOSAyMS45IDAgMCAxLTI0LjYtMTQuMiAyMi4zIDIyLjMgMCAwIDEgMTQuMS0yOFoiIGZpbGw9IiMwMDAiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJNNjA3IDM5Ny42YzEuNS0uNCAzLjIuNiA0LjcgMSAwIDEuMi0uMSAyLjQtLjQgMy42LTEuNiAxLjUtMy42IDIuNi01LjQgMy44YTgwMy42IDgwMy42IDAgMCAxLTcwLjQgNDAuNkEyODkuOSAyODkuOSAwIDAgMSA1MDAgNDYyYTUwIDUwIDAgMCAxLTIxIDMuNWMtMy4zLS40LTYuMi0zLTYuMi02LjUgMC00LjIgMy04LjYgNS0xMi4xIDEuMy0yLjcgNC41LTMgNy00LjFsMTExLjctNDEuNWMzLjUtMS4yIDctMi44IDEwLjUtMy43Wk0zMzkgNDMyLjZsOTAgMThjMi4zLjQgNC42LjEgNi45LjUgMi40IDIuMyAzLjYgNi4yIDQuNSA5LjQgMS4yIDQtLjEgOC44LTQgMTEtNCAyLjYtOS44IDIuMS0xNC40IDEuOS04LjgtMS0xNy40LTMuOC0yNS43LTYuOGE0MTggNDE4IDAgMCAxLTU3LTI3Yy0xLjYtLjktMy42LTEuOS00LjgtMy41LS4zLTIuOSAxLjktNC4xIDQuNS0zLjVaIiBmaWxsPSIjMDAwIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTUwNSA2MDkuNmM0LjcgMS4zIDkgNC43IDEyLjIgOC4yIDEuNCAxLjcgMy42IDMuOSAzIDYuMi0uNCAyLjUtMy43IDMtNSAuOGEyNy41IDI3LjUgMCAwIDAtOS40LTguNWMtMi4zLTEuNS02LjgtLjYtNi43LTQuMi41LTMgMy42LTIuOSA2LTIuNVpNNDk4IDYyM2M1IDEuNSA4LjQgNS44IDguOCAxMSAxLjMgMTMuMi05LjQgMjUuOC0yMS44IDI5LjItMTIuNCAzLjctMjguOC0xLTM1LTEzLjItMi41LTQuMi0zLjgtOS4yLTItMTQgMS44LTQgNS44LTUuNiAxMC02IDUtLjYgOS41IDEgMTMuOSAzLjUgMy44LTQgNy43LTcuNiAxMi45LTkuOCA0LTEuOCA5LTIgMTMuMi0uN1oiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNDk5IDYzMGMzLjIgMy41IDIuMiA5LjYuNCAxMy41YTI1LjUgMjUuNSAwIDAgMS0yNiAxNWMtNy4yLTEuMi0xNC4yLTQuMS0xOC4xLTEwLjgtMS40LTIuNi0zLjQtNi42LTItOS40IDIuMi0zLjggOC43LTMuMiAxMi4yLTEuOCAyLjguNyA1LjYgNCA4LjQgMy41IDMuNy0zLjUgNi41LTcuNCAxMS4yLTkuOCA0LjMtMi40IDkuNi0zLjMgMTMuOC0uMVoiIGZpbGw9IiM4RjJFNDUiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJNNjA0LjQgNTY4LjRjNC0yLjQgOS40IDAgMTEgNC4yIDEuOCA0LjQtMS44IDkuOS02LjUgMTAuMmE3LjggNy44IDAgMCAxLTgtNC44IDcuOCA3LjggMCAwIDEgMy41LTkuNloiIGZpbGw9IiMwMDAiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJNNTMzIDIyOS41YzE4LjktLjcgMzcuOC4zIDU2LjUgMi45IDE1LjIgMiAzMC4yIDQuMiA0NSA4IDExLjggMi43IDIzIDYuMyAzNCAxMSAxMS41IDUuMiAyMi43IDEwIDMzLjYgMTYuNSA2LjcgNC4xIDEzLjIgOC43IDE5LjMgMTMuNyAxNiAxMyAyOSAzMC42IDQwLjMgNDcuOCA5LjQgMTUgMTcuNiAzMC45IDI1IDQ3YTk2Mi43IDk2Mi43IDAgMCAxIDM5IDEwNGMxMCAzMi44IDE3LjIgNjcuMiAxOS4zIDEwMS42LjUgMTMuNy0uOCAyNy43LTQuMiA0MS00LjYgMTYuMi0xMSAzMS44LTE5LjMgNDYuNUE5NS42IDk1LjYgMCAwIDEgODEwIDY4NWMtMS43IDEuNy0zIDMuNy01LjcgMi43LTItLjgtMS4yLTQuMy0xLTUuOSAxLjUtNy4zIDIuMi0xNC41IDIuNS0yMkE4OS45IDg5LjkgMCAwIDEgNzk4IDY3OGMtNiAxMS4yLTEzLjYgMjEuNC0yMi41IDMwLjVhMzMzLjcgMzMzLjcgMCAwIDEtNzAuNCA1Mi42Yy0xNCA4LjQtMjguOCAxNS4yLTQzLjMgMjIuNy0xLjguOS0zLjcgMS01LS43LTEtMS41LS4zLTIuNi4yLTQuMWExNzMuNSAxNzMuNSAwIDAgMCAxMy44LTQ4IDE1Ny4yIDE1Ny4yIDAgMCAxLTMzIDU1LjljLTEuNiAyLTQuNiAzLTYgLjIgMC0zLjIgMS44LTYuNSAyLjctOS42IDEwLTMwLjMgMTYtNjEuNyAxOC42LTkzLjUgMS4xLTkuNiAxLjQtMTkuMyAyLjMtMjkgMS43LTMxLjIgMy42LTYyLjcgMy4zLTk0IDAtMTAgLjItMjAtLjYtMzBhNjE1IDYxNSAwIDAgMC05LTg3LjIgNTkwLjcgNTkwLjcgMCAwIDEtMTc2LjQtNjMuNSAzNTcuNCAzNTcuNCAwIDAgMS01NS42LTM3LjVjLTcuNi02LjQtMTQuOS0xMy4zLTIxLjMtMjAuOWEyOTUuNyAyOTUuNyAwIDAgMC01Mi41IDQ5LjVjLTEuNSAyLTEuNCA1LjItMiA3LjYtMi4yIDEzLjQtNC41IDI2LjgtNi41IDQwLjItNi4zIDQwLjItOS44IDgxLTkuNiAxMjEuOC4yIDQuMi0uNCA4LjYgMS40IDEyLjRhMjE4LjkgMjE4LjkgMCAwIDAgMTI4LjggMTIyLjFjMi4yLjcgMy42IDEuOCA1LjIgMy41LTMuMyA0LjYtOC44IDcuNy0xMy4yIDExLjRhNDA5LjUgNDA5LjUgMCAwIDAtNTggNTdjLTIgMi0zLjIgNS4xLTUuNCA2LjgtOSAuMi0xOC0yLTI3LTIuNy0xMC40LS42LTIwLjgtMi4xLTMxLjItMyAyLjQgOCA2LjMgMTUuNSA5LjUgMjMuMiAxLjcgMi42LTIuNSA2LjMtNSA1YTc1IDc1IDAgMCAxLTIzLTE4Yy0xMi4yLTE0LTIyLjktMzAuMi0yOS40LTQ3LjdhMTk0LjkgMTk0LjkgMCAwIDEtMTEuNS00N2MtLjctNy4zLTEuNy0xNC42LTEuOC0yMmE1MDEuMiA1MDEuMiAwIDAgMSAxMC0xMTAuOGMzLjctMjAuNyA4LjYtNDEgMTQtNjEuNC43LTMgMi41LTYuOCAxLjQtOS44YTE0NiAxNDYgMCAwIDEtNC41LTIyIDEyMiAxMjIgMCAwIDEgMi4yLTM0LjUgMTM2IDEzNiAwIDAgMSAxMS0yOS44IDM4NCAzODQgMCAwIDEgMzMuNi01My4zYzcuMy05LjYgMTUtMTkuMSAyMy40LTI3LjcgOS4yLTkgMTkuNi0xNi43IDMwLjQtMjMuNiAxMS4yLTcuNiAyNi05LjQgMzguOS0xMi4xIDUuNS0xIDEwLjctMyAxNi00LjYgNC0uOCA3LjItMy43IDEwLjktNS42IDExLjUtNi42IDI0LTExLjEgMzcuMS0xMy43IDE0LjUtMi42IDI5LjMtMy40IDQ0LTMuNloiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNTU3IDIzNS4yYzIwLjUgMSA0MC44IDMuNyA2MSA3LjQgMTEuMyAyLjMgMjIuNiA1LjMgMzMuNyA4LjdhMzE5IDMxOSAwIDAgMSAzNy44IDE2LjIgMTUwIDE1MCAwIDAgMSA0MS4yIDMwLjhjMjQuNiAyNi42IDQyIDU5LjcgNTYuMSA5Mi45YTk2NCA5NjQgMCAwIDEgMzMuMyA5MC43QTQ2My42IDQ2My42IDAgMCAxIDgzNyA1NThjMi44IDIxLjMgMy43IDQ1LTIuNCA2NS44QTIyNi4zIDIyNi4zIDAgMCAxIDgxNiA2NjhjLTEuNyAzLTMuOCA2LTYgOC43IDEuMy0xMS4yIDEuNi0yMi41IDEuNS0zMy43LS44LTguNy43LTE3LjMuOC0yNiAxLTguNyAxLTE3LjMuNy0yNiAuMS0yLjgtMy41LTUtNC44LTEuOC0uOSA0LjcgMCAxMC0uNSAxNC44LTEgMTQtMS4yIDI5LTQuMyA0Mi44LTQuNCAyMi41LTE3LjQgNDMtMzMuNCA1OS4yYTM0Mi4zIDM0Mi4zIDAgMCAxLTcxIDUyYy0xMS4yIDYuNS0yMi44IDEyLTM0LjMgMTcuOGEyMTIuNiAyMTIuNiAwIDAgMCAxNC44LTcyLjhjMC0xLjctLjYtMy0xLjEtNC42bC0zLjUuNGMtLjkgMS0xLjIgMi0xLjQgMy4yYTE5Ni4xIDE5Ni4xIDAgMCAxLTE2LjUgNDcuMWMtNC40IDkuMS05LjggMTcuNC0xNS43IDI1LjUgMS44LTYuOCA0LTEzLjUgNS44LTIwLjQgOS40LTM0IDEyLjMtNzEgMTQuNC0xMDYuMi44LTcuMy43LTE0LjcgMS4yLTIyIDEtMTMuMyAxLjEtMjYuNiAxLjUtNDAgLjEtMjUuNC41LTUxLjItMS4zLTc2LjUtLjktMTMuMi0yLjQtMjYuMy0zLjktMzkuNGwtMy44LTI1LjRjOS44IDEuOCAxOS44IDMgMjkuOCAzLjggMy41LjMgNy40IDEgMTAuOC40IDIuNi0xLjcgMi00LjgtMS01LjQtMzIuOC0xLjktNjYtOC44LTk3LjYtMThhNjE2LjMgNjE2LjMgMCAwIDEtOTgtMzcuOWMtMTkuNS05LjctMzktMjAuNS01Ni44LTMzLTE4LjQtMTIuNy0zNy43LTI4LjEtNTAtNDctMS40LTIuMi0zLTEuNi01LjItMS4yLS44IDQuOCAyLjYgNy4yIDUgMTAuOS00LjQgMy42LTkgNy0xMy4zIDEwLjZhMjcxLjIgMjcxLjIgMCAwIDAtNjEuNSA3MC41Yy0uNyAxLjQtMS43IDMtMS43IDQuNi0uNCAyLjMgMy40IDMuNSA0LjUgMS40IDQuNS04LjQgMTAtMTYgMTUuNy0yMy44QTc3MS44IDc3MS44IDAgMCAwIDMxOS44IDU1MmMuMiAzOS42IDQuNyA3OS4zIDEyIDExOC4yLjYgMi41IDIuNiAyIDQuNiAyLjQuNy0xLjkgMS0zLjUuNi01LjUtMy45LTIxLjgtNy4zLTQ0LTktNjYuMS0xLjUtMTEuOC0xLjYtMjMuOC0yLjMtMzUuNkEyMjUuNSAyMjUuNSAwIDAgMCA0NTEgNjgwLjJjLTEwLjcgOC4zLTIxIDE2LjgtMzAuOSAyNmEzOTMuNyAzOTMuNyAwIDAgMC0zOC40IDQyLjNjLTMuOC0uMi03LjUtLjYtMTEuMy0xLjItMTEuOC0xLjYtMjMuNy0yLjItMzUuNS0zLjYtNC0uMS05LjMtMS45LTEyLjguMy0zIDItMS44IDYtLjkgOC44IDIuMSA1LjUgNC43IDEwLjggNyAxNi4yYTk3LjcgOTcuNyAwIDAgMS0yNy0yNy4yYy04LjItMTEuMy0xNS0yMy42LTE5LjQtMzYuOGExOTAuNyAxOTAuNyAwIDAgMS05LjEtMzYuMmMtMi0xNC41LTMtMjkuMS0yLjYtNDMuOC0uNC05LjcuOS0xOS4zIDEuMi0yOSAxLjUtMTkuOCA0LjEtMzkuNSA3LjktNTkgNC4zLTIzLjIgOS40LTQ2LjIgMTUuMy02OSAuNi0yLjggMi4yLTYgMS4yLTguOGExMTIuOCAxMTIuOCAwIDAgMS01LTMxLjJjLjMtMTAuMiAxLjMtMjAuMiA0LjMtMzAgNS4yLTE3LjEgMTQuNC0zMyAyMy45LTQ4YTM2NSAzNjUgMCAwIDEgMzYuOS00OS4xQTE2Ny44IDE2Ny44IDAgMCAxIDM4OSAyNzRjMTIuOS04LjYgMzAtOS41IDQ0LjYtMTMuNy0zLjQgMy40LTYuOSA2LjYtMTAuNCA5LjctMSAxLTIuOCAyLjQtMi42IDQtLjQgMi4yIDIuNyAzIDQuMiAxLjcgNS00LjQgOS44LTguOSAxNC42LTEzLjQgNy02LjYgMTYuMS0xMS4zIDI0LjctMTUuMyAxMy02IDI2LjctOSA0MS0xMC40IDE3LjMtMS4zIDM0LjUtMi4yIDUyLTEuNVoiIGZpbGw9IiNlNWQ3YTMiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48L2c+PC9nPjwvc3ZnPg==",
+  sky: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjIgNzYyIiBmaWxsPSJub25lIiBzaGFwZS1yZW5kZXJpbmc9ImF1dG8iPjxtZXRhZGF0YSB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6ZGN0ZXJtcz0iaHR0cDovL3B1cmwub3JnL2RjL3Rlcm1zLyI+PHJkZjpSREY+PHJkZjpEZXNjcmlwdGlvbj48ZGM6dGl0bGU+QWR2ZW50dXJlcjwvZGM6dGl0bGU+PGRjOmNyZWF0b3I+TGlzYSBXaXNjaG9mc2t5PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL3d3dy5maWdtYS5jb20vY29tbXVuaXR5L2ZpbGUvMTE4NDU5NTE4NDEzNzg4MTc5NjwvZGM6c291cmNlPjxkY3Rlcm1zOmxpY2Vuc2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLzwvZGN0ZXJtczpsaWNlbnNlPjxkYzpyaWdodHM+UmVtaXggb2Yg4oCeQWR2ZW50dXJlcuKAnSAoaHR0cHM6Ly93d3cuZmlnbWEuY29tL2NvbW11bml0eS9maWxlLzExODQ1OTUxODQxMzc4ODE3OTYpIGJ5IOKAnkxpc2EgV2lzY2hvZnNreeKAnSwgbGljZW5zZWQgdW5kZXIg4oCeQ0MgQlkgNC4w4oCdIChodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLyk8L2RjOnJpZ2h0cz48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC9tZXRhZGF0YT48bWFzayBpZD0idmlld2JveE1hc2siPjxyZWN0IHdpZHRoPSI3NjIiIGhlaWdodD0iNzYyIiByeD0iMCIgcnk9IjAiIHg9IjAiIHk9IjAiIGZpbGw9IiNmZmYiIC8+PC9tYXNrPjxnIG1hc2s9InVybCgjdmlld2JveE1hc2spIj48cmVjdCBmaWxsPSIjOGE2YmZmIiB3aWR0aD0iNzYyIiBoZWlnaHQ9Ijc2MiIgeD0iMCIgeT0iMCIgLz48cGF0aCBkPSJNMzk2IDE2NC44YTIyNC44IDIyNC44IDAgMCAxIDEwNC44IDQyLjRjNi4yIDQuOSAxMi41IDkuNCAxOCAxNWEyMjUuNCAyMjUuNCAwIDAgMSA3MS44IDE0OSA1OC41IDU4LjUgMCAwIDEgNTAuOSA0Mi4yIDcxIDcxIDAgMCAxLTI3LjYgNzYuNWMtMTEgNy43LTI0LjUgMTItMzggMTEuNy01IDAtMTAtMS42LTE1LTEuOC0xLjkgMi4yLTMuMyA0LjktNC44IDcuM0EyMjMuMyAyMjMuMyAwIDAgMSAzODkgNjA5LjhjLTExIC43LTIxLjkgMi0zMyAuN2EyMjMuNyAyMjMuNyAwIDAgMS0xNzguOC0zNDIuM0EyMjMuNCAyMjMuNCAwIDAgMSAzNTIgMTYzLjVjMTQuNi0xLjQgMjkuNC0uMyA0NCAxLjNaIiBmaWxsPSIjMDAwIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00OTguOCAyMTMuMkEyMTYgMjE2IDAgMCAwIDM2MyAxNjljLTEzLS4yLTI2LjIgMS42LTM5IDRhMjE4IDIxOCAwIDAgMC0xMTMuNiAzNjUuNSAyMTguNSAyMTguNSAwIDAgMCAyNjAuNCA0MC4yYzM1LTE4LjggNjQuMi00Ny4zIDg0LjQtODEuNWwtMy0xLjZjLTIuOC0xLjQtNS43LTMtOC01LTIuMi0yLS4zLTUuOCAyLjctNC43IDEuNS43IDMgMS42IDQuNCAyLjRhNTUgNTUgMCAwIDAgNTkuNi0zLjYgNjQuNSA2NC41IDAgMCAwIDI1LTY5LjggNTMuMSA1My4xIDAgMCAwLTI0LTMxIDUyLjYgNTIuNiAwIDAgMC00Ny0yLjhjLTEuNi44LTMuNCAxLjUtNSAxLjMtMi41LS4yLTIuOC00LjItLjYtNS4yIDgtNCAxNi41LTUuNiAyNS40LTYuNGEyMTcgMjE3IDAgMCAwLTcyLTE0Ni40Yy00LjQtNC04LjctOC4xLTEzLjktMTEuM1ptMTA3LjYgMTk2LjJjMi0xLjIgMS4zLTUuMS0xLjQtNS0yIDAtNC4yLjgtNi4yIDEuNmwtMS40LjRhOTUuMSA5NS4xIDAgMCAwLTI1LjUgMTIuNGMtMi4yIDItMi4yIDQuNC4xIDYuMmE5MiA5MiAwIDAgMCA1LjIgMi44IDM2IDM2IDAgMCAxIDEzIDkuMmMtLjIgMS45LTIgMy40LTMuNCA0LjVsLS4yLjJjLTMuOSAzLTguOCA1LTEzLjYgNy0yLjUgMS00LjkgMi03LjEgMy4xLTEuNy44LTIuNiAyLjItMS42IDMuOSAxIDIgMy4yIDEuMSA1IC41bC42LS4yIDUuNC0yLjNjNS40LTIuMyAxMS00LjUgMTUuNC04IDIuNy0yLjEgNS4xLTUuMSA1LjQtOC43LS41LTMuNC0yLjctNS43LTUuMy03LjhhODMgODMgMCAwIDAtMTEuNi03LjJsLTEuMS0uNmM1LjQtMyAxMC44LTUuNiAxNi42LTcuN2w1LTEuN2E1MiA1MiAwIDAgMCA2LjctMi42WiIgZmlsbD0iIzllNTYyMiIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTYxNy4yIDQ2OC44YzEuMiAxLjQgMi40IDIuNCAyLjkgNC4yYTY1LjUgNjUuNSAwIDAgMS03OSA3OS42IDY1LjIgNjUuMiAwIDAgMS00OS03MS42Yy42LTMuNCAxLjgtNy4yIDUuNy04IDguNi0xLjYgMTcuNS0xLjQgMjYuMi0yLjRhOTk5IDk5OSAwIDAgMSA3My0yYzYuOC0uNCAxMy41LjQgMjAuMi4yWiIgZmlsbD0iIzAwMCIvPjxwYXRoIGQ9Im02MDcgNDc0LjMgNy41LjNhNTkgNTkgMCAwIDEtMzcuMiA3MC42IDU5LjMgNTkuMyAwIDAgMS03OS02NmMxLjgtLjcgMy43LTEuMyA1LjctMS40IDE2LjktMS40IDMzLjgtMi40IDUwLjgtMy0uNSA1LjItLjIgMTAuNCAyIDE1LjRhMjYuNyAyNi43IDAgMCAwIDE4LjcgMTVjNC45LjkgOS45LjYgMTQuNi0xLjEgOC4yLTIuOCAxNC4zLTEwIDE2LjQtMTguMyAxLTMuOS43LTcuNi42LTExLjVaIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTQzMiA0ODAuN2MyLS4zIDMuOC4zIDUuOC43YTU1IDU1IDAgMSAxLTEwNiAxOC42YzYuNS0zLjMgMTMuMS0zLjggMjAuNC01LjUgMjAuNS00LjIgNDEuMS04LjEgNjEuOC0xMS4zIDYtMSAxMi0yIDE4LTIuNVoiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNDMzLjcgNDg2YTU0LjcgNTQuNyAwIDAgMSAyLjYgMTYgNDkuNiA0OS42IDAgMCAxLTU0LjMgNDguOSA0OS43IDQ5LjcgMCAwIDEtNDQuNC00Ny4zYzE0LjQtMy42IDI5LjEtNi4yIDQzLjctOWEyNC43IDI0LjcgMCAwIDAgMTAuMSAxNiAyNCAyNCAwIDAgMCAzMC0yLjMgMjUgMjUgMCAwIDAgNy4yLTIxLjdsNS4xLS41WiIgZmlsbD0iI2ZmZiIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxwYXRoIGQ9Ik01NDUgMzc4LjVjMjQuNyAxIDQ4IDkgNjkuNSAyMSAyLjIgMS4zIDQuOSAyLjUgNi44IDQuMyAxLjMgMi40LS40IDUuMS0zLjIgNC4yYTIzNC4yIDIzNC4yIDAgMCAwLTUxLTEyYy0yMC40LTIuNC00MC0zLjctNjAuMy0uMS0zLjIuNC02LjkgMi4xLTEwIDEuNi0yLjctMS43LTEuMy02LjEgMS4yLTcuNGE3OC42IDc4LjYgMCAwIDEgNDctMTEuNlpNNDA4IDM5N2MzLjUuNiA2LjYgMS44IDkuNiAzLjdhNTQgNTQgMCAwIDAtLjMgMy42Yy0yLjcuOC01LjUgMS4xLTguMiAxLjRhMTUyIDE1MiAwIDAgMC0zOC45IDkuNyAxNDAuNiAxNDAuNiAwIDAgMC0zNS4xIDE4LjdjLTIuOSAyLTQuMiA0LjgtOC4xIDQuNGwtMS41LTIuNmMuOS0xLjYgMS42LTMuMiAyLjctNC43YTkwIDkwIDAgMCAxIDM4LjYtMjkuM2MxMi43LTUuMiAyNy42LTggNDEuMi01WiIgZmlsbD0iIzAwMCIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxwYXRoIGQ9Ik01MjIuOCA1NjNjMTEgMS40IDIxLjkgNyAyNy4yIDE3YTMxLjQgMzEuNCAwIDAgMSAzLjMgMjEuMiA1My42IDUzLjYgMCAwIDEtMTQuNSAyNy42IDc3IDc3IDAgMCAxLTQ0LjggMjMgOTIuNyA5Mi43IDAgMCAxLTQyLjktMyA3Ny40IDc3LjQgMCAwIDEtMjMuOC0xMyA2Mi4yIDYyLjIgMCAwIDEtMTkuNS0yNS42QTMzIDMzIDAgMCAxIDQwNiA1OTNhMjEgMjEgMCAwIDEgMTIuOC0xNS4zIDM3IDM3IDAgMCAxIDIxLjItMS44YzkgMS4yIDE2LjcgNSAyNC43IDkuMWE3MS42IDcxLjYgMCAwIDEgNTguMS0yMloiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNTE4IDU2OC41YzguOC40IDE3LjQgMy4zIDIzLjcgOS43LTMgMy43LTYuOSA2LjMtMTEgOC41LTEuNy45LTMuNyAxLjctNSAzLTIuNSAzLTMuNyA4LjItNi43IDEwLjUtMy42LTEuMi02LjgtMy45LTEwLTUuOGExNzUuNCAxNzUuNCAwIDAgMS00NCA0LjVjLTExIC4zLTIyLS42LTMzLTIuNC0xLjgtLjMtNC0xLTUuOC0uNC0yLjIgMS41LTQgMy42LTUuOCA1LjRsLTUuNS04LjUtMi43LTEuMmMyLjctNiA4LjQtOS42IDE0LjgtMTAuNGE1NCA1NCAwIDAgMSAzNCA4LjZjMiAxIDMuNiAyLjMgNS44LjkgMi44LTIuMiA1LjEtNSA4LTcuMSAxMi05LjYgMjcuNy0xNiA0My4yLTE1LjJaIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTU0NS4zIDU4My4zYTI5LjIgMjkuMiAwIDAgMSAyLjIgMTcuN2MtMiA5LjUtNyAxNy44LTEzLjkgMjQuNmE3NS4yIDc1LjIgMCAwIDEtNDEuNiAyMC43IDg4LjggODguOCAwIDAgMS0zNC0xLjcgNzAuNiA3MC42IDAgMCAxLTM3LjYtMjQgMzguOCAzOC44IDAgMCAxLTkuMy0yM2MyLjYgMi43IDMuOCA2LjMgNi4zIDkgNC4yIDMuMyA3LjctMi4xIDEwLjUtNC43YTIxOC42IDIxOC42IDAgMCAwIDgwLjItMS4yYzMuNyAxLjUgOC40IDYgMTIuNyA1IDYtMi4zIDYtMTEuOSAxMi4zLTEzLjZhNDIuNyA0Mi43IDAgMCAwIDEyLjItOC44WiIgZmlsbD0iIzhGMkU0NSIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNNTc3IDQxNi4xYTc5LjkgNzkuOSAwIDAgMSAzOSAxNDEgNzkuNiA3OS42IDAgMCAxLTkyLjUgNi40IDgwIDgwIDAgMCAxLTM4LjItNjkuM2MtNS01LjMtMTAuNy05LjYtMTguMy05LjctNy44LjEtMTQuMyA1LjctMTcuMiAxMi42LjcgNi43IDEuNSAxMy4zLjYgMjBhNjkuOCA2OS44IDAgMCAxLTEzNS44IDE1LjMgNjkuNyA2OS43IDAgMCAxIDIxLTc1LjcgNzEgNzEgMCAwIDEgNDYuNC0xNi44IDY5LjggNjkuOCAwIDAgMSA2NSA0Ny40YzQuOS01LjcgMTEuMy0xMCAxOS0xMCA3LjQtLjMgMTQuMiAyLjYgMTkuNyA3LjMgMS43LTguNyAzLjgtMTcgOC0yNWE4MCA4MCAwIDAgMSA4My4zLTQzLjVabS0yNS41IDcuOGE3Mi40IDcyLjQgMCAwIDEgODUuOSA4MCA3Mi43IDcyLjcgMCAxIDEtODUuOS04MFptLTE0Ny40IDI4YTYyLjYgNjIuNiAwIDEgMC0zNy45IDExOC45YzE1LjUgMy40IDMyLjEgMS4zIDQ1LjktNi43YTYzLjMgNjMuMyAwIDAgMCAzMC00MS45IDYyLjcgNjIuNyAwIDAgMC0zOC03MC40WiIgZmlsbD0iIzAwMCIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxnIGZpbGw9IiMwMDAiPjxwYXRoIGQ9Ik00NTMuMiAyMjEuNmMyLjItLjMgNS0xIDcgLjIgMS4yIDEuNCAxLjQgMy4yLjIgNC43LTEuOCAyLjEtNC4yIDMuOC02LjQgNS41YTc1LjggNzUuOCAwIDAgMC05LjMgOSAzODcuOCAzODcuOCAwIDAgMSAxMjkuMy03LjdjMjkuMSAzLjIgNTkuMiA5LjYgODYgMjEuNyAxNC41IDYuNiAyOSAxNS4zIDM5LjkgMjcuMWE1MiA1MiAwIDAgMSAxNC43IDMxLjhjNCAuOCA4IDEuNiAxMS41IDRBNTEgNTEgMCAwIDEgNzQzIDM0MGExNTkgMTU5IDAgMCAxIDExLjMgNDQuN2MxLjQgMTQuMiAyLjIgMjguNCAxLjQgNDIuNy0uOCA5LjUtMS4zIDE5LTMgMjguNS0uMiAxLjMtLjMgMi41LTEuOCAzLTYuNy43LTE0LjQuNy0yMC43IDMuMi05IDMuNS0xNy42IDcuMi0yNS43IDEyLjMtMS4zLjctMyAyLTQuNSAxLjdhMyAzIDAgMCAxLTIuMy00LjVjMi41LTUuNCA1LjctMTAuNSA4LjctMTUuOC02IDIuNy0xMi4xIDUuMS0xNy43IDguNi0xLjctMS4yLTMuNC0yLjEtMy42LTQuNS0uOC0xMC40LS42LTIxLTEuNi0zMS40LTEuNC0xLjMtMy0yLjQtNC42LTMuNWExNjcgMTY3IDAgMCAxLTE4LjEtMTMuOWMtMS42LTEuNC0zLTMtNC01YTIzOC42IDIzOC42IDAgMCAxLTIwLTc0LjhjLTcuOSAwLTE1LjUtLjYtMjMuMy0xLjYgMiAxLjggNC44IDMuNSA1LjYgNi4yLS42IDIuNC0yLjUgMy00LjUgMy45YTEzOSAxMzkgMCAwIDEtNTEuNiA4LjNjLTI4LjItLjMtNTYuNC02LjUtODIuNC0xNy4zIDMuNSA0IDcgNy45IDExLjIgMTEuMyAxLjUgMS40IDMuNiAyLjkgNC40IDQuOC0uNCAyLjgtMi40IDQuMi01LjIgMy45LTE3LjUtMS42LTM0LjYtNS01Mi04LjMgMCA1LjkgMS4zIDExLjYgMS42IDE3LjUtLjUgMi0zIDIuNC00LjYgMS40LTEuNS0xLTIuOC0yLjItNC0zLjQtOS04LjYtMTcuNy0xNy0yNS40LTI2LjYtMS40LTEuNS0yLjctMy43LTQuOC0zLjktNy41LTEtMTUuMi0yLjMtMjIuOC0yLjUtNC0uMy04LjEgMi41LTExLjcgNC4xLTQgMi4yLTguNyAzLjktMTIuMiA2LjgtMy44IDQuNi03IDkuOS0xMC4zIDE0LjlhMyAzIDAgMCAxLTEuOCAxLjQgNDAuNyA0MC43IDAgMCAxLTIyLjQtMTFBNzQgNzQgMCAwIDEgMzAzIDMxMGMtLjYtMi0xLjMtNC45LjktNi4yIDEuOC0xLjIgNC41LjMgNi4zIDEgNi40IDMuMSAxMi4zIDYuNiAxOS4zIDguM2EzMiAzMiAwIDAgMS0yLTE4LjkgNjUuOCA2NS44IDAgMCAxIDI0LjQtNDAuM2MzLTIuMyA2LjQtNSAxMC02LjIgMi45LTEgNS4yIDEuNiA0LjYgNC4zLTEuMyA1LjMtMy42IDEwLjMtNSAxNS42YTE4NSAxODUgMCAwIDEgNDAtMjkuMiAxODIgMTgyIDAgMCAxIDUxLjctMTYuOFoiLz48cGF0aCBkPSJNNzEyLjMgNDcyLjNjMi4yLTEuMiA0LjcgMS4zIDMuNyAzLjUtMS42IDEuOC00IDMtNi4xIDQuMS02LjEgMy4zLTEyIDYuOC0xNy45IDEwLjRsLTIuNy0xLjFjLjItMS4zIDAtMi45IDEuMS0zLjggMy0yLjYgNy00LjQgMTAuNC02LjYgMy45LTIuMSA3LjYtNC42IDExLjUtNi41WiIvPjwvZz48cGF0aCBkPSJNNDUwLjEgMjI4Yy01LjIgNC44LTEwIDkuNS0xMy44IDE1LjQtLjggMS4yLTEgMi40LS43IDMuOCAxLjkgMS44IDMuNyAxIDYgLjYgNDAuNS0xMC41IDgzLjctMTMgMTI1LjQtOS41IDI5LjUgMi44IDU5LjkgOC44IDg3LjIgMjAuNWExMjcuOCAxMjcuOCAwIDAgMSAzOC4xIDIzLjlBNTEgNTEgMCAwIDEgNzA4IDMwOWMuNyAyLjkuMSA2LjcgMS43IDkuMyAxLjQgMi40IDQgMS42IDYuMyAyIDUgLjIgOS44IDQgMTMgNy43YTc3IDc3IDAgMCAxIDEzLjUgMjcuNWMzLjkgMTMuMSA2IDI2LjkgNyA0MC41IDEgMTkuMy43IDM4LjctMi4xIDU3LjktNi42LjgtMTIuOS45LTE5LjIgMy4yLTcuNCAxLjgtMTQuMyA1LjktMjEuMiA5LjEgMi0zLjcgNC40LTcuNCA2LTExLjNhNiA2IDAgMCAwIDAtNC44Yy0yLTEuNi00LTEtNi4xLS4yLTUuNSAyLjItMTAuOCA0LjctMTYgNy4zLTEtMTAuMi0uOS0yMS0xLjgtMzEuMS0yLjQtMy02LjItNC43LTkuMi03LTUuOC00LjEtMTIuMy04LjMtMTcuMS0xMy41YTI5MiAyOTIgMCAwIDEtMTUtNDIuNiAxNzEuNyAxNzEuNyAwIDAgMS01LjctMzVjLTEtMS40LTMuNC0yLTUtMi05LS4zLTE4LjMtLjQtMjctMi4zLTIuNC0uNS00LjUtLjgtNi4xLTIuNi0zLjUtMy4yLTYuMy03LjQtMTAuMi0xMC0zLS42LTQuNCAyLjMtMi42IDQuNiA2LjMgNi44IDEyLjkgMTMuMyAxOS45IDE5LjMtMTUgNS43LTMyIDcuNi00OC4xIDcuNi0zMC0uNy02MC4xLTcuNi04Ny40LTIwLjMtMi40LTEtMy44LTEtNiAuNC0xLjMgMi41LjIgNCAxLjcgNiA0LjYgNS41IDkuOCAxMC43IDE0LjggMTUuOC0xNS0xLjUtMzAuMS00LjUtNDUtNy4yLTIuOS0uNS01LjktLjItNyAyLjktMSA0LjEgMCA5IC42IDEzLjItNy41LTcuNS0xNS4yLTE1LTIxLjktMjMuMi01LjMtNi40LTEwLjQtMTMtMTUuNC0xOS42LTEtMS4xLTIuNi0yLjktNC4yLTIuMy0yIC42LTIuMiAzLTEuMiA0LjYgMiAzIDQuNSA1LjkgNi42IDguOS02LTEuMy0xMi0xLjQtMTgtMi4yLTIuNC0uMi00LjQtLjctNi42LjQtNy40IDMuNC0xNC43IDcuMS0yMS44IDExLjEtNC4yIDQuMy03LjIgMTAuMS0xMC43IDE1LTYtMS4yLTExLjctNC4xLTE2LjItOC40YTY2LjcgNjYuNyAwIDAgMS0xNi4yLTI3LjJjNi43IDMuMSAxNC40IDcuNiAyMS45IDcuOCAyLjIgMCA1IC4yIDYuMy0yIDEuMi0xLjgtLjQtMy0xLjMtNC40LTMuNC00LjItMy40LTEwLjEtMy0xNS4zQTYyIDYyIDAgMCAxIDM2MCAyNTVjLTIgNi40LTQuNiAxMy4zLTUgMjAtLjIgMy4xIDMuMyA0LjIgNS4yIDIuMmExODUuMyAxODUuMyAwIDAgMSA0Mi4zLTMyLjhjMTUtOCAzMS0xMyA0Ny43LTE2LjRaIiBmaWxsPSIjNmE0ZTM1Ii8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjwvZz48L3N2Zz4=",
+  peach: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjIgNzYyIiBmaWxsPSJub25lIiBzaGFwZS1yZW5kZXJpbmc9ImF1dG8iPjxtZXRhZGF0YSB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6ZGN0ZXJtcz0iaHR0cDovL3B1cmwub3JnL2RjL3Rlcm1zLyI+PHJkZjpSREY+PHJkZjpEZXNjcmlwdGlvbj48ZGM6dGl0bGU+QWR2ZW50dXJlcjwvZGM6dGl0bGU+PGRjOmNyZWF0b3I+TGlzYSBXaXNjaG9mc2t5PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL3d3dy5maWdtYS5jb20vY29tbXVuaXR5L2ZpbGUvMTE4NDU5NTE4NDEzNzg4MTc5NjwvZGM6c291cmNlPjxkY3Rlcm1zOmxpY2Vuc2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLzwvZGN0ZXJtczpsaWNlbnNlPjxkYzpyaWdodHM+UmVtaXggb2Yg4oCeQWR2ZW50dXJlcuKAnSAoaHR0cHM6Ly93d3cuZmlnbWEuY29tL2NvbW11bml0eS9maWxlLzExODQ1OTUxODQxMzc4ODE3OTYpIGJ5IOKAnkxpc2EgV2lzY2hvZnNreeKAnSwgbGljZW5zZWQgdW5kZXIg4oCeQ0MgQlkgNC4w4oCdIChodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLyk8L2RjOnJpZ2h0cz48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC9tZXRhZGF0YT48bWFzayBpZD0idmlld2JveE1hc2siPjxyZWN0IHdpZHRoPSI3NjIiIGhlaWdodD0iNzYyIiByeD0iMCIgcnk9IjAiIHg9IjAiIHk9IjAiIGZpbGw9IiNmZmYiIC8+PC9tYXNrPjxnIG1hc2s9InVybCgjdmlld2JveE1hc2spIj48cmVjdCBmaWxsPSIjNWI4Y2ZmIiB3aWR0aD0iNzYyIiBoZWlnaHQ9Ijc2MiIgeD0iMCIgeT0iMCIgLz48cGF0aCBkPSJNMzk2IDE2NC44YTIyNC44IDIyNC44IDAgMCAxIDEwNC44IDQyLjRjNi4yIDQuOSAxMi41IDkuNCAxOCAxNWEyMjUuNCAyMjUuNCAwIDAgMSA3MS44IDE0OSA1OC41IDU4LjUgMCAwIDEgNTAuOSA0Mi4yIDcxIDcxIDAgMCAxLTI3LjYgNzYuNWMtMTEgNy43LTI0LjUgMTItMzggMTEuNy01IDAtMTAtMS42LTE1LTEuOC0xLjkgMi4yLTMuMyA0LjktNC44IDcuM0EyMjMuMyAyMjMuMyAwIDAgMSAzODkgNjA5LjhjLTExIC43LTIxLjkgMi0zMyAuN2EyMjMuNyAyMjMuNyAwIDAgMS0xNzguOC0zNDIuM0EyMjMuNCAyMjMuNCAwIDAgMSAzNTIgMTYzLjVjMTQuNi0xLjQgMjkuNC0uMyA0NCAxLjNaIiBmaWxsPSIjMDAwIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00OTguOCAyMTMuMkEyMTYgMjE2IDAgMCAwIDM2MyAxNjljLTEzLS4yLTI2LjIgMS42LTM5IDRhMjE4IDIxOCAwIDAgMC0xMTMuNiAzNjUuNSAyMTguNSAyMTguNSAwIDAgMCAyNjAuNCA0MC4yYzM1LTE4LjggNjQuMi00Ny4zIDg0LjQtODEuNWwtMy0xLjZjLTIuOC0xLjQtNS43LTMtOC01LTIuMi0yLS4zLTUuOCAyLjctNC43IDEuNS43IDMgMS42IDQuNCAyLjRhNTUgNTUgMCAwIDAgNTkuNi0zLjYgNjQuNSA2NC41IDAgMCAwIDI1LTY5LjggNTMuMSA1My4xIDAgMCAwLTI0LTMxIDUyLjYgNTIuNiAwIDAgMC00Ny0yLjhjLTEuNi44LTMuNCAxLjUtNSAxLjMtMi41LS4yLTIuOC00LjItLjYtNS4yIDgtNCAxNi41LTUuNiAyNS40LTYuNGEyMTcgMjE3IDAgMCAwLTcyLTE0Ni40Yy00LjQtNC04LjctOC4xLTEzLjktMTEuM1ptMTA3LjYgMTk2LjJjMi0xLjIgMS4zLTUuMS0xLjQtNS0yIDAtNC4yLjgtNi4yIDEuNmwtMS40LjRhOTUuMSA5NS4xIDAgMCAwLTI1LjUgMTIuNGMtMi4yIDItMi4yIDQuNC4xIDYuMmE5MiA5MiAwIDAgMCA1LjIgMi44IDM2IDM2IDAgMCAxIDEzIDkuMmMtLjIgMS45LTIgMy40LTMuNCA0LjVsLS4yLjJjLTMuOSAzLTguOCA1LTEzLjYgNy0yLjUgMS00LjkgMi03LjEgMy4xLTEuNy44LTIuNiAyLjItMS42IDMuOSAxIDIgMy4yIDEuMSA1IC41bC42LS4yIDUuNC0yLjNjNS40LTIuMyAxMS00LjUgMTUuNC04IDIuNy0yLjEgNS4xLTUuMSA1LjQtOC43LS41LTMuNC0yLjctNS43LTUuMy03LjhhODMgODMgMCAwIDAtMTEuNi03LjJsLTEuMS0uNmM1LjQtMyAxMC44LTUuNiAxNi42LTcuN2w1LTEuN2E1MiA1MiAwIDAgMCA2LjctMi42WiIgZmlsbD0iI2VjYWQ4MCIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTU1MC4zIDQyNC40YTY1LjkgNjUuOSAwIDAgMSA2MiAzMC40QTY0LjkgNjQuOSAwIDAgMSA1OTggNTQwYTY1LjQgNjUuNCAwIDEgMS00Ny43LTExNS42WiIgZmlsbD0iIzAwMCIvPjxwYXRoIGQ9Ik01NDkuMiA0MzAuM2E1OS43IDU5LjcgMCAxIDEgMTUuMSAxMTguMyA1OS43IDU5LjcgMCAwIDEtMTUtMTE4LjNaIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTUyMS4yIDQ2Ny4zYTIyLjIgMjIuMiAwIDEgMSAxMC44IDQzIDIyLjIgMjIuMiAwIDAgMS0xMC44LTQzWk0zMzMgNDc4LjVjMTQuNC43IDI4LjggMS41IDQzIDMuOSAyMS4xIDMuNCA0Mi45IDkgNjIuMSAxOC40IDIuOSAxLjYgMi41IDMuMyAxLjYgNi4xLTIuNCAwLTQuNC0uMi02LjctMS0xMS4xLTMuNC0yMi41LTUuMy0zNC03LjItMTAuNC0xLjQtMjAuNi0zLjItMzEtMy43LTExLTEtMjEuOS0uNy0zMy0uNi0yLS4xLTUgLjYtNi42LS44LS43LTIuMS44LTQuNyAxLjMtNi44LS45LTEuNi0zLTMuNC0yLjQtNS40IDEtMi40IDMuNC0zIDUuNy0zWiIgZmlsbD0iIzAwMCIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxwYXRoIGQ9Ik01MzEgMzUzLjljMTcgMiAzNCA3LjQgNDguNiAxNi41YTU3IDU3IDAgMCAxIDE4LjMgMTYuOWMuOSAxLjIgMS4yIDMuNS0uMiA0LjMtMS4yIDEuMi0yLjkuNS00LjIgMGExNDMgMTQzIDAgMCAwLTU0LTE1Yy0xMy40LS45LTI4LjItMS00MSAzLjgtMyAxLTUuNiAzLTguNSAzLjgtMS40LjMtMi41LTEtMy0yLjJhMTggMTggMCAwIDEgLjMtMTQuOCAyMyAyMyAwIDAgMSAxMy4zLTEwLjdBNzIuNSA3Mi41IDAgMCAxIDUzMSAzNTRaTTQxNCA0MDhjOC4yIDIuNCAxNC42IDEwLjkgMTMuNiAxOS41LTEuOS42LTMuNiAxLTUuNi43YTEwOCAxMDggMCAwIDAtNDIuOCA1LjljLTE0IDQuNy0yOC41IDExLjYtMzkuNCAyMS44LTEuNCAxLjMtNC4zIDMtNS42LjctMS43LTIuMyAwLTQgMS40LTZhMTI4IDEyOCAwIDAgMSA0OS0zOWM4LjgtMy42IDIwLTYuNSAyOS40LTMuNVoiIGZpbGw9IiMwMDAiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJtNTI1IDU2My43IDEuMiAyLjNjLjQgMi43LTIgMy40LTMuOCA0LjRhMTg0IDE4NCAwIDAgMS04NS44IDE3Yy01LS42LTEwLjItLjctMTUtMi0yLjMtMS0yLjYtNC0uMy01LjIgMi43IDAgNS41LjkgOC4yIDEgNy4yIDEgMTQuMy43IDIxLjUuNyAyMi41LS44IDQ1LTYuOCA2NS43LTE1LjUgMi44LTEuMiA1LjItMi42IDguMy0yLjdaIiBmaWxsPSIjMDAwIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PGcgZmlsbD0iIzAwMCI+PHBhdGggZD0iTTQ0MC4yIDE4OS4yYzEuOC0uMSAzLjYtMSA0LjcgMSAxLjYgMiAxLjEgMy40LS42IDVhNjIuMiA2Mi4yIDAgMCAwLTE4LjMgMjkuM2MzMC0xMy4xIDYzLjQtMTkuNiA5Ni0yMSA5LjQtLjcgMTguNi0uNyAyOCAwYTI4MSAyODEgMCAwIDEgODAuNSAxNC44YzE4LjUgNi41IDM3IDE1LjYgNTIgMjguM2E3Ny44IDc3LjggMCAwIDEgMjYuNSAzOS4xYzMuOC0uMiA3LjMtLjQgMTAuNyAxLjYgNy4zIDMuOCAxMi40IDEyIDE2IDE5LjFhMTgyLjQgMTgyLjQgMCAwIDEgMTQuNSA0Ni42YzMuMyAxNy4yIDQuOCAzNC42IDUuOCA1MiAuMSAxMyAuNiAyNi4xLS44IDM5LS40IDQuMy0uMyA4LjctMS4zIDEyLjktMSAzLTQuNCAyLjctNi45IDMtOC4zLjMtMTcuOCAxLjctMjUgNi4yLTEuMyAyLjUtMS41IDUuNi0yLjcgOC4yLTIgMi4zLTQuOCA0LTcuMiA1LjgtNi4zIDQuMy0xMi4zIDkuMS0xOC41IDEzLjUtMS44IDEuMS00LjEgMi43LTYgLjYtMS4zLTEuMi0xLjMtMi41LTEtNC4yIDMuMi0xOS42IDIuOS00MC4yIDIuMi02MCAuMS03LjgtLjktMTUuNC0xLjMtMjMuMmE1My43IDUzLjcgMCAwIDEtMTkuMy01QTc3LjkgNzcuOSAwIDAgMSA2MzQgMzY5Yy02LTExLTkuNC0yMy40LTguMi0zNkExMDEzLjUgMTAxMy41IDAgMCAxIDQ2NiAzNDYuMmMtMTAuOC0uMy0yMS41IDAtMzIuMi0xLTE0LjQtLjYtMjguNi0xLjgtNDIuOC00LTExLjItMS43LTIyLjYtNC0zMy4zLTgtNC45IDUtOCAxMC43LTExLjkgMTYuNS0yLjMgMy41LTQgNy40LTYuMyAxMC43LTEgMS42LTMuMiAxLjgtNC40LjMtMS4yLTIuMy0xLjYtNS4yLTIuMS03LjhhNjEuNiA2MS42IDAgMCAxIDQtMzdjLTIuNC00LjUtNC42LTktNS44LTE0YTYyIDYyIDAgMCAxIDYuNS00NC4zYzkuMy0xNy44IDI0LjktMzIuNSA0MS42LTQzLjRhMTgyLjIgMTgyLjIgMCAwIDEgNjEtMjVaIi8+PHBhdGggZD0iTTM0MC41IDMyMS4yYzMuMSA0LjMgNy4yIDcuMiAxMS44IDkuNy01IDYuNi05LjYgMTMuNS0xNCAyMC41LTEuMi05LTEuNS0xNy44IDEuMi0yNi42bDEtMy42Wk03MTguMiA0ODAuNmMyIDEuMSAxLjYgMy4zIDAgNC42LTggNi44LTE2LjQgMTMtMjUgMTktMS41IDEtMy4yIDItNC42LjItMS44LTEuNyAwLTMuMyAxLjMtNC41IDMuNy0zIDcuOC01LjUgMTEuNi04LjQgNC0yLjkgNy45LTYuMiAxMS44LTkuMiAxLjYtMSAzLTIuMyA1LTEuN1oiLz48L2c+PHBhdGggZD0iTTQzNiAxOTYuMWE2MyA2MyAwIDAgMC0xNS40IDI3Yy0uMyAyLTEuMyA0LjctLjIgNi41IDEuNS44IDMgMS4yIDQuNiAxLjcgNDEuOC0xOSA4OC41LTI0LjUgMTM0LTIxLjUgMjkgMi4yIDU4LjQgOC4zIDg1LjEgMjAuMSAxNS4yIDYuOCAzMC40IDE2IDQyIDI4YTYzLjcgNjMuNyAwIDAgMSAxOCAzM2wxLjggMS4zYzQuMS0uNyA3LjYtMS44IDExLjUuNCA2LjQgMy43IDEwLjggMTEuNSAxNCAxOGExOTguNyAxOTguNyAwIDAgMSAxNC40IDUwLjRjMiAxMi42IDMuNSAyNS4zIDQgMzggLjEgOCAuOSAxNiAuNiAyNC0uNCAxMC41LS42IDIxLTEuOCAzMS40LTcuOC4zLTE1LjIgMS0yMi42IDMuNy0yLjggMS02LjQgMi4yLTguNCA0LjUtMS41IDIuNy0yIDYtMyA5TDY5MyA0ODcuMmMxLjYtOS4zIDEuNC0xOC43IDIuMS0yOC4yLjUtOS40LS42LTE4LjYtLjctMjgtLjItNS40LS4yLTEwLjctLjgtMTYtLjUtNC43LS41LTktMi0xMy41LTUuNy0uOC0xMS4yLTEtMTYuNi0zLjJhNzAuNiA3MC42IDAgMCAxLTM3LTM0LjIgNTIgNTIgMCAwIDEtNS41LTM0LjdjLTIuNi0zLjQtNy4zLTIuMi0xMC45LTEuN0E5NjQuNSA5NjQuNSAwIDAgMSA0NDcgMzQwYy0xMC0uMS0yMC0uNS0zMC0xLjQtMTctMS41LTM0LjYtMy42LTUxLTguNmE1NyA1NyAwIDAgMS0xNy04IDQ3LjcgNDcuNyAwIDAgMS0xMi43LTQzYzMtMTYgMTIuNi0zMC41IDIzLjktNDEuOGExNjUgMTY1IDAgMCAxIDc1LjctNDFaIiBmaWxsPSIjYWZhZmFmIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjwvZz48L3N2Zz4=",
+  lime: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NjIgNzYyIiBmaWxsPSJub25lIiBzaGFwZS1yZW5kZXJpbmc9ImF1dG8iPjxtZXRhZGF0YSB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6ZGN0ZXJtcz0iaHR0cDovL3B1cmwub3JnL2RjL3Rlcm1zLyI+PHJkZjpSREY+PHJkZjpEZXNjcmlwdGlvbj48ZGM6dGl0bGU+QWR2ZW50dXJlcjwvZGM6dGl0bGU+PGRjOmNyZWF0b3I+TGlzYSBXaXNjaG9mc2t5PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL3d3dy5maWdtYS5jb20vY29tbXVuaXR5L2ZpbGUvMTE4NDU5NTE4NDEzNzg4MTc5NjwvZGM6c291cmNlPjxkY3Rlcm1zOmxpY2Vuc2UgeHNpOnR5cGU9ImRjdGVybXM6VVJJIj5odHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLzwvZGN0ZXJtczpsaWNlbnNlPjxkYzpyaWdodHM+UmVtaXggb2Yg4oCeQWR2ZW50dXJlcuKAnSAoaHR0cHM6Ly93d3cuZmlnbWEuY29tL2NvbW11bml0eS9maWxlLzExODQ1OTUxODQxMzc4ODE3OTYpIGJ5IOKAnkxpc2EgV2lzY2hvZnNreeKAnSwgbGljZW5zZWQgdW5kZXIg4oCeQ0MgQlkgNC4w4oCdIChodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvNC4wLyk8L2RjOnJpZ2h0cz48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC9tZXRhZGF0YT48bWFzayBpZD0idmlld2JveE1hc2siPjxyZWN0IHdpZHRoPSI3NjIiIGhlaWdodD0iNzYyIiByeD0iMCIgcnk9IjAiIHg9IjAiIHk9IjAiIGZpbGw9IiNmZmYiIC8+PC9tYXNrPjxnIG1hc2s9InVybCgjdmlld2JveE1hc2spIj48cmVjdCBmaWxsPSIjM2RkYzg0IiB3aWR0aD0iNzYyIiBoZWlnaHQ9Ijc2MiIgeD0iMCIgeT0iMCIgLz48cGF0aCBkPSJNMzk2IDE2NC44YTIyNC44IDIyNC44IDAgMCAxIDEwNC44IDQyLjRjNi4yIDQuOSAxMi41IDkuNCAxOCAxNWEyMjUuNCAyMjUuNCAwIDAgMSA3MS44IDE0OSA1OC41IDU4LjUgMCAwIDEgNTAuOSA0Mi4yIDcxIDcxIDAgMCAxLTI3LjYgNzYuNWMtMTEgNy43LTI0LjUgMTItMzggMTEuNy01IDAtMTAtMS42LTE1LTEuOC0xLjkgMi4yLTMuMyA0LjktNC44IDcuM0EyMjMuMyAyMjMuMyAwIDAgMSAzODkgNjA5LjhjLTExIC43LTIxLjkgMi0zMyAuN2EyMjMuNyAyMjMuNyAwIDAgMS0xNzguOC0zNDIuM0EyMjMuNCAyMjMuNCAwIDAgMSAzNTIgMTYzLjVjMTQuNi0xLjQgMjkuNC0uMyA0NCAxLjNaIiBmaWxsPSIjMDAwIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00OTguOCAyMTMuMkEyMTYgMjE2IDAgMCAwIDM2MyAxNjljLTEzLS4yLTI2LjIgMS42LTM5IDRhMjE4IDIxOCAwIDAgMC0xMTMuNiAzNjUuNSAyMTguNSAyMTguNSAwIDAgMCAyNjAuNCA0MC4yYzM1LTE4LjggNjQuMi00Ny4zIDg0LjQtODEuNWwtMy0xLjZjLTIuOC0xLjQtNS43LTMtOC01LTIuMi0yLS4zLTUuOCAyLjctNC43IDEuNS43IDMgMS42IDQuNCAyLjRhNTUgNTUgMCAwIDAgNTkuNi0zLjYgNjQuNSA2NC41IDAgMCAwIDI1LTY5LjggNTMuMSA1My4xIDAgMCAwLTI0LTMxIDUyLjYgNTIuNiAwIDAgMC00Ny0yLjhjLTEuNi44LTMuNCAxLjUtNSAxLjMtMi41LS4yLTIuOC00LjItLjYtNS4yIDgtNCAxNi41LTUuNiAyNS40LTYuNGEyMTcgMjE3IDAgMCAwLTcyLTE0Ni40Yy00LjQtNC04LjctOC4xLTEzLjktMTEuM1ptMTA3LjYgMTk2LjJjMi0xLjIgMS4zLTUuMS0xLjQtNS0yIDAtNC4yLjgtNi4yIDEuNmwtMS40LjRhOTUuMSA5NS4xIDAgMCAwLTI1LjUgMTIuNGMtMi4yIDItMi4yIDQuNC4xIDYuMmE5MiA5MiAwIDAgMCA1LjIgMi44IDM2IDM2IDAgMCAxIDEzIDkuMmMtLjIgMS45LTIgMy40LTMuNCA0LjVsLS4yLjJjLTMuOSAzLTguOCA1LTEzLjYgNy0yLjUgMS00LjkgMi03LjEgMy4xLTEuNy44LTIuNiAyLjItMS42IDMuOSAxIDIgMy4yIDEuMSA1IC41bC42LS4yIDUuNC0yLjNjNS40LTIuMyAxMS00LjUgMTUuNC04IDIuNy0yLjEgNS4xLTUuMSA1LjQtOC43LS41LTMuNC0yLjctNS43LTUuMy03LjhhODMgODMgMCAwIDAtMTEuNi03LjJsLTEuMS0uNmM1LjQtMyAxMC44LTUuNiAxNi42LTcuN2w1LTEuN2E1MiA1MiAwIDAgMCA2LjctMi42WiIgZmlsbD0iI2YyZDNiMSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTU2MS45IDQyMy4zYzEuOC40IDEuOSAxLjkgMiAzLjUgMCA2LjctMSAxMy40LS44IDIwLjEgOC4zLjYgMTYgMiAyNCA0LjUgMy4yLTcuMSA2LTE0LjQgOC44LTIxLjYgMS0xLjggMS41LTQuMSA0LTMuOCAyLjQuMyAyLjYgMyAxLjggNC44bC05IDIyLjZhNjkuOSA2OS45IDAgMCAxIDE4LjEgMTAuOGM1LTQuNiA5LjctOS40IDE0LjctMTMuOCAxLjYtMS42IDMuMy0xIDUuMy0xLjEtLjIgMiAuMyAzLjYtMS40IDUuMS00LjcgNC44LTkuNyA5LjMtMTQuNiAxMy45YTMwIDMwIDAgMCAxIDYuNyAxNi43Yy43IDkuOS00LjggMTguMi0xMiAyNC40YTc4LjYgNzguNiAwIDAgMS00MC41IDE2LjFjLTE2LjYgMS45LTMzLjguOS00OS41LTVBNTYuNCA1Ni40IDAgMCAxIDQ5NSA1MDRjLTUtNi40LTcuOC0xNC43LTUuNy0yMi44IDIuNC05LjkgOS45LTE3LjMgMTguMy0yMi40IDE0LjgtOSAzMi40LTEyLjEgNDkuNS0xMi4xLjItNi42LjUtMTMuMiAxLjEtMTkuNyAwLTIgMS4yLTQuMyAzLjYtMy43Wk0zNzIgNDQxLjRjMi0uMiAyLjYgMi4yIDMuMSAzLjYgMS4yIDUgMS4zIDEwLjIgMi4yIDE1LjNhOTkgOTkgMCAwIDEgMjUuNy43YzEwLjkgMiAyMiA2IDMwLjEgMTMuOSA1IDQuNiA4LjUgMTEuMiA4LjMgMTguMWEyNyAyNyAwIDAgMS0xMCAxOC41IDY1IDY1IDAgMCAxLTMzIDEzLjcgODQgODQgMCAwIDEtNDcuMy02LjNjLTguNS00LjEtMTctMTEuMi0xOS4yLTIwLjgtMS4zLTUuMiAwLTEwIDItMTQuOC0zLjktMy41LTcuNy03LTExLjUtMTAuNy0uOC0xLTIuNC0yLjItMi0zLjYgMC0yLjYgMy41LTMgNS0xLjQgNCAzLjUgNy43IDcuNCAxMS43IDEwLjkgMy40LTMuNiA3LTYuNiAxMS4xLTkuMmwtOC4yLTE4LjRjLTEuMS0yLjItLjktNC40LS43LTYuOCAxLjIuMiAyLjYuMyAzLjguOCAxLjIgMS4yIDEuOCAzIDIuNiA0LjUgMi41IDUuNyA1LjEgMTEuNCA3LjUgMTcuMiA2LTIuNiAxMi00LjMgMTguMy01LjYtLjQtNS40LTEuNy0xMC42LTItMTYgMC0xLjYuNC00LjEgMi41LTMuNloiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNTM5LjUgNDUzLjdhMTAzIDEwMyAwIDAgMSA0NC4yIDIuNmM5LjUgMyAxOS4yIDcuNSAyNiAxNSA0LjMgNSA3IDExLjEgNiAxNy43LTEuMSA3LjItNS44IDEzLTExLjQgMTcuM2E3My41IDczLjUgMCAwIDEtMzEuMSAxMi44IDEwMS42IDEwMS42IDAgMCAxLTQ3LjctMi42Yy05LjQtMy0xOS03LjgtMjUuNS0xNS41LTQuMy01LTYuOS0xMi40LTQuOS0xOSAxLjYtNi42IDYuNy0xMiAxMi0xNmE3NiA3NiAwIDAgMSAzMi40LTEyLjNaTTM3MS41IDQ2N2MxNS42LTMgMzMtMS44IDQ3LjQgNSA2LjQgMyAxMy40IDguMiAxNS44IDE1LjEgMiA1LjcuMyAxMS44LTMuMyAxNi4zYTQzLjUgNDMuNSAwIDAgMS0xOC42IDEyLjMgODAuNSA4MC41IDAgMCAxLTM5LjggMy44Yy05LTEuMy0xOC40LTQuMy0yNi05LjYtNS4xLTQtOS41LTktOS44LTE1LjktLjItNi42IDMuOS0xMiA4LjctMTYuMWE1OS40IDU5LjQgMCAwIDEgMjUuNi0xMVoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNNTkyLjIgNDY5LjJjMi4yLTEuNiA0LjctLjMgNiAxLjcgMS44IDMgMi4xIDYuNiAyLjUgMTAuMS40IDUuMi44IDEwLjctLjMgMTUuOS0uMyAxLjMtMSAyLjYtMiAzLjUtMyAxLjQtNi45LTEuMy03LjYtNC4yLTItNi4yLTItMTMuMi0xLjQtMTkuNy40LTIuMy42LTUuOSAyLjgtNy4zWk00MTMuMyA0NzYuM2E0IDQgMCAwIDEgNiAyLjRjMS44IDUuMSAxLjkgMTEgMiAxNi4zLS4xIDMuMS0uNCA4LTMuOCA5LjUtMi42IDEtNC42LTEuNC01LjQtMy42YTQ1LjEgNDUuMSAwIDAgMS0xLjUtMTdjLjItMi4zLjQtNi4yIDIuNy03LjZaIiBmaWxsPSIjMDAwIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PHBhdGggZD0iTTQ1MiAzOTUuOWMuNyA0LjYtMS41IDkuMy00LjIgMTNhNDMuOCA0My44IDAgMCAxLTEyLjggMTFjLTcuNyA0LjQtMTYgNy44LTI0LjIgMTAuOWE0MjMuNSA0MjMuNSAwIDAgMS03My41IDE5LjVjLTMuNC41LTcgMS41LTEwLjQgMS0yLS44LTItMi43LTEuMS00LjQgMi4zLTEuOCA1LjUtMi44IDguMi00IDM2LTE0LjYgNzEuOS0yOS40IDEwNy44LTQ0LjEgMy4zLTEuMyA2LjYtMy40IDEwLjItM1pNNDc5IDM5NmwxNDggMjIuOGMyLjYuNCA1LjMuNSA3LjggMS40IDIuNCAxLjEgMS43IDUtMSA1LjItOS42IDEtMTkuMSAxLjgtMjguOCAyLTE1LjQgMC0zMC42LjMtNDYtMS4yLTIwLjktMS42LTQyLjItNC42LTYyLjItMTEtNy0yLjUtMTUtNS41LTIwLjMtMTAuNy0xLjgtMi00LTQuMy0zLjItNy4xIDEuMi0yLjIgMy42LTEuNiA1LjctMS40WiIgZmlsbD0iIzAwMCIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTYxIC04MykiPjxwYXRoIGQ9Im01MjUgNTYzLjcgMS4yIDIuM2MuNCAyLjctMiAzLjQtMy44IDQuNGExODQgMTg0IDAgMCAxLTg1LjggMTdjLTUtLjYtMTAuMi0uNy0xNS0yLTIuMy0xLTIuNi00LS4zLTUuMiAyLjcgMCA1LjUuOSA4LjIgMSA3LjIgMSAxNC4zLjcgMjEuNS43IDIyLjUtLjggNDUtNi44IDY1LjctMTUuNSAyLjgtMS4yIDUuMi0yLjYgOC4zLTIuN1oiIGZpbGw9IiMwMDAiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJNNTY5IDQxNi4zYzEwLjctLjMgMjEuNCAwIDMyLS4yIDE0LS43IDI4LS40IDQyLS42IDMuOS4yIDktLjEgMTIuMiAyLjQgMi40IDEuNiAyLjIgNS41IDIuNCA4LS4xIDQuNC0uMyA5LjUtMi40IDEzLjQtNSAyLTExLjQgMS4yLTE2LjggMS45LjQgMTIuMyAxLjcgMjQuNiAxLjMgMzYuOC0uNyAxNC0zLjcgMjgtMTAuMyA0MC40LTguMSAxMy0yMCAyNC4zLTMzLjYgMzEuNWE3NyA3NyAwIDAgMS0zMy4zIDcuN2MtNi4zLjItMTIuMS41LTE4LjMtLjgtOS40LTItMTguOC00LjQtMjctMTBBODEuNiA4MS42IDAgMCAxIDQ5MiA1MTZhMTkzLjEgMTkzLjEgMCAwIDEtMTMuMy00My45Yy0uNS0yLjMtMi40LTMuNS00LjMtNC40LTYuNy0zLTE1LS42LTE4LjggNS42LS44IDIuNC0xIDUtMS4yIDcuNi0uNiA3LjYtMi4yIDE1LjMtMy45IDIyLjgtMy4xIDEzLjYtOSAyNi4zLTE2LjggMzcuOGE1MC44IDUwLjggMCAwIDEtMTYuMiAxNC44IDc1LjYgNzUuNiAwIDAgMS0zNC40IDEwLjNjLTcuMi0uMi0xNC4yLS40LTIxLjEtMi41LTUuNS0xLjMtMTAuNS00LjgtMTUuMi04YTU3LjcgNTcuNyAwIDAgMS0xNS4zLTE2LjdjLTUuMy04LjMtOS4zLTE3LjMtMTIuMi0yNi43YTk3LjUgOTcuNSAwIDAgMS01LjItMjguN2MtNC42LjctOS40IDIuMi0xNCAyLTQuNC0uOS01LjMtNy42LTUuNS0xMS4xLjEtMi40LS4xLTYuOCAyLjctNy43IDIxLjYtOS44IDQ0LjQtMTcgNjcuNS0yMi40IDE3LTMuNyAzNC44LTguMyA1Mi4zLTYuNyAxMS4yIDEgMjIuOCA0IDMxLjcgMTEgMy4yIDIuNSA1LjUgNyA5LjQgNy43IDcgMS44IDE0LjUtMS4zIDIwLjktNCAzLjYtMTAgMTAtMTcuMyAxOS0yMi44YTg5LjMgODkuMyAwIDAgMSAyMC44LTguM2MxNi43LTQgMzMuMS00LjYgNTAuMi01LjVaIiBmaWxsPSIjMDAwIi8+PHBhdGggZD0iTTMwNy4xIDQ3OC4yYzEuMi0xLjIgMy40IDAgMi40IDEuNi0xLjIgMS4yLTMuNCAwLTIuNC0xLjZaIiBmaWxsPSIjMDAwIi8+PGVsbGlwc2UgY3g9IjYwNSIgY3k9IjQ1Ny41IiByeD0iMTQiIHJ5PSIxMC41IiBmaWxsPSIjZmZmIi8+PGVsbGlwc2UgY3g9IjQxMSIgY3k9IjQ3Ni4xIiByeD0iMTEiIHJ5PSI4LjEiIGZpbGw9IiNmZmYiLz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE2MSAtODMpIj48cGF0aCBkPSJNODE3IDE1Ny4xYzEwLjUgMS4xIDIyIDIuNyAzMS44IDcuMiAzIDEuNCAzLjcgNS4zLjEgNi41LTkuMSAxLjctMTcuOSAyLjgtMjYuNSA2LjZhNzQuMiA3NC4yIDAgMCAwLTE1LjQgOS4yYzkuMy0uMiAxOC40IDEuMiAyNy41IDIuNyAxNS40IDMuMyAzMS41IDggNDUgMTYuMiAyLjUgMS4zIDMuOCA0LjYgNSA3YTE4MSAxODEgMCAwIDEgMTYgNTQuNWMxIDE3IC44IDM1LjYtNiA1MS41YTQxLjIgNDEuMiAwIDAgMS0xNS42IDE5LjRjLTEuNCAxLjItMy4yLS43LTQtMS44YTE0OC43IDE0OC43IDAgMCAwLTQ2LTQxIDE2MS45IDE2MS45IDAgMCAwLTc3LjItMjMuNiAxNDMgMTQzIDAgMCAxIDM1LjggMTggMTY5IDE2OSAwIDAgMSAyNS40IDIzLjdjMS43IDIgMS4zIDMuMi40IDUuNC0yIC4xLTMuMiAwLTQuOC0xLTYuOS00LjQtMTQtOC40LTIxLjYtMTEuNC0xOC03LjctMzguNi0xMi42LTU4LjItOC4zIDguMSAxNiAxNC42IDMyLjcgMTkuOCA1MCA4LjMgMjcuOCAxNCA1NyAxNC43IDg2LjEgMCA3LS40IDE0LjEtMS4zIDIxLS41IDItMSA2LTMuOSA1LjVhNTQgNTQgMCAwIDAtMzMuNSA0LjhjLjMgMjMtMTEgNDYuMi0yNiA2My4xLTEuNyAyLTMuMyAyLjktNS45IDItMi41LTIuMS4yLTUuMy42LTggMS02LjMgMS4yLTEzIDEuNi0xOS40LS4xLTggLjctMTYgLjItMjQtLjMtNyAwLTE0LS41LTIxLS43LTE0LjYtMS4zLTI5LjUtNC00My45LS4yLTEuMi0xLjUtMS42LTIuNC0yLjJBOTEgOTEgMCAwIDEgNjcxIDM5OWExNTYuOSAxNTYuOSAwIDAgMS0yOC43LTM2LjEgMTgxIDE4MSAwIDAgMS0xMC42IDUyLjljLS43IDEuNS0xLjIgNC0yLjkgNS00IC42LTguOC0xLjktMTIuOC0yLjktNC4xLTEuNC05LTItMTIuOC00LS42LTIuOC0uMy02LS4yLTguOSAxLTE5LjQuNC0zOC44LTMtNTgtMS43LTktMy4xLTE4LjMtNS42LTI3LjIuNiAxNi40LS4zIDMzLTIuMiA0OS4yLTEuNSAxMC0zLjggMjAtNi42IDI5LjgtLjcgMi43LTEuNSA1LjUtMi45IDgtLjkgMS41LTEuOSAyLTMuNyAxLjZhNTA1IDUwNSAwIDAgMC0xNjAtOS4yYy0yLjIuNC0zLjEtMS42LTQtMy4yYTEwMy43IDEwMy43IDAgMCAxLTcuNi01OC4zYy0yLjggOC00LjEgMTYuOS01LjIgMjUuMy0xLjUgMTEuMi4yIDIzIDIuNSAzNCAuMyAxLjUuMiAzIDAgNC41LTE4IDMuNC0zOC4xIDguOC01MyAyMC4yLTEuMiAxLTIuOS41LTMuOC0uNmE3My42IDczLjYgMCAwIDEtMjAtMzguOGMtNC44IDguNC02LjUgMTktOS41IDI4LjItLjkgMi4yLTQuMyAyLjgtNS42LjdhMjUgMjUgMCAwIDEtMi4yLTguMyA2OC44IDY4LjggMCAwIDEgMTYtNTAuMmMyLjItMTcuOCA3LjgtMzQgMTYuOS00OS42YTE5My40IDE5My40IDAgMCAwLTQ2LjYgMTAuOCAyMDcuNyAyMDcuNyAwIDAgMC02MC42IDMxLjRjLTEwLjIgNy4yLTE4LjcgMTUuOS0yNi42IDI1LjQtMS41IDEuOC0zLjIgMi01LjEuNy0uOS0zLjMtLjgtNy0uOC0xMC40YTIxMS40IDIxMS40IDAgMCAxIDEyLjgtNzEuNCAxNjUgMTY1IDAgMCAxIDM2LTU4YzctNyAxNS0xMi41IDIzLjYtMTcuMmE3MyA3MyAwIDAgMC0zOC4yLTEuMmMtMS44LjQtMy4xIDEtNC40LS43LTEuMi0yLjIuNC0zLjcgMS45LTVhNjEuOSA2MS45IDAgMCAxIDIyLjQtMTEuNmMxNS00LjUgMzAuNi01IDQ2LTMuOGExNjkgMTY5IDAgMCAxIDcxLjQgMjMuNiA4OSA4OSAwIDAgMSAzNC45IDM2LjFBMjIzLjUgMjIzLjUgMCAwIDEgNTExIDIxMi40YzIzLjUtMy4yIDQ3LjUtMy40IDcxIDBhMjM0LjcgMjM0LjcgMCAwIDEgOTEuMSAzMS42IDEyMy45IDEyMy45IDAgMCAxIDM5LjUtNTEuNGMxMy45LTExIDI5LjUtMjEgNDYuMy0yNi43YTE0NSAxNDUgMCAwIDEgNTgtOC44WiIgZmlsbD0iIzAwMCIvPjxnIGZpbGw9IiNkYmEzYmUiPjxwYXRoIGQ9Ik04MjAgMTYzLjJjNi41LjUgMTIuNyAyIDE5IDMuNWE5NC43IDk0LjcgMCAwIDAtMTguOCA1LjYgNzcgNzcgMCAwIDAtMjEuMyAxNC41Yy00LjQgMS4zLTkuMyAxLTEzLjggMi4yLTIuNiAxLjYtMi4zIDQuOC45IDUuNCAxMS0xIDIxLjMtMy4yIDMyLTEuNSA5LjcuOCAxOS40IDIuNSAyOC44IDUuMmExMjcgMTI3IDAgMCAxIDI1IDkuMWMyLjQgMS40IDQuOCAyLjMgNiA1IDIuNiA0LjcgNC42IDkuOCA2LjYgMTQuOGEyMDAgMjAwIDAgMCAwLTY3LjQtMTkuMmMtMjQuOC0yLjItNTAuOC0xLjItNzQuMiA4LTMuNCAxLjQtNy4zIDIuNy0xMCA1LjItMS4zIDIuOCAxLjMgNS4zIDQgMy44IDE1LjctOCAzMi44LTExIDUwLjItMTIuMiAzMy42LTEuMyA2OC40IDUuNSA5OC4yIDIxLjIgMS4xLjcgMi4yIDEgMi41IDIuMyAzLjUgMTEuMiA2LjcgMjMuMiA3LjMgMzQuOSAxIDkgMCAxNy44LS44IDI2LjgtMS44IDEyLjYtNS41IDI1LTE1LjMgMzMuOWExNTcuMyAxNTcuMyAwIDAgMC00Mi43LTM4LjkgMTc3IDE3NyAwIDAgMC02Ny43LTI1LjYgMTEyLjIgMTEyLjIgMCAwIDAtMzIuNS0uMmMtMiAuNS00LjQgMi42LTIuOCA0LjggMSAxLjkgMi44IDIgNC44IDIuMyA1LjQuOCAxMC43IDIuMyAxNS44IDQuMWExMjQuNSAxMjQuNSAwIDAgMSA0MS45IDI1LjUgMjE0IDIxNCAwIDAgMC0yMy41LTkgOTIuNSA5Mi41IDAgMCAwLTQ2LjQtMi4xYy0yLjQtNC42LTYuMS03LjktOS4xLTEyLjEtMi4zLTMuNS01LjUtNS44LTguMy04LjlhMTkwLjkgMTkwLjkgMCAwIDAtMzAuMS0yNC41IDk0LjggOTQuOCAwIDAgMSAyMC0zMi45YzExLjUtMTMuMiAyNi0yNCA0MS0zM2ExMzguOCAxMzguOCAwIDAgMSA4MC43LTE4Wk0yODAgMTk3LjdjMTAuNC0xLjIgMjAuMi0uMSAzMC41IDFhMTUzLjkgMTUzLjkgMCAwIDEgNzUuMiAzMS42IDY4LjIgNjguMiAwIDAgMSAyMC4yIDI2LjJjLTI0LjcgNC41LTQ1IDIxLTU5IDQxLjNhMTg5IDE4OSAwIDAgMC01Ni44IDEyLjMgMjE1LjYgMjE1LjYgMCAwIDAtNjAuOSAzMy4xIDE1Ni4zIDE1Ni4zIDAgMCAwLTIwIDE5LjJjMC00LjMuMS04LjYuNi0xMi45LjktNy44IDEtMTUgMy0yMi45IDIuMy0yLjUgNS4yLTQuNyA3LjktNi45IDIyLjUtMTcuNiA1MC0yOC45IDc4LjMtMzIuMiA4LjQtLjggMTYuNy0uNyAyNS0uMyAzLjEtLjEgMi44LTIuNCAyLjctNC43LTMuNS0xLjMtNy0xLjUtMTAuNy0xLjYtMTcuNC0uMi0zNSAyLjktNTEuNSA4LjZhMTU3IDE1NyAwIDAgMC01MC4xIDI4YzYtMjYuOSAxNy4zLTUyLjggMzUuMi03NCA5LTExIDIwLjItMjAgMzMuMi0yNS43IDIuMy0xIDQuNS0xLjggMy43LTUtMS44LTEuOC01LTItNy40LTIuOWE3MS43IDcxLjcgMCAwIDAtMzEtMy44YzkuNi01LjIgMjEuMS03LjYgMzEuOS04LjRaIi8+PHBhdGggZD0iTTYyOC44IDIyOS40YzMzIDExLjUgNjQuMiAzMSA4Ni40IDU4LjQgNSA1LjkgOC4zIDEyLjUgMTEuNiAxOS4zIDkgMTguNiAxNS42IDM4LjUgMjAuNiA1OC40IDQuNCAxNy4zIDcuNiAzNC44IDkuMSA1Mi41IDEgMTIgMS43IDI1LS42IDM2LjhhNjIuMyA2Mi4zIDAgMCAwLTMxLjYgNC4yYy0uNi0yLjctMS01LjUtMi04LjEtMS4yLTIuNi01LjItMi01IDEuMS40IDUgMS44IDkuOSAxLjYgMTVhOTEuMyA5MS4zIDAgMCAxLTE5LjUgNTEuMmMuOS01LjMuOS0xMC44IDEuMS0xNi4xLjMtMTcuNC4zLTM0LjgtLjYtNTItMS4yLTEzLjMtMS4yLTI3LjQtNC42LTQwLjMtMi40LTIuNi02LjQtMy43LTkuMi02YTE0NC43IDE0NC43IDAgMCAxLTM4LjMtNDIuN2MtMi0zLjMtNC4xLTYuNy01LjQtMTAuNC0uNi0zLjUtLjYtNy4xLTEuMS0xMC43LTMtMjItOS44LTQzLjQtMjAuMi02My0zLjUtNi40LTguMi0xMS42LTEzLTE3LTEuMi0xLjYtMi41LTEuMy00LjItMS40bC0xLjMgMi41YzEuNCAzLjkgNC40IDYuMSA3IDkuNCA1LjIgNiA4LjQgMTIuOSAxMS43IDIwIDYgMTMuNCAxMC40IDI3LjYgMTMgNDIgNS4zIDI3LjkgMSA1NS44LTcuOCA4Mi41LTYuMi0xLjYtMTIuMi0zLjYtMTguNC01LjRhMjUxLjggMjUxLjggMCAwIDAtNS44LTgxLjRjLTIuMi0xMS4yLTUuOC0yMi05LjgtMzIuNy0xLTIuNC0yLjctMS44LTQuOC0yLS41IDEuNS0xIDIuOS0uOCA0LjUuNiA1IC45IDEwLjEgMS40IDE1LjIgMS42IDE3LjIuMiAzMy44LTEuMiA1MS0xLjUgMTMtNC4zIDI1LjgtOC4xIDM4LjMtMzUuMi03LjItNzEtMTEuNC0xMDYuOS0xMS44YTE0MS4zIDE0MS4zIDAgMCAxLTMtNDIuNyAxNjIuOCAxNjIuOCAwIDAgMSAyMi41LTc0LjQgMTA5IDEwOSAwIDAgMSAxNC4yLTIwLjljLjctMSAyLjEtMi4zIDEuOS0zLjYgMC0yLjUtMy41LTMuMi01LTEuNGExMTEgMTExIDAgMCAwLTE2IDIzIDE2MyAxNjMgMCAwIDAtMjMuNCA3OS4zIDE0NCAxNDQgMCAwIDAgMy41IDQwLjdjLTYuMiAwLTEyLjUuMS0xOC43LjMtOS4yLjktMTguNCAxLTI3LjYgMi41YTk5LjUgOTkuNSAwIDAgMS03LjgtNTMuNWMxLjQtMTIuNiA0LjItMjUuMSA4LjItMzcuMi42LTIgMi4zLTQuOCAxLjItNi44LTEuNC0yLjEtNC40LTEuNC01LjMuOC0zLjQgNi44LTYuNCAxMy44LTkgMjEtNS44IDE2LjgtMTEuMyAzMy4yLTExLjUgNTEuMi0uMiA5LjQgMSAxOC41IDMgMjcuN2ExMzAuMSAxMzAuMSAwIDAgMC00OSAxOC45IDcwLjYgNzAuNiAwIDAgMS0xNy0zNi4xIDEwNiAxMDYgMCAwIDEgNS01MiAxMTAgMTEwIDAgMCAxIDM1LjgtNTAuNCA3NCA3NCAwIDAgMSAzNS45LTE1LjNjMi4zLS4zIDUuNi4yIDcuNC0xLjYuOS0yLjctLjMtMy41LTIuNC00LjlhMjEwLjQgMjEwLjQgMCAwIDEgNDcuNS0yNC45IDI0OSAyNDkgMCAwIDEgMTY2LjMtMVpNMzI2LjQgMzYyYy0uMSAzLjUuNCA3IDAgMTAuNS0xLjcgNC40LTQuMSA4LjYtNiAxMy0yIDQuMy0yLjkgOC45LTQuNSAxMy4zYTY1IDY1IDAgMCAxIDEwLjUtMzYuOFoiLz48L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNjEgLTgzKSI+PC9nPjwvZz48L3N2Zz4=",
+};
+const AVATAR_KEYS = ["sunny", "mint", "berry", "sky", "peach", "lime"];
+
 /* ===================== 全局状态 ===================== */
 const APP = {
   me: "u" + Math.random().toString(36).slice(2, 8),
@@ -2962,8 +3099,15 @@ const APP = {
   shuffleSeed: 0,        // 随机种子（两端用同一个种子洗牌，才能同步）
   shuffleVer: 0,
   repeat: 0,             // 0 顺序（播完最后一首停），1 列表循环，2 单曲循环
+  mode: "",              // ""=首页 | solo=单机听歌 | duet=一起听歌
+  pf: { name: "", avatar: "" },       // 我的资料（localStorage）
+  peerPf: { name: "", avatar: "" },   // 对方的资料（进房后互通）
+  pls: [],               // 自建歌单 [{id,name,ids}]（仅单机模式用，localStorage）
+  plCur: "",             // 当前打开的自建歌单 id
+  playQ: [],             // 单机连播队列（歌曲 id，按当前界面顺序）
+  chooseFor: "",         // 正在「加到哪个歌单」的那首歌 id
   plQuery: "",           // 歌单搜索词
-  plTab: "all",          // 歌单筛选：all | fav | recent
+  plTab: "duet",         // 歌单筛选：duet|lib|all|pls|pl|fav|recent
   reorder: false,        // 歌单排序模式（拖动 / 上下移动）
   sendQueue: [],         // 传歌排队（一次只传一首）
   sending: false,        // 当前是否正在传某一首
@@ -2995,12 +3139,26 @@ const UI = {
   codeWrap: $("#codeWrap"),
   roomCode: $("#roomCode"),
   inpCode: $("#inpCode"),
+  cardHome: $("#cardHome"),
   cardConn: $("#cardConn"),
   cardPlayer: $("#cardPlayer"),
   sheetList: $("#sheetList"),
   sheetChat: $("#sheetChat"),
   sheetScan: $("#sheetScan"),
+  sheetProfile: $("#sheetProfile"),
+  sheetChoose: $("#sheetChoose"),
   sheetQr: $("#sheetQr"),
+  homeAvatar: $("#homeAvatar"),
+  homeName: $("#homeName"),
+  meAvatar: $("#meAvatar"),
+  meName: $("#meName"),
+  peerAvatar: $("#peerAvatar"),
+  peerName: $("#peerName"),
+  profPreview: $("#profPreview"),
+  profName: $("#profName"),
+  avatarGrid: $("#avatarGrid"),
+  chooseList: $("#chooseList"),
+  listTitle: $("#listTitle"),
   qrBox: $("#qrBox"),
   qrTip: $("#qrTip"),
   plSearch: $("#plSearch"),
@@ -3047,12 +3205,314 @@ function show(el, yes) { el.classList.toggle("hidden", !yes); }
 function enterMain() {
   show(UI.cardConn, false);
   show(UI.cardPlayer, true);
+  if (APP.mode === "solo") { setPill("单机听歌", "ok"); return; }
   setPill(APP.paired ? "已连接" : "等待对方", APP.paired ? "ok" : "warn blink");
 }
 function setPill(text, state) {
   if (!UI.pillText) return;
   UI.pillText.textContent = text;
   UI.dotPill.className = "dot" + (state ? " " + state : "");
+}
+
+/* ===================== 首页：模式切换 ===================== */
+function applyModeChrome() {
+  document.body.classList.toggle("mode-solo", APP.mode === "solo");
+  document.body.classList.toggle("mode-duet", APP.mode === "duet");
+  if (UI.listTitle) UI.listTitle.textContent = APP.mode === "solo" ? "我的音乐" : "歌单";
+  syncTabs();
+  syncListCount();
+  renderProfile();
+  if (APP.mode === "solo") setPill("单机听歌", "ok");
+}
+function syncTabs() {
+  document.querySelectorAll(".chip[data-tab]").forEach((el) => {
+    el.classList.toggle("on", el.getAttribute("data-tab") === APP.plTab);
+  });
+}
+function enterSolo() {
+  APP.mode = "solo";
+  APP.plTab = "all";
+  APP.plCur = "";
+  APP.playQ = [];
+  APP.reorder = false;
+  APP.plQuery = "";
+  if (UI.plSearch) UI.plSearch.value = "";
+  show(UI.cardHome, false);
+  show(UI.cardConn, false);
+  show(UI.cardPlayer, true);
+  applyModeChrome();
+  renderPlaylist();
+  toast("单机听歌：点歌就听，按当前列表连播", 3200);
+}
+function enterDuet() {
+  APP.mode = "duet";
+  APP.plTab = "duet";
+  APP.plCur = "";
+  APP.playQ = [];
+  APP.reorder = false;
+  APP.plQuery = "";
+  if (UI.plSearch) UI.plSearch.value = "";
+  resetSessionQueue();
+  show(UI.cardHome, false);
+  show(UI.cardConn, true);
+  show(UI.cardPlayer, false);
+  applyModeChrome();
+  enterList();
+}
+function leaveDuet() {
+  if (APP.room && APP.paired && !confirm("返回首页会退出当前的一起听房间，确定吗？")) return false;
+  APP.closingPeer = true;
+  try { teardownPeer(); } catch (e) {}
+  closeMqs();
+  try { closeLobbyClient(); } catch (e) {}
+  try { stopLobbyAd(); } catch (e) {}
+  clearInterval(APP.helloTimer);
+  clearInterval(APP.pingTimer);
+  APP.helloTimer = null;
+  APP.pingTimer = null;
+  APP.room = "";
+  APP.role = "";
+  APP.paired = false;
+  APP.reconnecting = false;
+  resetSessionQueue();
+  return true;
+}
+function goHome() {
+  if (APP.mode === "duet" && APP.room && !leaveDuet()) return;
+  APP.mode = "";
+  APP.playQ = [];
+  try { audio.pause(); } catch (e) {}
+  show(UI.cardHome, true);
+  show(UI.cardConn, false);
+  show(UI.cardPlayer, false);
+  document.body.classList.remove("mode-solo", "mode-duet");
+  renderProfile();
+}
+
+/* ===================== 个人资料（头像 + 用户名） ===================== */
+function defaultAvatar() {
+  const keys = AVATAR_KEYS.filter((k) => AVATARS[k]);
+  if (!keys.length) return "";
+  let h = 0;
+  for (let i = 0; i < APP.me.length; i++) h = (h * 31 + APP.me.charCodeAt(i)) >>> 0;
+  return AVATARS[keys[h % keys.length]];
+}
+function loadProfile() {
+  let p = null;
+  try { p = JSON.parse(localStorage.getItem("duet_profile_v1") || "null"); } catch (e) {}
+  APP.pf = {
+    name: (p && String(p.name || "").slice(0, 12)) || "",
+    avatar: (p && String(p.avatar || "")) || "",
+  };
+  if (!APP.pf.avatar) APP.pf.avatar = defaultAvatar();
+}
+function saveProfileStore() {
+  try {
+    localStorage.setItem("duet_profile_v1", JSON.stringify({
+      name: APP.pf.name || "", avatar: APP.pf.avatar || "",
+    }));
+  } catch (e) {}
+}
+function renderProfile() {
+  const myAva = APP.pf.avatar || defaultAvatar();
+  const peerAva = APP.peerPf.avatar || defaultAvatar();
+  if (UI.homeAvatar) UI.homeAvatar.src = myAva;
+  if (UI.homeName) UI.homeName.textContent = APP.pf.name || "设置资料";
+  if (UI.meAvatar) UI.meAvatar.src = myAva;
+  if (UI.meName) UI.meName.textContent = APP.pf.name || "我";
+  if (UI.peerAvatar) UI.peerAvatar.src = peerAva;
+  if (UI.peerName) UI.peerName.textContent = APP.peerPf.name || "对方";
+}
+function applyPeerProfile(pf) {
+  if (!pf) return false;
+  const n = String(pf.name != null ? pf.name : pf.n || "").slice(0, 12);
+  let a = String(pf.avatar != null ? pf.avatar : pf.a || "");
+  if (a && !/^data:image\//.test(a)) a = "";
+  if (n === APP.peerPf.name && a === APP.peerPf.avatar) return false;
+  APP.peerPf = { name: n, avatar: a };
+  renderProfile();
+  return true;
+}
+function myPf() { return { n: APP.pf.name || "", a: APP.pf.avatar || "" }; }
+function helloMsg(extra) {
+  return Object.assign({ k: "hello", from: APP.me, role: APP.role, tracks: [] }, extra || {});
+}
+/* 资料单独发（头像可能是十几 KB 的图片，不能塞进每 1.5 秒一次的 hello） */
+function publishProfile(force) {
+  if (Date.now() - (APP.pfSentTs || 0) < (force ? 0 : 8000)) return;
+  APP.pfSentTs = Date.now();
+  publish({ k: "profile", from: APP.me, name: APP.pf.name || "", avatar: APP.pf.avatar || "" });
+}
+
+let _pendAvatar = "";
+function renderAvatarGrid() {
+  if (!UI.avatarGrid) return;
+  UI.avatarGrid.innerHTML = AVATAR_KEYS.map((k) => {
+    const src = AVATARS[k];
+    return src ? '<div class="avatarOpt" data-av="' + k + '"><img src="' + src + '" alt=""></div>' : "";
+  }).join("");
+}
+function markAvatarSel() {
+  document.querySelectorAll("#avatarGrid .avatarOpt").forEach((el) => {
+    const src = AVATARS[el.getAttribute("data-av")] || "";
+    el.classList.toggle("on", !!src && src === _pendAvatar);
+  });
+}
+function openProfileSheet() {
+  _pendAvatar = APP.pf.avatar || defaultAvatar();
+  if (UI.profPreview) UI.profPreview.src = _pendAvatar;
+  if (UI.profName) UI.profName.value = APP.pf.name || "";
+  renderAvatarGrid();
+  markAvatarSel();
+  openSheet("profile");
+}
+function saveProfileFromSheet() {
+  APP.pf.name = (UI.profName.value || "").trim().slice(0, 12);
+  APP.pf.avatar = _pendAvatar || defaultAvatar();
+  saveProfileStore();
+  renderProfile();
+  closeSheets();
+  toast("资料已保存");
+  if (APP.mode === "duet") publishProfile(true);
+}
+
+/* ===================== 自建歌单（单机模式） ===================== */
+function loadPls() {
+  let a = [];
+  try { a = JSON.parse(localStorage.getItem("duet_pls_v1") || "[]"); } catch (e) {}
+  APP.pls = (Array.isArray(a) ? a : []).filter((x) => x && x.id && x.name).map((x) => ({
+    id: String(x.id),
+    name: String(x.name).slice(0, 16),
+    ids: Array.isArray(x.ids) ? x.ids.filter((v) => typeof v === "string") : [],
+  }));
+}
+function savePls() {
+  try { localStorage.setItem("duet_pls_v1", JSON.stringify(APP.pls)); } catch (e) {}
+}
+function plsTracks(pid) {
+  const p = APP.pls.find((x) => x.id === pid);
+  if (!p) return [];
+  return p.ids.map((id) => APP.lib.find((t) => t.id === id)).filter(Boolean);
+}
+function newPlaylist(name) {
+  const p = {
+    id: "p" + Math.random().toString(36).slice(2, 8),
+    name: String(name || "新歌单").slice(0, 16),
+    ids: [],
+  };
+  APP.pls.push(p);
+  savePls();
+  return p;
+}
+function createPlaylistAsk() {
+  const name = (prompt("给新歌单起个名字：", "新歌单" + (APP.pls.length + 1)) || "").trim();
+  if (!name) return null;
+  const p = newPlaylist(name);
+  toast("已新建歌单「" + p.name + "」");
+  return p;
+}
+function renamePlaylist(pid) {
+  const p = APP.pls.find((x) => x.id === pid);
+  if (!p) return;
+  const name = (prompt("歌单名：", p.name) || "").trim();
+  if (!name || name === p.name) return;
+  p.name = name.slice(0, 16);
+  savePls();
+  renderPlaylist();
+  toast("已重命名");
+}
+function deletePlaylist(pid) {
+  const p = APP.pls.find((x) => x.id === pid);
+  if (!p) return;
+  if (!confirm("删除歌单「" + p.name + "」？（只删歌单，歌曲还在全部音乐里）")) return;
+  APP.pls = APP.pls.filter((x) => x.id !== pid);
+  savePls();
+  if (APP.plCur === pid) { APP.plCur = ""; APP.plTab = "pls"; }
+  syncTabs();
+  renderPlaylist();
+  toast("已删除歌单");
+}
+function openPlaylist(pid) {
+  APP.plCur = pid;
+  APP.plTab = "pl";
+  APP.plQuery = "";
+  if (UI.plSearch) UI.plSearch.value = "";
+  syncTabs();
+  renderPlaylist();
+}
+function renderChooseList() {
+  if (!UI.chooseList) return;
+  if (!APP.pls.length) {
+    UI.chooseList.innerHTML = '<div class="plsEmpty">还没有自建歌单，点下面「新建歌单」</div>';
+    return;
+  }
+  const tid = APP.chooseFor;
+  UI.chooseList.innerHTML = APP.pls.map((p) => {
+    const has = tid && p.ids.indexOf(tid) >= 0;
+    return '<div class="plsItem" data-cpid="' + p.id + '">' +
+      '<div class="plIdx">🎵</div>' +
+      '<div class="plMain"><div class="plName">' + esc(p.name) + "</div>" +
+      '<div class="plMeta">' + p.ids.length + " 首" + (has ? " · 已加入" : "") + "</div></div>" +
+      '<button class="miniBtn' + (has ? " fav on" : "") + '" data-cact="toggle">' +
+        (has ? "✓" : "＋") + "</button></div>";
+  }).join("");
+}
+function openChoose(id) {
+  APP.chooseFor = id;
+  renderChooseList();
+  openSheet("choose");
+}
+function addToPlaylist(pid, tid) {
+  const p = APP.pls.find((x) => x.id === pid);
+  if (!p || !tid) return;
+  if (p.ids.indexOf(tid) >= 0) { toast("已经在「" + p.name + "」里了"); return; }
+  p.ids.push(tid);
+  savePls();
+  renderChooseList();
+  if (APP.plTab === "pl" && APP.plCur === pid) renderPlaylist();
+  const t = APP.lib.find((x) => x.id === tid);
+  toast("已加入「" + p.name + "」" + (t ? "：" + t.name : ""));
+}
+function removeFromPlaylist(pid, tid) {
+  const p = APP.pls.find((x) => x.id === pid);
+  if (!p) return;
+  const i = p.ids.indexOf(tid);
+  if (i < 0) return;
+  p.ids.splice(i, 1);
+  savePls();
+  renderPlaylist();
+  const t = APP.lib.find((x) => x.id === tid);
+  toast("已从歌单移出" + (t ? "：「" + t.name + "」" : ""));
+}
+
+/* 单机模式下的连播队列：点歌那一刻看到的列表就是队列 */
+function soloRecentTracks() {
+  const keys = recentKeys();
+  const rank = {};
+  keys.forEach((k, i) => { if (!(k in rank)) rank[k] = i; });
+  let list = APP.lib.filter((t) => trackKey(t) in rank);
+  list.sort((a, b) => {
+    const ra = rank[trackKey(a)];
+    const rb = rank[trackKey(b)];
+    return (ra == null ? 999 : ra) - (rb == null ? 999 : rb);
+  });
+  return list;
+}
+function playQueueList() {
+  if (APP.mode !== "solo") return APP.tracks;
+  let list;
+  if (APP.plTab === "pl" && APP.plCur) list = plsTracks(APP.plCur);
+  else if (APP.plTab === "fav") list = APP.lib.filter((t) => t.fav);
+  else if (APP.plTab === "recent") list = soloRecentTracks();
+  else list = APP.lib.slice();
+  const q = String(APP.plQuery || "").trim().toLowerCase();
+  if (q) list = list.filter((t) => String(t.name || "").toLowerCase().indexOf(q) >= 0);
+  return list;
+}
+function activeTracks() {
+  if (APP.mode !== "solo") return APP.tracks;
+  const q = (APP.playQ || []).map(findTrack).filter(Boolean);
+  return q.length ? q : playQueueList();
 }
 
 /* 底部抽屉：播放列表 / 消息 / 扫描结果 各是一个独立界面 */
@@ -3063,6 +3523,8 @@ function openSheet(which) {
   const el = which === "chat" ? UI.sheetChat
     : which === "scan" ? UI.sheetScan
     : which === "qr" ? UI.sheetQr
+    : which === "profile" ? UI.sheetProfile
+    : which === "choose" ? UI.sheetChoose
     : UI.sheetList;
   if (which === "list") renderPlaylist();
   UI.mask.classList.remove("hidden");
@@ -3079,6 +3541,8 @@ function closeSheets() {
   UI.sheetList.classList.remove("on");
   UI.sheetChat.classList.remove("on");
   UI.sheetScan.classList.remove("on");
+  if (UI.sheetProfile) UI.sheetProfile.classList.remove("on");
+  if (UI.sheetChoose) UI.sheetChoose.classList.remove("on");
   if (UI.sheetQr) UI.sheetQr.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
@@ -3096,7 +3560,7 @@ function clearUnread() {
 }
 
 function syncListCount() {
-  const n = APP.tracks.length;
+  const n = APP.mode === "solo" ? APP.lib.length : APP.tracks.length;
   if (UI.listCount) UI.listCount.textContent = n;
 }
 
@@ -3167,6 +3631,7 @@ function saveOrder() {
 }
 
 function listBase() {
+  if (APP.mode === "solo") return APP.lib.length + " 首在我的音乐里";
   return APP.tracks.length + " 首在一起听" + (APP.paired ? " · 已连接" : " · 等待对方");
 }
 /* 临时提示：抽屉里的小字一起变，同时右上角弹一个轻提示，几秒后恢复常态文字 */
@@ -3220,7 +3685,7 @@ async function restorePlaylist() {
     }
 
     renderPlaylist();
-    if (APP.lib.length) UI.txtListText.textContent = APP.lib.length + " 首在我的列表里";
+    UI.txtListText.textContent = listBase();
     restoreProgress();
   } catch (e) {}
 }
@@ -3315,7 +3780,7 @@ async function joinRoomChannel(room) {
       } else {
         setPill("直连已建立", "ok");
       }
-      publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
+      publish(helloMsg());
     };
     mq.onLost = () => {
       if (!mqAnyConnected()) {
@@ -3344,10 +3809,10 @@ async function joinRoomChannel(room) {
     await sleep(300);
   }
 
-  publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
+  publish(helloMsg());
   clearInterval(APP.helloTimer);
   APP.helloTimer = setInterval(() => {
-    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
+    if (!APP.paired) publish(helloMsg());
   }, 1500);
 
   clearInterval(APP.pingTimer);
@@ -3403,6 +3868,8 @@ function onMqttMessage(topic, payload) {
 
   switch (m.k) {
     case "hello": {
+      if (m.pf) applyPeerProfile(m.pf);
+      if (APP.mode === "duet") publishProfile(false);
       if (APP.paired) {
         if (m.renew && APP.role === "host") tryRestartIce();
         break;
@@ -3510,6 +3977,11 @@ function onMqttMessage(topic, payload) {
         APP.shuffleSeed = Number(m.seed) || 1;
         renderShuffleBtn();
         toast(m.on ? "对方开启了随机播放" : "对方切回顺序播放");
+      }
+      break;
+    case "profile":
+      if (applyPeerProfile({ name: m.name, avatar: m.avatar })) {
+        toast("对方更新了头像/名字");
       }
       break;
     case "chat":
@@ -3688,7 +4160,7 @@ function tryRestartIce() {
         .catch(() => {});
     } else {
       // 房员自己没有协商主动权，喊房主重来一次
-      publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
+      publish(helloMsg({ renew: true }));
     }
     return true;
   } catch (e) { return false; }
@@ -3757,7 +4229,7 @@ function retryPair() {
     if (!APP.room || APP.paired || APP.pc) return;
     mqKick();
     if (APP.role === "host") createPeer(true);
-    else publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
+    else publish(helloMsg({ renew: true }));
   }, wait);
 }
 
@@ -3785,8 +4257,9 @@ function bindCtlChannel(dc) {
     show(UI.rowRetryConn, false);
     enterMain();
     publishMode();
-    /* 连上的这一刻把「一起听歌单」重报一遍：中间断线时对方加的歌也能补上 */
-    publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
+    /* 连上的这一刻把「一起听歌单」和资料重报一遍：中间断线时对方加的歌也能补上 */
+    publishProfile(true);
+    publish(helloMsg());
     syncQueueToPeer();
     sendAllMyTracks();
   };
@@ -3812,7 +4285,7 @@ function reconnectPeer() {
   // 靠 MQTT 每 1.5 秒喊一声，让对方知道我们还在
   clearInterval(APP.helloTimer);
   APP.helloTimer = setInterval(() => {
-    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
+    if (!APP.paired) publish(helloMsg());
   }, 1500);
 
   // 房主主动重新发 offer，房员等 offer 来了再应答
@@ -3846,7 +4319,7 @@ function netWake() {
   }
   APP.tryCount = 0;
   if (APP.role === "host") createPeer(true);
-  else publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
+  else publish(helloMsg({ renew: true }));
 }
 
 /* 手动重连：卡住的时候点一下 */
@@ -3868,7 +4341,7 @@ function forceReconnect() {
       if (APP.room && !APP.paired && !APP.pc) createPeer(true);
     }, 150);
   } else {
-    publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
+    publish(helloMsg({ renew: true }));
   }
 }
 
@@ -4162,7 +4635,7 @@ async function addFiles(files) {
   }
   renderPlaylist();
   UI.txtListText.textContent = APP.lib.length + " 首在我的列表里" +
-    (added ? "；切到「我的歌曲」点 ＋ 就能加进一起听" : "");
+    (added ? (APP.mode === "solo" ? "" : "；切到「我的歌曲」点 ＋ 就能加进一起听") : "");
 }
 
 /* 从「我的列表」加进「一起听歌单」：按点击的先后排到末尾，两端顺序一致 */
@@ -4507,10 +4980,91 @@ function visibleLib() {
   return list;
 }
 
+function plHeadHtml() {
+  const p = APP.pls.find((x) => x.id === APP.plCur);
+  if (!p) return "";
+  return '<div class="plsHead">' +
+    '<button class="topBtn" data-pact="backlist" style="padding:7px 10px">‹ 歌单</button>' +
+    '<div class="plName">' + esc(p.name) + "</div>" +
+    '<span class="tag">' + p.ids.length + " 首</span>" +
+    '<button class="topBtn" data-pact="rename" style="padding:7px 10px">重命名</button>' +
+    "</div>";
+}
+
+/* 自建歌单列表（单机模式的「我的歌单」） */
+function renderPlaylistIndex(box) {
+  if (UI.plFilterCount) UI.plFilterCount.textContent = APP.pls.length ? APP.pls.length + " 个歌单" : "";
+  if (!APP.pls.length) {
+    box.innerHTML = '<div class="plEmpty">还没有自建歌单<br>点右上角「＋ 新建歌单」</div>';
+    return;
+  }
+  box.innerHTML = APP.pls.map((p) => {
+    return '<div class="plsItem' + (APP.plCur === p.id ? " cur" : "") + '" data-pid="' + p.id + '">' +
+      '<div class="plIdx">🎵</div>' +
+      '<div class="plMain"><div class="plName">' + esc(p.name) + "</div>" +
+      '<div class="plMeta">' + plsTracks(p.id).length + " 首</div></div>" +
+      '<button class="miniBtn" data-pact="rename" title="重命名">✎</button>' +
+      '<button class="miniBtn del" data-pact="del" title="删除歌单">✕</button></div>';
+  }).join("") + '<p class="plsTip">点歌单进入；加歌去「全部音乐」点行尾的 ＋。</p>';
+}
+
 function renderPlaylist() {
   syncListCount();
   const box = UI.playlist;
+  const q = String(APP.plQuery || "").trim();
 
+  /* ---------- 单机听歌：全部音乐 / 我的歌单 / 收藏 / 最近 ---------- */
+  if (APP.mode === "solo") {
+    if (APP.plTab === "pls") { renderPlaylistIndex(box); return; }
+
+    let list;
+    let emptyText;
+    if (APP.plTab === "pl" && APP.plCur) {
+      if (!APP.pls.some((x) => x.id === APP.plCur)) { APP.plTab = "pls"; renderPlaylistIndex(box); return; }
+      list = plsTracks(APP.plCur);
+      emptyText = "这个歌单还是空的<br>去「全部音乐」点 ＋ 加进来";
+    } else if (APP.plTab === "fav") {
+      list = APP.lib.filter((t) => t.fav);
+      emptyText = "还没有收藏的歌";
+    } else if (APP.plTab === "recent") {
+      list = soloRecentTracks();
+      emptyText = "还没有最近播放";
+    } else {
+      APP.plTab = "all";
+      list = visibleLib();
+      emptyText = "我的音乐还是空的<br>点上面「添加歌曲 / 扫描本地歌曲」";
+    }
+    if (q) list = list.filter((t) => String(t.name || "").toLowerCase().indexOf(q.toLowerCase()) >= 0);
+    if (UI.plFilterCount) UI.plFilterCount.textContent = q ? "匹配 " + list.length + " 首" : "";
+
+    const head = APP.plTab === "pl" && APP.plCur ? plHeadHtml() : "";
+    if (!list.length) {
+      box.innerHTML = head + '<div class="plEmpty">' + emptyText + "</div>";
+      return;
+    }
+
+    const inPl = APP.plTab === "pl" && APP.plCur;
+    box.innerHTML = head + list.map((t, i) => {
+      const meta = [];
+      if (t.dur) meta.push(fmtTime(t.dur));
+      if (t.lrc && t.lrc.length) meta.push("有歌词");
+      if (t.state === "sending") meta.push("发送中 " + (t.pct || 0) + "%");
+      const tail = inPl
+        ? '<button class="miniBtn del" data-act="plrm" title="移出歌单">✕</button>'
+        : '<button class="miniBtn fav ' + (t.fav ? "on" : "off") + '" data-act="fav" title="收藏">' +
+            (t.fav ? "★" : "☆") + "</button>" +
+          '<button class="miniBtn" data-act="qadd" title="加入自建歌单">＋</button>';
+      return '<div class="plItem' + (t.id === APP.curId ? " cur" : "") + '" data-id="' + t.id + '">' +
+        '<div class="plIdx">' + (i + 1) + "</div>" +
+        '<div class="plMain" data-act="play">' +
+          '<div class="plName">' + esc(t.name) + "</div>" +
+          '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
+        "</div>" + tail + "</div>";
+    }).join("");
+    return;
+  }
+
+  /* ---------- 一起听：一起听歌单 / 我的歌曲 / 收藏 / 最近 ---------- */
   /* 「我的歌曲」= 长期保存的本地列表，「一起听」= 本次房间的歌单 */
   if (APP.plTab === "lib") {
     const list = visibleLib();
@@ -4546,7 +5100,7 @@ function renderPlaylist() {
 
   const list = visibleTracks();
   if (UI.plFilterCount) {
-    UI.plFilterCount.textContent = (APP.plTab === "all" && !APP.plQuery) ? "" : "显示 " + list.length + " 首";
+    UI.plFilterCount.textContent = (APP.plTab === "duet" && !APP.plQuery) ? "" : "显示 " + list.length + " 首";
   }
   if (!APP.tracks.length) {
     box.innerHTML = '<div class="plEmpty">一起听歌单还是空的<br>切到「我的歌曲」点 ＋ 加进来</div>';
@@ -4592,9 +5146,8 @@ function toggleFav(id) {
 
 function setPlTab(tab) {
   APP.plTab = tab;
-  document.querySelectorAll(".chip[data-tab]").forEach((el) => {
-    el.classList.toggle("on", el.getAttribute("data-tab") === tab);
-  });
+  if (tab !== "pl") APP.plCur = "";
+  syncTabs();
   renderPlaylist();
 }
 
@@ -4605,7 +5158,7 @@ function setReorder(on) {
   if (on) {
     APP.plQuery = "";
     if (UI.plSearch) UI.plSearch.value = "";
-    setPlTab("all");
+    setPlTab(APP.mode === "solo" ? "all" : "duet");
     toast("拖动 ☰ 调整顺序，也可以用 ↑ ↓", 3000);
   } else {
     renderPlaylist();
@@ -4799,10 +5352,18 @@ function addChat(text, mine) {
   if (!UI.chatList || !text) return;
   const empty = UI.chatList.querySelector(".chatEmpty");
   if (empty) empty.remove();
+  const line = document.createElement("div");
+  line.className = "chatLine " + (mine ? "me" : "peer");
+  const ava = document.createElement("img");
+  ava.className = "chatAva";
+  ava.src = mine ? (APP.pf.avatar || defaultAvatar()) : (APP.peerPf.avatar || defaultAvatar());
+  ava.alt = "";
   const el = document.createElement("div");
   el.className = "chatMsg " + (mine ? "me" : "peer");
   el.textContent = text;
-  UI.chatList.appendChild(el);
+  if (mine) { line.appendChild(el); line.appendChild(ava); }
+  else { line.appendChild(ava); line.appendChild(el); }
+  UI.chatList.appendChild(line);
   while (UI.chatList.children.length > 20) UI.chatList.removeChild(UI.chatList.firstChild);
   UI.chatList.scrollTop = UI.chatList.scrollHeight;
 }
@@ -4850,12 +5411,12 @@ function saveProgress() {
 }
 
 function restoreProgress() {
-  /* 一起听歌单每次都是空的，没有“上次那首”可恢复，进度仍然会存着 */
-  if (!APP.tracks.length) return;
+  /* 只在「我的音乐」里找上次那首：一起听歌单每次都是空的 */
+  if (!APP.lib.length) return;
   let rec = null;
   try { rec = JSON.parse(localStorage.getItem("duet_pos_v1") || "null"); } catch (e) {}
   if (!rec || !rec.key) return;
-  const t = APP.tracks.find((x) => x.url && trackKey(x) === rec.key);
+  const t = APP.lib.find((x) => x.url && trackKey(x) === rec.key);
   if (!t) return;
   const pos = Number(rec.pos) || 0;
   if (pos < 3) return;
@@ -4989,6 +5550,8 @@ function selectTrack(id, startPlay) {
     }
     return;
   }
+  /* 单机：点歌那一刻看到的列表就是连播队列 */
+  if (APP.mode === "solo") APP.playQ = playQueueList().map((x) => x.id);
   loadTrackAudio(t);
   if (startPlay) { APP.wantPlaying = true; playSafe(); }
   setTimeout(onLocalAction, 40);
@@ -4999,8 +5562,9 @@ function trackKey(t) {
   return (t.name || "") + "|" + (t.size || 0);
 }
 
-function shuffleOrder() {
-  const keys = APP.tracks.map(trackKey);
+function shuffleOrder(list) {
+  const src = list || APP.tracks;
+  const keys = src.map(trackKey);
   let s = (APP.shuffleSeed || 1) >>> 0;
   const rnd = () => {
     s = (s + 0x6D2B79F5) >>> 0;
@@ -5018,16 +5582,17 @@ function shuffleOrder() {
   return keys;
 }
 
-function shuffleNeighbor(dir) {
-  const perm = shuffleOrder();
+function shuffleNeighbor(dir, list) {
+  const src = list || APP.tracks;
+  const perm = shuffleOrder(src);
   if (!perm.length) return null;
-  const cur = APP.tracks.find((t) => t.id === APP.curId);
+  const cur = src.find((t) => t.id === APP.curId);
   let i = cur ? perm.indexOf(trackKey(cur)) : -1;
   if (i < 0) i = dir > 0 ? -1 : 0;
   for (let n = 0; n < perm.length; n++) {
     i = (i + dir + perm.length) % perm.length;
     const key = perm[i];
-    const t = APP.tracks.find((x) => trackKey(x) === key);
+    const t = src.find((x) => trackKey(x) === key);
     if (t) return t;
   }
   return null;
@@ -5108,24 +5673,25 @@ function toggleRepeat() {
 }
 
 function stepTrack(dir) {
-  if (!APP.tracks.length) return;
+  const list = activeTracks();
+  if (!list.length) return;
 
   if (APP.shuffle) {
-    const t = shuffleNeighbor(dir);
+    const t = shuffleNeighbor(dir, list);
     if (!t) { hint("随机列表里没有能播的歌"); return; }
     if (!t.url) { hint("这首还没传过来，稍等"); return; }
     selectTrack(t.id, true);
     return;
   }
 
-  let i = APP.tracks.findIndex((x) => x.id === APP.curId);
+  let i = list.findIndex((x) => x.id === APP.curId);
   if (i < 0) i = 0;
   let j = i + dir;
   if (j < 0) j = 0;
-  if (j >= APP.tracks.length) j = APP.tracks.length - 1;
-  const t = APP.tracks[j];
+  if (j >= list.length) j = list.length - 1;
+  const t = list[j];
   if (!t.url) {
-    hint("下一首还没传过来");
+    hint(APP.mode === "solo" ? "这首歌还没加载好" : "下一首还没传过来");
     return;
   }
   selectTrack(t.id, true);
@@ -5143,15 +5709,16 @@ audio.onended = () => {
     return;
   }
 
+  const list = activeTracks();
   if (APP.shuffle) {
-    const t = shuffleNeighbor(1);
+    const t = shuffleNeighbor(1, list);
     if (t && t.url) selectTrack(t.id, true);
     return;
   }
 
-  const i = APP.tracks.findIndex((t) => t.id === APP.curId);
-  let next = APP.tracks[i + 1];
-  if (!next && APP.repeat === 1 && APP.tracks.length) next = APP.tracks[0];
+  const i = list.findIndex((t) => t.id === APP.curId);
+  let next = list[i + 1];
+  if (!next && APP.repeat === 1 && list.length) next = list[0];
   if (next && next.url) {
     selectTrack(next.id, true);
     return;
@@ -5299,6 +5866,40 @@ setInterval(() => {
 }, 250);
 
 /* ===================== 交互绑定 ===================== */
+/* 首页：模式选择 / 返回 / 个人资料 */
+$("#btnSolo").onclick = enterSolo;
+$("#btnDuet").onclick = enterDuet;
+$("#btnBackHome").onclick = goHome;
+$("#btnProfile").onclick = openProfileSheet;
+UI.meAvatar.onclick = openProfileSheet;
+UI.meName.onclick = openProfileSheet;
+$("#closeProfile").onclick = closeSheets;
+$("#btnSaveProfile").onclick = saveProfileFromSheet;
+$("#btnPickAvatar").onclick = () => avaPicker.click();
+$("#btnNewPl").onclick = () => { if (createPlaylistAsk()) { APP.plTab = "pls"; syncTabs(); renderPlaylist(); } };
+$("#closeChoose").onclick = closeSheets;
+$("#btnChooseNew").onclick = () => {
+  const p = createPlaylistAsk();
+  if (!p) return;
+  if (APP.chooseFor) addToPlaylist(p.id, APP.chooseFor);
+  closeSheets();
+};
+UI.chooseList.addEventListener("click", (e) => {
+  const row = e.target.closest(".plsItem");
+  if (!row) return;
+  const pid = row.getAttribute("data-cpid");
+  if (pid) addToPlaylist(pid, APP.chooseFor);
+});
+UI.avatarGrid.addEventListener("click", (e) => {
+  const opt = e.target.closest(".avatarOpt");
+  if (!opt) return;
+  const src = AVATARS[opt.getAttribute("data-av")];
+  if (!src) return;
+  _pendAvatar = src;
+  if (UI.profPreview) UI.profPreview.src = src;
+  markAvatarSel();
+});
+
 $("#btnCreate").onclick = createRoom;
 $("#btnJoin").onclick = joinRoomByCode;
 UI.inpCode.addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoomByCode(); });
@@ -5309,6 +5910,39 @@ picker.accept = "audio/*,video/*,.mp3,.m4a,.aac,.flac,.wav,.ogg,.opus";
 picker.multiple = true;
 picker.style.display = "none";
 document.body.appendChild(picker);
+
+/* 从相册选头像：裁成正方形、压到 128px 的 JPEG，便于随信令发给对方 */
+const avaPicker = document.createElement("input");
+avaPicker.type = "file";
+avaPicker.accept = "image/*";
+avaPicker.style.display = "none";
+document.body.appendChild(avaPicker);
+avaPicker.onchange = () => {
+  const f = avaPicker.files && avaPicker.files[0];
+  avaPicker.value = "";
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const S = 128;
+      const c = document.createElement("canvas");
+      c.width = S;
+      c.height = S;
+      const ctx = c.getContext("2d");
+      const side = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, S, S);
+      _pendAvatar = c.toDataURL("image/jpeg", 0.82);
+      if (UI.profPreview) UI.profPreview.src = _pendAvatar;
+      markAvatarSel();
+    } catch (e) {
+      toast("这张图读不出来，换一张试试");
+    }
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast("这张图读不出来，换一张试试"); };
+  img.src = url;
+};
 
 /* 选文件时（尤其是手机上）系统会把正在放的音乐暂停，
    这里记下“打开选择框之前正在播放”，选完自动接着放并对齐到对方进度。 */
@@ -5608,11 +6242,44 @@ UI.lobbyList.onclick = (e) => {
 };
 
 UI.playlist.addEventListener("click", (e) => {
+  /* 自建歌单列表 / 歌单头部的操作按钮 */
+  const pItem = e.target.closest(".plsItem");
+  if (pItem) {
+    const pid = pItem.getAttribute("data-pid") || pItem.getAttribute("data-cpid");
+    const pactEl = e.target.closest("[data-pact]");
+    const pact = pactEl ? pactEl.getAttribute("data-pact") : "";
+    if (pact === "rename") renamePlaylist(pid);
+    else if (pact === "del") deletePlaylist(pid);
+    else if (pid) openPlaylist(pid);
+    return;
+  }
+  const headEl = e.target.closest("[data-pact]");
+  if (headEl && !e.target.closest(".plItem")) {
+    const pact = headEl.getAttribute("data-pact");
+    if (pact === "backlist") {
+      APP.plCur = "";
+      APP.plTab = "pls";
+      syncTabs();
+      renderPlaylist();
+      return;
+    }
+    if (pact === "rename") { renamePlaylist(APP.plCur); return; }
+  }
+
   const item = e.target.closest(".plItem");
   if (!item) return;
   const id = item.getAttribute("data-id");
   const actEl = e.target.closest("[data-act]");
   const act = actEl ? actEl.getAttribute("data-act") : "play";
+
+  if (APP.mode === "solo") {
+    if (act === "fav") toggleFav(id);
+    else if (act === "qadd") openChoose(id);
+    else if (act === "plrm") removeFromPlaylist(APP.plCur, id);
+    else selectTrack(id, true);
+    return;
+  }
+
   if (act === "up") moveTrack(id, -1);
   else if (act === "down") moveTrack(id, 1);
   else if (act === "del") deleteTrack(id);
@@ -5628,9 +6295,12 @@ UI.btnPlay.onclick = () => {
   APP.localIntentTs = Date.now();
   APP._playRetry = 0;
   if (!audio.src) {
-    const first = APP.tracks.find((t) => t.url);
+    const pool = APP.mode === "solo" ? activeTracks() : APP.tracks;
+    const first = pool.find((t) => t.url);
     if (first) { selectTrack(first.id, true); return; }
-    hint(APP.tracks.length ? "歌单里的歌还没传到这台设备上，等一下再点" : "先添加一首歌再播放");
+    hint(APP.mode === "solo"
+      ? (APP.lib.length ? "这个列表里还没有能播的歌" : "先添加一首歌再播放")
+      : (APP.tracks.length ? "歌单里的歌还没传到这台设备上，等一下再点" : "先添加一首歌再播放"));
     return;
   }
   if (audio.paused) { APP.wantPlaying = true; playSafe(); }
@@ -5698,8 +6368,12 @@ UI.chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); sendChat(); }
 });
 
-/* 刷新后恢复上次的歌单 */
+/* 刷新后恢复上次的歌单、自建歌单和个人资料 */
+loadProfile();
+loadPls();
+renderAvatarGrid();
 restorePlaylist();
+applyModeChrome();
 
 /* ===================== 锁屏 / 通知栏控制 ===================== */
 if ("mediaSession" in navigator) {
