@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#12131a" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon-512.png" />
+<link rel="apple-touch-icon" href="icon-512.png" />
+<title>双人同步播放器</title>
+<style>
+  :root{
+    --bg:#0f1016; --card:#1a1b24; --card2:#23242f; --line:#2e3040;
+    --fg:#e9eaf2; --sub:#99a0b6; --accent:#5b8cff; --accent2:#8a6bff;
+    --ok:#3ddc84; --warn:#ffb43c; --err:#ff6060;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;background:radial-gradient(1200px 600px at 50% -10%, #1d2130 0%, var(--bg) 55%) no-repeat, var(--bg);
+    color:var(--fg);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    min-height:100vh;padding:16px 14px 40px;
+  }
+  .wrap{max-width:520px;margin:0 auto}
+  header{padding:8px 4px 18px}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:.5px}
+  .sub{margin:0;color:var(--sub);font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+  .hidden{display:none !important}
+  .row{display:flex;gap:10px;align-items:center}
+  .row + .row{margin-top:10px}
+  .btn{
+    flex:1;border:none;border-radius:12px;padding:14px 12px;font-size:15px;font-weight:600;
+    background:var(--card2);color:var(--fg);cursor:pointer;transition:.15s;font-family:inherit;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  input[type=text]{
+    flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);border-radius:12px;
+    padding:14px;color:var(--fg);font-size:16px;letter-spacing:3px;text-align:center;text-transform:uppercase;
+    font-family:inherit;outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent)}
+  .status{margin-top:12px;font-size:13px;color:var(--sub);display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#555;flex:none}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.err{background:var(--err)}
+  .dot.blink{animation:blink 1s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .code{font-size:34px;font-weight:800;letter-spacing:10px;text-align:center;padding:14px 0 6px;
+        background:linear-gradient(135deg,#7fa6ff,#b18cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .codeTip{text-align:center;color:var(--sub);font-size:12px;margin-bottom:10px}
+  .label{font-size:12px;color:var(--sub);margin-bottom:8px}
+  .progress{height:6px;border-radius:6px;background:#2a2c3a;overflow:hidden;margin-top:10px}
+  .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
+  .songName{font-size:15px;font-weight:600;margin-bottom:4px;word-break:break-all}
+  .times{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:4px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;margin:2px 0}
+  input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:8px;background:#2a2c3a}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;margin-top:-7px;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  .playRow{display:flex;align-items:center;gap:12px;margin-top:6px}
+  .btnPlay{
+    flex:none;width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:24px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(91,140,255,.35);
+  }
+  .btnPlay:active{transform:scale(.95)}
+  .btnSkip{
+    flex:none;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--card2);
+    color:var(--fg);font-size:16px;cursor:pointer;
+  }
+  .volRow{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--sub);font-size:12px}
+  .volRow input[type=range]::-webkit-slider-thumb{width:18px;height:18px;margin-top:-5px}
+  .syncInfo{margin-top:10px;font-size:12px;color:var(--sub);display:flex;justify-content:space-between;gap:8px}
+  .syncInfo b{color:var(--fg);font-weight:600}
+  details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  summary{cursor:pointer;font-size:13px;color:var(--sub);outline:none}
+  details p{margin:10px 0 0;font-size:12.5px;line-height:1.7;color:var(--sub)}
+  details p b{color:var(--fg)}
+  .tip{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,180,60,.1);
+       border:1px solid rgba(255,180,60,.3);color:#ffd08a;font-size:12.5px;line-height:1.6}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:8px;background:var(--card2);color:var(--sub)}
+  .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
+  .plItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .plItem.cur{border-color:var(--accent);background:rgba(91,140,255,.12)}
+  .plIdx{width:22px;text-align:center;color:var(--sub);font-size:12px;flex:none}
+  .plMain{flex:1;min-width:0;padding:2px 0}
+  .plName{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .plMeta{font-size:11.5px;color:var(--sub);margin-top:3px}
+  .miniBtn{flex:none;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);
+           background:transparent;color:var(--fg);font-size:15px;cursor:pointer}
+  .miniBtn:active{transform:scale(.94)}
+  .miniBtn.del{color:var(--err);border-color:rgba(255,96,96,.35)}
+  .lyrics{max-height:150px;overflow-y:auto;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .lyrLine{font-size:13px;line-height:1.6;color:var(--sub);padding:3px 6px;border-radius:8px;transition:.2s}
+  .lyrLine.active{color:#fff;font-weight:600;background:rgba(91,140,255,.14)}
+  .chatList{margin-top:10px;max-height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+  .chatEmpty{color:var(--sub);font-size:12.5px;text-align:center;padding:6px}
+  .chatMsg{max-width:82%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.5;word-break:break-word}
+  .chatMsg.me{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+  .chatMsg.peer{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+  .chatInput{letter-spacing:0 !important;text-transform:none !important;text-align:left !important;padding:11px 12px !important;font-size:14px !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>双人同步播放器</h1>
+    <p class="sub">两个人在异地，也能一起听同一个歌单</p>
+  </header>
+
+  <!-- 第一步：连接 -->
+  <section class="card" id="cardConn">
+    <div class="label">第一步 · 建立连接</div>
+    <div class="row" id="rowCreate">
+      <button class="btn primary" id="btnCreate">我是房主，创建房间</button>
+    </div>
+    <div class="row" id="rowJoin">
+      <input type="text" id="inpCode" maxlength="6" placeholder="房间号" autocomplete="off" spellcheck="false" />
+      <button class="btn" id="btnJoin" style="flex:0 0 96px">加入</button>
+    </div>
+    <div class="status"><span class="dot" id="dotConn"></span><span id="txtConn">未连接</span></div>
+    <div class="codeWrap hidden" id="codeWrap">
+      <div class="code" id="roomCode">------</div>
+      <div class="codeTip">把这个房间号发给对方，让 Ta 输进来</div>
+    </div>
+  </section>
+
+  <!-- 第二步：歌单 -->
+  <section class="card hidden" id="cardList">
+    <div class="label">第二步 · 歌单 <span class="tag" id="tagRole"></span></div>
+    <div class="row">
+      <button class="btn primary" id="btnAddSongs">添加歌曲（可多选）</button>
+    </div>
+    <div class="playlist" id="playlist"></div>
+    <div class="status" id="txtList"><span class="dot warn blink"></span><span id="txtListText">等待对方加入…</span></div>
+    <div class="tip hidden" id="tipFallback">
+      点对点直连失败时，歌曲没法自动传送。解决办法：让对方用 <b>微信/QQ</b> 把歌发过来，
+      你在自己这边用「添加歌曲」加进去，然后两边点<b>同一首歌</b>，同步依然有效（播放/暂停/进度仍会跟随）。
+    </div>
+
+    <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <div class="label">边听边聊</div>
+      <div class="chatList" id="chatList"><div class="chatEmpty">说点什么，对方马上能看到</div></div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…" autocomplete="off" />
+        <button class="btn" id="chatSend" style="flex:0 0 76px;padding:12px">发送</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第三步：播放器 -->
+  <section class="card hidden" id="cardPlayer">
+    <div class="label">第三步 · 一起听</div>
+    <div class="songName" id="songName">—</div>
+    <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
+    <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
+    <div class="playRow">
+      <button class="btnSkip" id="btnPrev">⏮</button>
+      <button class="btnPlay" id="btnPlay">▶</button>
+      <button class="btnSkip" id="btnNext">⏭</button>
+      <div style="flex:1;min-width:0">
+        <div class="syncInfo"><span>同步偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span></div>
+      </div>
+    </div>
+    <div class="volRow">
+      <span>音量</span>
+      <input type="range" id="vol" min="0" max="100" value="100" />
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="btnLrc" style="padding:11px;font-size:14px">给这首歌加歌词（.lrc）</button>
+    </div>
+    <div class="lyrics hidden" id="lyrics"></div>
+    <details>
+      <summary>使用说明 / 常见问题</summary>
+      <p><b>1. 房间号</b>：房主创建后得到 6 位房间号，对方输入即可加入。</p>
+      <p><b>2. 歌单</b>：两边都能「添加歌曲」，可以多选。加完对方会自动收到同一首歌（点对点直传，不经服务器）。</p>
+      <p><b>3. 排序 / 删除</b>：每首歌右边的 ↑ ↓ 调顺序，✕ 从歌单删除（两边都会删），对方那边会同步。</p>
+      <p><b>4. 控制</b>：两边权力完全对等，谁都能播放、暂停、拖动、切歌。</p>
+      <p><b>5. 歌词</b>：点「给这首歌加歌词」，选一个 .lrc 文件，两边都会滚动显示当前唱到的那句。</p>
+      <p><b>6. 聊天</b>：歌单下面的「边听边聊」，发的消息对方立刻能看到（只在这次打开期间有效）。</p>
+      <p><b>7. 记住歌单</b>：歌曲已经存在本机浏览器里，刷新后会自动恢复；直连断了会自动重连并补传。</p>
+      <p><b>8. 限制</b>：音量各自独立；聊天记录不做保存；换了浏览器（比如手机换用别的 App 打开）不会带过来。</p>
+    </details>
+  </section>
+
+  <audio id="audio" preload="auto" playsinline></audio>
+</div>
+
+<script>
+"use strict";
+
+/* ===================== 基础工具 ===================== */
+const $ = (s) => document.querySelector(s);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function fmtTime(t) {
+  if (!isFinite(t) || t < 0) t = 0;
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+
+function randCode() {
+  const A = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let out = "";
+  const buf = new Uint32Array(6);
+  crypto.getRandomValues(buf);
+  for (let i = 0; i < 6; i++) out += A[buf[i] % A.length];
+  return out;
+}
+
+function newId() {
+  return "t" + Math.random().toString(36).slice(2, 9);
+}
+
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+/* 按扩展名兜底猜一个音频类型（传过来的 Blob 需要正确的 MIME 才能解码） */
+function guessMime(name, fallbackType) {
+  const n = String(name || "").toLowerCase();
+  const m = {
+    mp3: "audio/mpeg", m4a: "audio/mp4", mp4: "audio/mp4", aac: "audio/aac",
+    flac: "audio/flac", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg",
+    opus: "audio/ogg", webm: "audio/webm", amr: "audio/amr", wma: "audio/x-ms-wma",
+    ape: "audio/x-ape", mka: "audio/x-matroska",
+  };
+  for (const k in m) {
+    if (n.endsWith("." + k)) return m[k];
+  }
+  return fallbackType || "audio/mpeg";
+}
+
+/* ===================== 极简 MQTT 客户端（WebSocket 版） =====================
+   只做「连接 / 订阅 / 发布 / 心跳」，用公共免费中转，不需要自建服务器。 */
+class MqttWS {
+  constructor(brokers, clientId, onMessage) {
+    this.brokers = brokers;
+    this.clientId = clientId;
+    this.onMessage = onMessage;
+    this.idx = 0;
+    this.connected = false;
+    this.pid = 0;
+    this.queue = [];
+    this.topic = null;
+    this.onLost = null;
+    this._keep = null;
+    this._retryTimer = null;
+  }
+
+  static encRL(n) {
+    const out = [];
+    do {
+      let d = n % 128;
+      n = Math.floor(n / 128);
+      if (n > 0) d |= 0x80;
+      out.push(d);
+    } while (n > 0);
+    return out;
+  }
+
+  static mk(type, flags, body) {
+    return new Uint8Array([(type << 4) | flags, ...MqttWS.encRL(body.length), ...body]);
+  }
+
+  connect() {
+    return new Promise((resolve, reject) => {
+      const attempt = () => {
+        if (this.idx >= this.brokers.length) {
+          reject(new Error("连不上中转服务器"));
+          return;
+        }
+        const url = this.brokers[this.idx++];
+        let ws;
+        try {
+          ws = new WebSocket(url, "mqtt");
+        } catch (e) {
+          attempt();
+          return;
+        }
+        ws.binaryType = "arraybuffer";
+        this.ws = ws;
+        let settled = false;
+
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          try { ws.close(); } catch (e) {}
+          attempt();
+        }, 20000);
+
+        ws.onopen = () => {
+          // CONNECT：MQTT 3.1.1 + 清除会话 + keepalive 60
+          // ClientId 前必须带 2 字节长度，否则服务器直接断开
+          const cid = new TextEncoder().encode(this.clientId);
+          ws.send(MqttWS.mk(1, 0, [0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60, 0, cid.length, ...cid]));
+        };
+
+        ws.onmessage = (ev) => {
+          if (!settled) {
+            this._scan(new Uint8Array(ev.data), (type) => {
+              if (type === 2) {
+                settled = true;
+                clearTimeout(timer);
+                this.connected = true;
+                this._afterConnect();
+                resolve();
+              }
+            });
+          } else {
+            this._scan(new Uint8Array(ev.data), null);
+          }
+        };
+
+        ws.onerror = () => {};
+
+        ws.onclose = () => {
+          clearTimeout(timer);
+          const wasConnected = this.connected;
+          this.connected = false;
+          clearInterval(this._keep);
+          if (!settled) {
+            settled = true;
+            attempt();
+          } else if (wasConnected) {
+            if (this.onLost) this.onLost();
+            this._scheduleRetry();
+          }
+        };
+      };
+      attempt();
+    });
+  }
+
+  _scan(u8, ackCb) {
+    let i = 0;
+    while (i < u8.length) {
+      const type = u8[i] >> 4;
+      let len = 0;
+      let mul = 1;
+      let j = i + 1;
+      while (true) {
+        const d = u8[j++];
+        len += (d & 127) * mul;
+        if (!(d & 128)) break;
+        mul *= 128;
+        if (j > u8.length) return;
+      }
+      const body = u8.slice(j, j + len);
+      if (ackCb) ackCb(type);
+      if (type === 3) {
+        const tl = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tl));
+        this.onMessage(topic, body.slice(2 + tl));
+      }
+      i = j + len;
+    }
+  }
+
+  _decode(payload) {
+    try { return JSON.parse(new TextDecoder().decode(payload)); } catch (e) { return null; }
+  }
+
+  _afterConnect() {
+    this._doSubscribe();
+    const pending = this.queue;
+    this.queue = [];
+    pending.forEach(([t, p]) => this.publish(t, p));
+    clearInterval(this._keep);
+    this._keep = setInterval(() => {
+      if (this.connected) {
+        try { this.ws.send(MqttWS.mk(12, 0, [])); } catch (e) {}
+      }
+    }, 30000);
+  }
+
+  _doSubscribe() {
+    if (!this.connected || !this.topic) return;
+    const tb = new TextEncoder().encode(this.topic);
+    this.pid = (this.pid + 1) & 0xffff || 1;
+    this.ws.send(MqttWS.mk(8, 2, [(this.pid >> 8) & 255, this.pid & 255, 0, tb.length, ...tb, 0]));
+  }
+
+  subscribe(topic) {
+    this.topic = topic;
+    this._doSubscribe();
+  }
+
+  publish(topic, payload) {
+    if (!this.connected) {
+      if (this.queue.length < 50) this.queue.push([topic, payload]);
+      return;
+    }
+    const tb = new TextEncoder().encode(topic);
+    const p = typeof payload === "string" ? new TextEncoder().encode(payload) : payload;
+    const body = [(tb.length >> 8) & 255, tb.length & 255, ...tb, ...p];
+    try { this.ws.send(MqttWS.mk(3, 0, body)); } catch (e) {}
+  }
+
+  _scheduleRetry() {
+    clearTimeout(this._retryTimer);
+    this.idx = 0;
+    this._retryTimer = setTimeout(() => {
+      this.connect().catch(() => this._scheduleRetry());
+    }, 3000);
+  }
+}
+
+/* ===================== 配置 ===================== */
+const BROKERS = ["wss://broker-cn.emqx.io:8084/mqtt", "wss://broker.emqx.io:8084/mqtt"];
+const ICE = {
+  iceServers: [
+    { urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] },
+    { urls: ["stun:stun.qq.com:3478"] },
+    { urls: ["stun:global.stun.twilio.com:3478"] },
+  ],
+};
+const TOPIC_PREFIX = "duetlisten/v1/";
+
+/* ===================== 全局状态 ===================== */
+const APP = {
+  me: "u" + Math.random().toString(36).slice(2, 8),
+  room: "",
+  role: "",              // host | guest
+  mq: null,
+  topic: "",
+  pc: null,
+  ctl: null,             // 主数据通道（只用来判断直连是否成功）
+  paired: false,
+  offset: null,          // 对方时钟 - 我的时钟（毫秒）
+  bestRtt: Infinity,
+  pingTimer: null,
+  helloTimer: null,
+  applyRemote: false,
+  applyTimer: null,
+  remoteBase: null,      // {pos, ts, playing} 漂移校正基准
+  tracks: [],            // {id,name,size,dur,blob,url,mine,state,pct,sending}
+  alias: {},             // 对方的歌曲 id -> 我本地的同一首歌 id
+  curId: "",
+  stateVer: 0,
+  lastBy: "",
+  plVer: 0,
+  plBy: "",
+  pendingTarget: null,   // 远程要我切到某首还没传过来的歌
+  pendApply: null,       // 音频还没就绪时暂存的 {pos, playing}
+  lastStateApplyTs: 0,
+  lastAnswer: null,
+  offerTimer: null,
+  needSent: new Set(),   // 已经催过对方补传的歌曲 id
+  peerTracks: [],        // 对方最近一次报上来的歌单
+  lrcCache: {},          // 对方发来的歌词原文（本地还没这首歌时先存着）
+  lrcIdx: -1,            // 当前高亮到第几行歌词
+  hintTimer: null,
+  reconnecting: false,   // 正在自动重连（防止重连逻辑自己套自己）
+  closingPeer: false,    // 主动销毁连接时的标记
+};
+
+const audio = $("#audio");
+audio.setAttribute("playsinline", "true");
+
+const UI = {
+  dotConn: $("#dotConn"),
+  txtConn: $("#txtConn"),
+  codeWrap: $("#codeWrap"),
+  roomCode: $("#roomCode"),
+  inpCode: $("#inpCode"),
+  cardList: $("#cardList"),
+  cardPlayer: $("#cardPlayer"),
+  playlist: $("#playlist"),
+  txtListText: $("#txtListText"),
+  tipFallback: $("#tipFallback"),
+  tagRole: $("#tagRole"),
+  songName: $("#songName"),
+  seek: $("#seek"),
+  tCur: $("#tCur"),
+  tDur: $("#tDur"),
+  btnPlay: $("#btnPlay"),
+  lagVal: $("#lagVal"),
+  clockVal: $("#clockVal"),
+  vol: $("#vol"),
+  lyrics: $("#lyrics"),
+  chatList: $("#chatList"),
+  chatInput: $("#chatInput"),
+};
+
+function setConn(text, state) {
+  UI.txtConn.textContent = text;
+  UI.dotConn.className = "dot" + (state ? " " + state : "");
+}
+function show(el, yes) { el.classList.toggle("hidden", !yes); }
+
+/* ===================== 歌单本地保存（浏览器自带数据库） =====================
+   刷新/关掉页面后歌单还在，不用每次重新添加。 */
+let _dbP = null;
+let _dbBroken = false;     // 浏览器不让用本地数据库（比如直接双击打开本地 html 时）
+let _dbWarned = false;
+function openDB() {
+  if (_dbP) return _dbP;
+  _dbP = new Promise((res, rej) => {
+    if (!window.indexedDB) { _dbBroken = true; rej(new Error("no indexedDB")); return; }
+    let req;
+    try { req = indexedDB.open("duetlisten", 1); } catch (e) { _dbBroken = true; rej(e); return; }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("tracks")) db.createObjectStore("tracks", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "k" });
+    };
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => { _dbBroken = true; rej(req.error); };
+  }).catch((e) => { _dbBroken = true; throw e; });
+  return _dbP;
+}
+function persistWarn() {
+  if (_dbWarned) return;
+  _dbWarned = true;
+  hint("这个打开方式不能自动保存歌单（浏览器禁用了本地数据库），歌单只在本次打开期间有效", 6000);
+}
+
+function dbDo(store, mode, fn) {
+  return openDB().then((db) => new Promise((res, rej) => {
+    const tx = db.transaction(store, mode);
+    try { fn(tx.objectStore(store)); } catch (e) { rej(e); return; }
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error);
+  })).catch((e) => {
+    if (_dbBroken) persistWarn();
+    throw e;
+  });
+}
+
+/* 存一首歌（只在文件真的变了时调用，避免反复写大文件） */
+function saveTrack(t) {
+  if (!t || !t.id || !t.blob) return;
+  dbDo("tracks", "readwrite", (st) => st.put({
+    id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
+    blob: t.blob, mine: !!t.mine, owner: t.owner || "", lrc: t.lrc || null, ts: Date.now(),
+  })).catch(() => {});
+}
+function dropTrackRec(id) {
+  dbDo("tracks", "readwrite", (st) => st.delete(id)).catch(() => {});
+}
+/* 只存顺序（很便宜，排序/删除时用） */
+function saveOrder() {
+  dbDo("meta", "readwrite", (st) => st.put({ k: "order", ids: APP.tracks.map((t) => t.id) })).catch(() => {});
+}
+
+function listBase() {
+  return APP.tracks.length + " 首" + (APP.paired ? " · 已连接" : " · 等待对方");
+}
+/* 临时提示，几秒后自动恢复成常态文字 */
+function hint(text, ms) {
+  UI.txtListText.textContent = text;
+  clearTimeout(APP.hintTimer);
+  APP.hintTimer = setTimeout(() => { UI.txtListText.textContent = listBase(); }, ms || 3000);
+}
+
+/* 页面打开时把上次的歌单读回来 */
+async function restorePlaylist() {
+  try {
+    const db = await openDB();
+    const recs = await new Promise((res, rej) => {
+      const tx = db.transaction("tracks", "readonly");
+      const rq = tx.objectStore("tracks").getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+    if (!recs.length) return;
+
+    const order = await new Promise((res) => {
+      const tx = db.transaction("meta", "readonly");
+      const rq = tx.objectStore("meta").get("order");
+      rq.onsuccess = () => res((rq.result && rq.result.ids) || []);
+      rq.onerror = () => res([]);
+    });
+
+    const byId = {};
+    recs.forEach((r) => {
+      if (!r || !r.id || !r.blob) return;
+      byId[r.id] = {
+        id: r.id, name: r.name || "未命名歌曲", size: r.size || r.blob.size, dur: r.dur || 0,
+        type: r.type || "", blob: r.blob, url: URL.createObjectURL(r.blob),
+        // 本机添加过的歌记在自己名下（否则重连后不会自动补传）
+        mine: !!r.mine, owner: r.mine ? APP.me : (r.owner || ""),
+        state: "local", pct: 0, sending: false,
+        lrc: Array.isArray(r.lrc) && r.lrc.length ? r.lrc : null,
+      };
+    });
+
+    if (order && order.length) {
+      order.forEach((id) => { if (byId[id]) APP.tracks.push(byId[id]); });
+      Object.keys(byId).forEach((id) => {
+        if (!APP.tracks.some((t) => t.id === id)) APP.tracks.push(byId[id]);
+      });
+    } else {
+      recs.forEach((r) => { if (byId[r.id]) APP.tracks.push(byId[r.id]); });
+    }
+
+    renderPlaylist();
+    if (APP.tracks.length) UI.txtListText.textContent = APP.tracks.length + " 首（已恢复上次的歌单）";
+    // 让已经连上的对方也知道这份歌单
+    if (APP.mq) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+    if (APP.paired) sendAllMyTracks();
+  } catch (e) {}
+}
+
+/* ===================== 房间连接 ===================== */
+async function createRoom() {
+  if (APP.room) return;
+  APP.role = "host";
+  APP.room = randCode();
+  $("#btnCreate").disabled = true;
+  setConn("正在连接中转服务器…", "warn blink");
+  try {
+    await joinRoomChannel(APP.room);
+  } catch (e) {
+    setConn("连接失败：" + e.message + "（换个网络再试）", "err");
+    $("#btnCreate").disabled = false;
+    APP.room = "";
+    return;
+  }
+  setConn("房间已创建，等待对方加入…", "warn blink");
+  UI.roomCode.textContent = APP.room;
+  UI.inpCode.value = APP.room;
+  show(UI.codeWrap, true);
+  enterList();
+}
+
+async function joinRoomByCode() {
+  const code = UI.inpCode.value.trim().toUpperCase();
+  if (code.length < 4) {
+    setConn("请输入完整的房间号", "err");
+    return;
+  }
+  APP.role = "guest";
+  APP.room = code;
+  $("#btnJoin").disabled = true;
+  setConn("正在连接中转服务器…", "warn blink");
+  try {
+    await joinRoomChannel(code);
+  } catch (e) {
+    setConn("连接失败：" + e.message + "（换个网络再试）", "err");
+    $("#btnJoin").disabled = false;
+    APP.room = "";
+    return;
+  }
+  setConn("已进入房间，正在寻找对方…", "warn blink");
+  show(UI.codeWrap, false);
+  enterList();
+}
+
+function enterList() {
+  show(UI.cardList, true);
+  UI.tagRole.textContent = APP.role === "host" ? "房主" : "加入者";
+  UI.txtListText.textContent = "等待对方加入…";
+  renderPlaylist();
+}
+
+async function joinRoomChannel(room) {
+  APP.topic = TOPIC_PREFIX + room;
+  APP.mq = new MqttWS(BROKERS, APP.me, onMqttMessage);
+  APP.mq.onLost = () => setConn("中转连接断开，正在重连…", "warn blink");
+  await APP.mq.connect();
+  APP.mq.subscribe(APP.topic);
+
+  publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+  clearInterval(APP.helloTimer);
+  APP.helloTimer = setInterval(() => {
+    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+  }, 2500);
+
+  clearInterval(APP.pingTimer);
+  APP.pingTimer = setInterval(() => {
+    publish({ k: "ping", from: APP.me, seq: Math.floor(Math.random() * 1e6), t1: Date.now() });
+  }, 4000);
+}
+
+function publish(obj) {
+  if (!APP.mq) return;
+  APP.mq.publish(APP.topic, JSON.stringify(obj));
+}
+
+function myTrackInfo() {
+  return APP.tracks.map((t) => ({ id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type }));
+}
+
+/* ===================== 消息分发 ===================== */
+function onMqttMessage(topic, payload) {
+  const m = APP.mq._decode(payload);
+  if (!m || m.from === APP.me) return;
+
+  switch (m.k) {
+    case "hello": {
+      // 对方来之前我加的歌曲，先按歌单同步给他（文件等直连后再传）
+      if (Array.isArray(m.tracks)) {
+        APP.peerTracks = m.tracks;
+        mergeRemoteTracks(m.tracks);
+      }
+      if (APP.paired) break;
+      if (APP.role === "host" && !APP.pc) {
+        createPeer(true);
+        setConn("对方已找到，正在建立直连…", "warn blink");
+      }
+      break;
+    }
+    case "offer":
+      if (APP.role === "guest") {
+        if (!APP.pc) {
+          createPeer(false);
+          acceptOffer(m);
+        } else if (!APP.paired && APP.lastAnswer) {
+          // 之前协商的 answer 可能丢了，重发一次
+          publish({ k: "answer", from: APP.me, sdp: APP.lastAnswer });
+        }
+      }
+      break;
+    case "answer":
+      if (APP.pc && APP.pc.signalingState === "have-local-offer") {
+        APP.pc.setRemoteDescription(m.sdp).catch(() => {});
+      }
+      break;
+    case "ice":
+      if (APP.pc && m.c) APP.pc.addIceCandidate(m.c).catch(() => {});
+      break;
+    case "ping":
+      publish({ k: "pong", from: APP.me, seq: m.seq, t1: m.t1, t2: Date.now(), t3: Date.now() });
+      break;
+    case "pong":
+      onPong(m);
+      break;
+    case "state":
+      if (audio) applyPeerState(m);
+      break;
+    case "pl_op":
+      applyPlOp(m);
+      break;
+    case "need":
+      // 对方没收到这首歌，补传一次
+      {
+        const t = findTrack(localId(m.id));
+        if (t && t.blob && t.mine) sendTrackToPeer(t);
+      }
+      break;
+    case "lrc": {
+      if (!m.id || !m.text) break;
+      APP.lrcCache[m.id] = m.text;
+      const lt = findTrack(localId(m.id));
+      if (lt) {
+        lt.lrc = parseLrc(m.text);
+        if (lt.id === APP.curId) renderLyrics();
+        saveTrack(lt);
+        hint("对方给「" + lt.name + "」加了歌词");
+      }
+      break;
+    }
+    case "chat":
+      if (typeof m.text === "string" && m.text) addChat(m.text.slice(0, 200), false);
+      break;
+  }
+}
+
+/* ===================== 时钟对表（NTP 思路） ===================== */
+function onPong(m) {
+  const t4 = Date.now();
+  const rtt = (t4 - m.t1) - (m.t3 - m.t2);
+  if (rtt < -50) return;
+  if (rtt < APP.bestRtt) {
+    APP.bestRtt = rtt;
+    APP.offset = ((m.t2 - m.t1) + (m.t3 - t4)) / 2;
+  }
+  UI.clockVal.textContent = "对表 " + Math.round(APP.offset || 0) + "ms / 延迟 " + Math.round(rtt) + "ms";
+}
+
+/* ===================== WebRTC 点对点 ===================== */
+function createPeer(initiator) {
+  const pc = new RTCPeerConnection(ICE);
+  APP.pc = pc;
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) publish({ k: "ice", from: APP.me, c: e.candidate });
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (APP.pc !== pc) return;
+    const st = pc.connectionState;
+    if (st === "connected") {
+      setConn("已直连成功（不经过服务器）", "ok");
+    } else if (st === "failed") {
+      if (APP.paired) { reconnectPeer(); return; }
+      setConn("直连失败，请看歌单下方说明", "err");
+      show(UI.tipFallback, true);
+    }
+  };
+
+  pc.ondatachannel = (e) => {
+    const label = e.channel.label || "";
+    if (label.startsWith("file:")) {
+      receiveTrackChannel(e.channel, label.slice(5));
+    } else {
+      bindCtlChannel(e.channel);
+    }
+  };
+
+  if (initiator) {
+    bindCtlChannel(pc.createDataChannel("ctl", { ordered: true }));
+    pc.createOffer()
+      .then((o) => pc.setLocalDescription(o))
+      .then(() => publish({ k: "offer", from: APP.me, sdp: pc.localDescription }))
+      .catch(() => {});
+    // 对方可能没收到 offer，每隔 3 秒补发一次，直到直连成功
+    clearInterval(APP.offerTimer);
+    APP.offerTimer = setInterval(() => {
+      if (APP.paired || !APP.pc || !APP.pc.localDescription) {
+        if (APP.paired) clearInterval(APP.offerTimer);
+        return;
+      }
+      publish({ k: "offer", from: APP.me, sdp: APP.pc.localDescription });
+    }, 3000);
+  }
+}
+
+function acceptOffer(m) {
+  setConn("正在建立直连…", "warn blink");
+  APP.pc.setRemoteDescription(m.sdp)
+    .then(() => APP.pc.createAnswer())
+    .then((a) => APP.pc.setLocalDescription(a))
+    .then(() => {
+      if (!APP.pc.localDescription) return;
+      APP.lastAnswer = APP.pc.localDescription;
+      publish({ k: "answer", from: APP.me, sdp: APP.pc.localDescription });
+    })
+    .catch(() => {});
+}
+
+function bindCtlChannel(dc) {
+  APP.ctl = dc;
+  dc.onopen = () => {
+    APP.paired = true;
+    APP.reconnecting = false;
+    APP.closingPeer = false;
+    clearInterval(APP.helloTimer);
+    clearInterval(APP.offerTimer);
+    setConn("已直连成功（不经过服务器）", "ok");
+    UI.txtListText.textContent = "已连接，可以添加歌曲了";
+    show(UI.tipFallback, false);
+    sendAllMyTracks();
+  };
+  dc.onclose = () => {
+    if (!APP.room || APP.closingPeer) return;
+    APP.paired = false;
+    reconnectPeer();
+  };
+}
+
+/* 断线自动重连：重新建立点对点连接，成功后会自动补传本机歌曲 */
+function reconnectPeer() {
+  if (!APP.room || APP.reconnecting) return;
+  APP.reconnecting = true;
+  APP.paired = false;
+  setConn("连接断了，正在自动重连…", "warn blink");
+
+  APP.closingPeer = true;
+  clearInterval(APP.offerTimer);
+  try { if (APP.ctl) APP.ctl.close(); } catch (e) {}
+  try { if (APP.pc) APP.pc.close(); } catch (e) {}
+  APP.ctl = null;
+  APP.pc = null;
+  APP.offerTimer = null;
+  APP.lastAnswer = null;
+  setTimeout(() => { APP.closingPeer = false; }, 500);
+
+  // 靠 MQTT 每 2.5 秒喊一声，让对方知道我们还在
+  clearInterval(APP.helloTimer);
+  APP.helloTimer = setInterval(() => {
+    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+  }, 2500);
+
+  // 房主主动重新发 offer，房员等 offer 来了再应答
+  if (APP.role === "host") {
+    setTimeout(() => { if (APP.room && !APP.paired && !APP.pc) createPeer(true); }, 200);
+  }
+}
+
+/* 把本机添加的歌发给对方（对方添加的不回传，避免白传一遍） */
+function sendAllMyTracks() {
+  APP.tracks.forEach((t) => {
+    if (!t.blob || !t.mine) return;
+    if (t.owner && t.owner !== APP.me) return;
+    sendTrackToPeer(t);
+  });
+}
+
+function sendTrackToPeer(t) {
+  if (!t.blob || t.sending) return;
+  if (!APP.pc || APP.pc.connectionState !== "connected") return;
+
+  let dc;
+  try {
+    dc = APP.pc.createDataChannel("file:" + t.id, { ordered: true });
+  } catch (e) {
+    return;
+  }
+  t.sending = true;
+  t.state = "sending";
+  t.pct = 0;
+  renderPlaylist();
+
+  dc.binaryType = "arraybuffer";
+  dc.onopen = async () => {
+    const CH = 32 * 1024;
+    let sent = 0;
+    try {
+      while (sent < t.blob.size) {
+        if (dc.readyState !== "open") break;
+        if (dc.bufferedAmount > 1024 * 1024) {
+          await sleep(30);
+          continue;
+        }
+        const buf = await t.blob.slice(sent, sent + CH).arrayBuffer();
+        dc.send(buf);
+        sent += buf.byteLength;
+        t.pct = Math.round((sent / t.blob.size) * 100);
+        renderPlaylist();
+      }
+      // 关键：等缓冲真正清空，再发“结束标记”，否则 close() 会丢掉尾部字节
+      let guard = 0;
+      while (dc.readyState === "open" && dc.bufferedAmount > 0 && guard++ < 200) {
+        await sleep(20);
+      }
+      if (dc.readyState === "open") {
+        dc.send(JSON.stringify({ done: true, size: sent }));
+      }
+    } catch (e) {}
+    t.sending = false;
+    t.state = "local";
+    t.pct = 0;
+    renderPlaylist();
+    setTimeout(() => { try { dc.close(); } catch (e) {} }, 800);
+  };
+  dc.onerror = () => {
+    t.sending = false;
+    t.state = "local";
+    renderPlaylist();
+  };
+}
+
+function receiveTrackChannel(dc, trackId) {
+  dc.binaryType = "arraybuffer";
+  const chunks = [];
+  let received = 0;
+  let finished = false;
+
+  const mark = () => {
+    const t = findTrack(localId(trackId));
+    if (!t) return null;
+    const total = t.size || received;
+    t.state = "recv";
+    t.pct = total ? Math.round((received / total) * 100) : 0;
+    renderPlaylist();
+    return t;
+  };
+  mark();
+
+  const finish = (declaredSize) => {
+    if (finished || !received) return;
+    finished = true;
+
+    // 歌单消息可能丢了，这里兜底：没有这首歌就补一条
+    let t = findTrack(localId(trackId));
+    if (!t) {
+      t = {
+        id: trackId, name: "对方传来的歌曲", size: declaredSize || received, dur: 0,
+        type: "", blob: null, url: null, mine: false,
+        state: "waiting", pct: 0, sending: false,
+      };
+      APP.tracks.push(t);
+    }
+
+    const expect = declaredSize || t.size || 0;
+    if (expect && received !== expect) {
+      // 字节数对不上 → 文件是残的，别拿去播放
+      t.state = "waiting";
+      t.pct = 0;
+      renderPlaylist();
+      UI.txtListText.textContent = "「" + t.name + "」没传完整（" + received + "/" + expect + "），正在让对方重发…";
+      APP.needSent.delete(t.id);
+      requestTrackFile(t.id);
+      return;
+    }
+
+    // 本机已经有一份完整的同一首歌：绝不覆盖（避免把正在播放的地址作废）
+    if (t.url && t.blob && expect && t.blob.size === expect) {
+      t.state = "local";
+      t.pct = 0;
+      renderPlaylist();
+      return;
+    }
+
+    // 不带 MIME，让浏览器按文件内容自己嗅探（写死类型会导致 m4a/flac 解不了）
+    const blob = new Blob(chunks);
+    if (t.url && t.id !== APP.curId) URL.revokeObjectURL(t.url);
+    t.blob = blob;
+    t.size = blob.size;
+    t.type = "";
+    t.url = URL.createObjectURL(blob);
+    t.state = "local";
+    t.pct = 0;
+    // 对方先发过歌词的话，文件到了就能用
+    if (!t.lrc && APP.lrcCache[trackId]) t.lrc = parseLrc(APP.lrcCache[trackId]);
+    saveTrack(t);
+    saveOrder();
+    renderPlaylist();
+    if (t.id === APP.curId) renderLyrics();
+
+    loadDuration(t.url).then((d) => {
+      if (d && Math.abs((t.dur || 0) - d) > 0.5) {
+        t.dur = d;
+        renderPlaylist();
+      } else if (!d) {
+        UI.txtListText.textContent = "「" + t.name + "」解析失败，格式可能不被支持";
+      }
+    });
+
+    if (APP.pendingTarget) {
+      const wantId = localId(APP.pendingTarget.trk);
+      if (wantId === t.id) {
+        const p = APP.pendingTarget;
+        APP.pendingTarget = null;
+        applyPeerState(p, true); // 强制应用：这条指令之前因为没文件被压后了
+        return;
+      }
+    }
+    if (APP.curId === t.id && !audio.src) loadTrackAudio(t);
+  };
+
+  dc.onmessage = (ev) => {
+    if (typeof ev.data === "string") {
+      try {
+        const s = JSON.parse(ev.data);
+        if (s && s.done) finish(s.size);
+      } catch (e) {}
+      return;
+    }
+    chunks.push(ev.data);
+    received += ev.data.byteLength;
+    if (!finished) mark();
+  };
+
+  dc.onclose = () => {
+    // 没收到结束标记就断了（对方提前关或断网）：至少把已收到的收尾
+    if (!finished) finish(null);
+  };
+}
+
+/* ===================== 歌单：添加 / 排序 ===================== */
+function findTrack(id) { return APP.tracks.find((t) => t.id === id); }
+function localId(id) { return APP.alias[id] || id; }
+
+function loadDuration(url) {
+  return new Promise((res) => {
+    const a = new Audio();
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; res(v); } };
+    a.preload = "metadata";
+    a.onloadedmetadata = () => finish(a.duration || 0);
+    a.onerror = () => finish(0);
+    a.src = url;
+    setTimeout(() => finish(a.duration || 0), 4000);
+  });
+}
+
+async function addFiles(files) {
+  for (const f of Array.from(files)) {
+    if (f.type && !/audio|video|mp3|m4a|flac|wav|ogg|aac|opus/i.test(f.type + f.name)) continue;
+    const id = newId();
+    const url = URL.createObjectURL(f);
+    const dur = await loadDuration(url);
+    const track = {
+      id, name: f.name, size: f.size, dur,
+      type: guessMime(f.name, f.type),
+      blob: f, url, mine: true, owner: APP.me, state: "local", pct: 0, sending: false,
+    };
+    APP.tracks.push(track);
+    saveTrack(track);
+    saveOrder();
+    opAdd(track);
+    sendTrackToPeer(track);
+  }
+  renderPlaylist();
+  UI.txtListText.textContent = APP.tracks.length + " 首";
+}
+
+function opAdd(track) {
+  if (!APP.mq) return;
+  APP.plVer++;
+  APP.plBy = APP.me;
+  const msg = {
+    k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "add",
+    item: { id: track.id, name: track.name, size: track.size, dur: track.dur, type: track.type },
+  };
+  publish(msg);
+  setTimeout(() => publish(msg), 400);
+}
+
+function moveTrack(id, dir) {
+  const i = APP.tracks.findIndex((t) => t.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= APP.tracks.length) return;
+  const [t] = APP.tracks.splice(i, 1);
+  APP.tracks.splice(j, 0, t);
+  renderPlaylist();
+  saveOrder();
+
+  if (!APP.mq) return;
+  APP.plVer++;
+  APP.plBy = APP.me;
+  const msg = { k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "move", id, to: j };
+  publish(msg);
+  setTimeout(() => publish(msg), 400);
+}
+
+/* 从歌单删除（本地 + 通知对方） */
+function deleteTrack(id) {
+  const i = APP.tracks.findIndex((t) => t.id === id);
+  if (i < 0) return;
+  const t = APP.tracks[i];
+  if (!confirm("把「" + t.name + "」从歌单删除？（两台设备上都会删掉）")) return;
+
+  APP.tracks.splice(i, 1);
+  if (APP.curId === id) stopCurrentAudio();
+  if (t.url) { try { URL.revokeObjectURL(t.url); } catch (e) {} }
+  for (const k in APP.alias) { if (APP.alias[k] === id) delete APP.alias[k]; }
+  dropTrackRec(id);
+  saveOrder();
+  renderPlaylist();
+
+  if (!APP.mq) return;
+  APP.plVer++;
+  APP.plBy = APP.me;
+  const msg = { k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "del", id };
+  publish(msg);
+  setTimeout(() => publish(msg), 400);
+}
+
+/* 停止当前这首歌（删歌时用） */
+function stopCurrentAudio() {
+  try { audio.pause(); } catch (e) {}
+  audio.removeAttribute("src");
+  try { audio.load(); } catch (e) {}
+  APP.curId = "";
+  APP.remoteBase = null;
+  APP.pendApply = null;
+  APP.lrcIdx = -1;
+  UI.songName.textContent = "—";
+  UI.tCur.textContent = "0:00";
+  UI.tDur.textContent = "0:00";
+  UI.seek.value = 0;
+  UI.btnPlay.textContent = "▶";
+  renderLyrics();
+  show(UI.cardPlayer, false);
+}
+
+function applyPlOp(m) {
+  if (m.op === "add" && m.item) {
+    const item = m.item;
+    // 同一首歌可能我自己也有（名字+大小一致），就只建立映射，不重复添加
+    let exist = findTrack(item.id);
+    if (!exist) {
+      exist = APP.tracks.find((t) => t.name === item.name && Math.abs((t.size || 0) - (item.size || 0)) < 1024);
+    }
+    if (exist) {
+      if (exist.id !== item.id) APP.alias[item.id] = exist.id;
+      if (!exist.dur && item.dur) exist.dur = item.dur;
+      if (!exist.type && item.type) exist.type = item.type;
+      renderPlaylist();
+      return;
+    }
+    APP.tracks.push({
+      id: item.id, name: item.name, size: item.size || 0, dur: item.dur || 0,
+      type: guessMime(item.name, item.type),
+      blob: null, url: null, mine: false, owner: m.from || "",
+      state: "waiting", pct: 0, sending: false,
+    });
+    APP.plVer = Math.max(APP.plVer, m.ver || 0);
+    // 对方如果先发过这首歌的歌词，这里补上
+    if (APP.lrcCache[item.id]) {
+      const nt = findTrack(item.id);
+      if (nt) nt.lrc = parseLrc(APP.lrcCache[item.id]);
+    }
+    renderPlaylist();
+    requestTrackFile(item.id);
+    return;
+  }
+
+  if (m.op === "move") {
+    const ver = m.ver || 0;
+    if (ver < APP.plVer) return;
+    if (ver === APP.plVer && (m.by || "") <= APP.plBy) return;
+    APP.plVer = ver;
+    APP.plBy = m.by || "";
+    const id = localId(m.id);
+    const i = APP.tracks.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    const [t] = APP.tracks.splice(i, 1);
+    APP.tracks.splice(clamp(m.to, 0, APP.tracks.length), 0, t);
+    renderPlaylist();
+    saveOrder();
+    return;
+  }
+
+  if (m.op === "del") {
+    const ver = m.ver || 0;
+    if (ver < APP.plVer) return;
+    if (ver === APP.plVer && (m.by || "") <= APP.plBy) return;
+    APP.plVer = ver;
+    APP.plBy = m.by || "";
+    const id = localId(m.id);
+    const i = APP.tracks.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    const t = APP.tracks[i];
+    APP.tracks.splice(i, 1);
+    if (APP.curId === id) stopCurrentAudio();
+    if (t.url) { try { URL.revokeObjectURL(t.url); } catch (e) {} }
+    for (const k in APP.alias) { if (APP.alias[k] === id) delete APP.alias[k]; }
+    dropTrackRec(id);
+    saveOrder();
+    renderPlaylist();
+    hint("对方把「" + t.name + "」从歌单删掉了");
+  }
+}
+
+/* 对方新增的歌 5 秒还没传过来，就催一次补传 */
+function requestTrackFile(id) {
+  if (!APP.mq) return;
+  setTimeout(() => {
+    const t = findTrack(localId(id));
+    if (!t || t.url) return;
+    if (APP.needSent.has(id)) return;
+    APP.needSent.add(id);
+    publish({ k: "need", from: APP.me, id });
+  }, 5000);
+}
+
+/* 对方握手时带过来的歌曲列表（含对方新增、我还没收到的） */
+function mergeRemoteTracks(items) {
+  items.forEach((item) => {
+    if (!item || !item.id) return;
+    applyPlOp({ op: "add", ver: 0, by: "", item });
+  });
+}
+
+function renderPlaylist() {
+  const box = UI.playlist;
+  if (!APP.tracks.length) {
+    box.innerHTML = '<div class="plEmpty">还没有歌，点上面按钮添加</div>';
+    return;
+  }
+  box.innerHTML = APP.tracks.map((t, i) => {
+    const meta = [];
+    if (t.dur) meta.push(fmtTime(t.dur));
+    if (t.lrc && t.lrc.length) meta.push("有歌词");
+    if (t.state === "sending") meta.push("发送中 " + (t.pct || 0) + "%");
+    else if (t.state === "recv") meta.push("接收中 " + (t.pct || 0) + "%");
+    else if (!t.url) meta.push("等待对方传输");
+    return '<div class="plItem ' + (t.id === APP.curId ? "cur" : "") + '" data-id="' + t.id + '">' +
+      '<div class="plIdx">' + (i + 1) + "</div>" +
+      '<div class="plMain" data-act="play">' +
+        '<div class="plName">' + esc(t.name) + "</div>" +
+        '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
+      "</div>" +
+      '<button class="miniBtn" data-act="up">↑</button>' +
+      '<button class="miniBtn" data-act="down">↓</button>' +
+      '<button class="miniBtn del" data-act="del" title="从歌单删除">✕</button>' +
+      "</div>";
+  }).join("");
+}
+
+/* ===================== 歌词（.lrc） ===================== */
+/* 解析成 [{t: 秒, text: 歌词}]，同一句有多个时间标签也能处理 */
+function parseLrc(text) {
+  const out = [];
+  String(text || "").split(/\r?\n/).forEach((raw) => {
+    const body = raw.replace(/\[[^\]]*\]/g, "").trim();
+    if (!body) return;
+    const re = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
+    let mm;
+    while ((mm = re.exec(raw))) {
+      let t = Number(mm[1]) * 60 + Number(mm[2]);
+      if (mm[3]) t += Number("0." + mm[3].slice(0, 2).padEnd(2, "0"));
+      out.push({ t, text: body });
+    }
+  });
+  out.sort((a, b) => a.t - b.t);
+  return out.slice(0, 2000);
+}
+
+function renderLyrics() {
+  const t = findTrack(APP.curId);
+  const lines = t && Array.isArray(t.lrc) && t.lrc.length ? t.lrc : null;
+  APP.lrcIdx = -1;
+  if (!lines) {
+    UI.lyrics.innerHTML = "";
+    show(UI.lyrics, false);
+    return;
+  }
+  UI.lyrics.innerHTML = lines.map((l, i) =>
+    '<div class="lyrLine" data-i="' + i + '">' + esc(l.text) + "</div>").join("");
+  show(UI.lyrics, true);
+  updateLyric(true);
+}
+
+function updateLyric(force) {
+  const t = findTrack(APP.curId);
+  if (!t || !t.lrc || !t.lrc.length || !UI.lyrics.children.length) return;
+  if (!audio.src) return;
+  const cur = audio.currentTime;
+  let idx = -1;
+  for (let i = 0; i < t.lrc.length; i++) {
+    if (t.lrc[i].t <= cur + 0.05) idx = i;
+    else break;
+  }
+  if (idx === APP.lrcIdx && !force) return;
+  APP.lrcIdx = idx;
+  const rows = UI.lyrics.querySelectorAll(".lyrLine");
+  rows.forEach((el, i) => el.classList.toggle("active", i === idx));
+  if (idx >= 0 && rows[idx]) {
+    try { rows[idx].scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+  }
+}
+
+function applyLrcText(text) {
+  const t = findTrack(APP.curId);
+  if (!t) { hint("先在歌单里点一首歌，再给它加歌词"); return; }
+  const lines = parseLrc(text);
+  if (!lines.length) { hint("没解析出歌词，看看是不是标准 [mm:ss] 格式的 .lrc"); return; }
+  t.lrc = lines;
+  saveTrack(t);
+  renderLyrics();
+  renderPlaylist();
+  publish({ k: "lrc", from: APP.me, id: t.id, text });
+  hint("歌词已加上（" + lines.length + " 行），对方也会看到");
+}
+
+/* ===================== 边听边聊 ===================== */
+function addChat(text, mine) {
+  if (!UI.chatList || !text) return;
+  const empty = UI.chatList.querySelector(".chatEmpty");
+  if (empty) empty.remove();
+  const el = document.createElement("div");
+  el.className = "chatMsg " + (mine ? "me" : "peer");
+  el.textContent = text;
+  UI.chatList.appendChild(el);
+  while (UI.chatList.children.length > 20) UI.chatList.removeChild(UI.chatList.firstChild);
+  UI.chatList.scrollTop = UI.chatList.scrollHeight;
+}
+
+function sendChat() {
+  const text = (UI.chatInput.value || "").trim();
+  if (!text) return;
+  UI.chatInput.value = "";
+  addChat(text, true);
+  publish({ k: "chat", from: APP.me, text: text.slice(0, 200), ts: Date.now() });
+}
+
+/* ===================== 音频加载 ===================== */
+function loadTrackAudio(t) {
+  if (!t || !t.url) return;
+  t._retried = false;
+  APP.curId = t.id;
+  audio.src = t.url;
+  audio.load();
+  APP.remoteBase = null;
+  APP.pendApply = null;
+  show(UI.cardPlayer, true);
+  UI.songName.textContent = t.name;
+  UI.seek.value = 0;
+  UI.tCur.textContent = "0:00";
+  UI.tDur.textContent = fmtTime(t.dur || 0);
+  UI.btnPlay.textContent = "▶";
+  renderPlaylist();
+  renderLyrics();
+}
+
+/* 播放失败时把原因显示出来，而不是静默 */
+function playSafe() {
+  const p = audio.play();
+  if (!p || !p.catch) return;
+  p.catch((e) => {
+    const name = (e && e.name) || "UnknownError";
+    if (name === "NotAllowedError") {
+      UI.txtListText.textContent = "手机不允许自动播放，请点一下播放键";
+    } else if (name === "NotSupportedError") {
+      UI.txtListText.textContent = "这首歌手机解不了（格式不支持或文件没传完）";
+    } else {
+      UI.txtListText.textContent = "播放失败：" + name;
+    }
+  });
+}
+
+audio.onerror = () => {
+  if (!APP.curId) return; // 主动停歌时 clear src 也会触发，这里忽略
+  const t = findTrack(APP.curId);
+  // 本地有文件但播不了时，重建一次 Blob 地址再试（地址被作废/异常的情况能自愈）
+  if (t && t.blob && !t._retried) {
+    t._retried = true;
+    try {
+      if (t.url) URL.revokeObjectURL(t.url);
+      const mime = t.type || guessMime(t.name);
+      t.url = URL.createObjectURL(new Blob([t.blob], { type: mime }));
+      audio.src = t.url;
+      audio.load();
+      playSafe();
+      UI.txtListText.textContent = "已自动重新加载「" + t.name + "」…";
+      return;
+    } catch (e) {}
+  }
+  const e = audio.error;
+  UI.txtListText.textContent = "「" + (t ? t.name : "这首歌") + "」打不开（错误码 " +
+    (e ? e.code : "?") + "）：格式可能不被支持，或文件不完整";
+};
+
+audio.onloadedmetadata = () => {
+  UI.tDur.textContent = fmtTime(audio.duration);
+  const t = findTrack(APP.curId);
+  if (t && !t.dur) t.dur = audio.duration || 0;
+  if (APP.pendApply) {
+    const p = APP.pendApply;
+    APP.pendApply = null;
+    try { audio.currentTime = Math.min(p.pos, audio.duration || p.pos); } catch (e) {}
+    if (p.playing) playSafe();
+    else audio.pause();
+  }
+};
+
+/* 选择/切换歌曲（用户主动） */
+function selectTrack(id, startPlay) {
+  const t = findTrack(id);
+  if (!t) return;
+  if (!t.url) {
+    UI.txtListText.textContent = t.state === "recv"
+      ? "这首歌还在接收中，等进度到 100% 再点"
+      : "这首歌还没传到你手机上，先别急（可以让对方用微信把歌发给你，再用「添加歌曲」加进来）";
+    return;
+  }
+  loadTrackAudio(t);
+  if (startPlay) playSafe();
+  setTimeout(onLocalAction, 40);
+}
+
+function stepTrack(dir) {
+  if (!APP.tracks.length) return;
+  let i = APP.tracks.findIndex((t) => t.id === APP.curId);
+  if (i < 0) i = 0;
+  let j = i + dir;
+  if (j < 0) j = 0;
+  if (j >= APP.tracks.length) j = APP.tracks.length - 1;
+  const t = APP.tracks[j];
+  if (!t.url) {
+    UI.txtListText.textContent = "下一首还没传过来";
+    return;
+  }
+  selectTrack(t.id, true);
+}
+
+audio.onended = () => {
+  if (Date.now() - APP.lastStateApplyTs < 1500) return; // 对方刚改过，别重复推进
+  const i = APP.tracks.findIndex((t) => t.id === APP.curId);
+  const next = APP.tracks[i + 1];
+  if (next && next.url) selectTrack(next.id, true);
+};
+
+/* ===================== 播放状态同步（双方对等） ===================== */
+function onLocalAction() {
+  if (!APP.mq) return;
+  APP.stateVer++;
+  APP.lastBy = APP.me;
+
+  const send = () => publish({
+    k: "state", from: APP.me, ver: APP.stateVer, by: APP.me,
+    trk: APP.curId, pos: audio.currentTime, playing: !audio.paused, ts: Date.now(),
+  });
+  send();
+  setTimeout(send, 250);
+  setTimeout(send, 800);
+
+  APP.remoteBase = { pos: audio.currentTime, ts: Date.now(), playing: !audio.paused };
+}
+
+function applyPeerState(m, force) {
+  if (typeof m.ver !== "number") return;
+
+  const off = APP.offset || 0;
+  const tsLocal = m.ts - off;
+  const elapsed = m.playing ? Math.max(0, (Date.now() - tsLocal) / 1000) : 0;
+  let target = (m.pos || 0) + elapsed;
+  if (!isFinite(target) || target < 0) target = 0;
+
+  if (!force) {
+    if (m.ver < APP.stateVer) return;
+    if (m.ver === APP.stateVer) {
+      const by = m.by || "";
+      if (by < APP.lastBy) return;
+      if (by === APP.lastBy) {
+        if (APP.remoteBase && m.playing && !audio.paused) {
+          APP.remoteBase = { pos: target, ts: Date.now(), playing: true };
+        }
+        return;
+      }
+    }
+  }
+
+  APP.stateVer = m.ver;
+  APP.lastBy = m.by || "";
+  APP.lastStateApplyTs = Date.now();
+  APP.applyRemote = true;
+
+  const wantId = m.trk ? localId(m.trk) : APP.curId;
+  const t = wantId ? findTrack(wantId) : null;
+  let keepBase = true;
+
+  // 让对方那边看到「对方在干什么」
+  const prevId = APP.curId;
+  const prevPlaying = !audio.paused;
+  if (m.trk && wantId !== prevId) {
+    hint("对方切到「" + (t ? t.name : "另一首歌") + "」");
+  } else if (!!m.playing !== prevPlaying) {
+    hint(m.playing ? "对方开始播放" : "对方暂停了");
+  }
+
+  try {
+    if (wantId && wantId !== APP.curId) {
+      if (!t || !t.url) {
+        APP.pendingTarget = m; // 等这首歌传过来再切
+        keepBase = false;
+        APP.remoteBase = null;
+        return;
+      }
+      loadTrackAudio(t);
+    } else if (wantId && !audio.src && t && t.url) {
+      loadTrackAudio(t);
+    }
+
+    if (audio.readyState < 1) {
+      APP.pendApply = { pos: target, playing: m.playing };
+      APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
+      return;
+    }
+
+    if (audio.duration) target = Math.min(target, audio.duration);
+    if (Math.abs(audio.currentTime - target) > 0.08) audio.currentTime = target;
+    if (m.playing) {
+      playSafe();
+    } else {
+      audio.pause();
+    }
+    audio.playbackRate = 1;
+  } finally {
+    if (keepBase) APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
+    clearTimeout(APP.applyTimer);
+    APP.applyTimer = setTimeout(() => { APP.applyRemote = false; }, 300);
+  }
+}
+
+/* 漂移校正：每 0.5 秒对齐一次基准位置 */
+setInterval(() => {
+  if (!audio.src) return;
+  if (!APP.remoteBase || audio.paused) {
+    if (audio.paused) UI.lagVal.textContent = "暂停";
+    return;
+  }
+  if (APP.applyRemote) return;
+  const b = APP.remoteBase;
+  if (!b.playing) return;
+  const target = b.pos + (Date.now() - b.ts) / 1000;
+  const diff = target - audio.currentTime;
+  UI.lagVal.textContent = (diff * 1000).toFixed(0) + "ms";
+
+  if (Math.abs(diff) > 0.35) {
+    audio.currentTime = target;
+    audio.playbackRate = 1;
+  } else if (Math.abs(diff) > 0.04) {
+    audio.playbackRate = clamp(1 + diff * 0.4, 0.97, 1.03);
+  } else {
+    audio.playbackRate = 1;
+  }
+}, 500);
+
+/* 当前版本的提交者每 5 秒补发一次，压住长时间播放的累积漂移 */
+setInterval(() => {
+  if (!APP.paired || !audio.src || audio.paused) return;
+  if (APP.lastBy !== APP.me) return;
+  publish({
+    k: "state", from: APP.me, ver: APP.stateVer, by: APP.lastBy,
+    trk: APP.curId, pos: audio.currentTime, playing: true, ts: Date.now(),
+  });
+}, 5000);
+
+/* 进度条 / 时间显示 */
+setInterval(() => {
+  if (!audio.src) return;
+  UI.tCur.textContent = fmtTime(audio.currentTime);
+  UI.tDur.textContent = fmtTime(audio.duration);
+  UI.btnPlay.textContent = audio.paused ? "▶" : "❚❚";
+  if (document.activeElement !== UI.seek) {
+    const d = audio.duration || 0;
+    UI.seek.value = d > 0 ? Math.round((audio.currentTime / d) * 1000) : 0;
+  }
+  updateLyric(false);
+}, 250);
+
+/* ===================== 交互绑定 ===================== */
+$("#btnCreate").onclick = createRoom;
+$("#btnJoin").onclick = joinRoomByCode;
+UI.inpCode.addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoomByCode(); });
+
+const picker = document.createElement("input");
+picker.type = "file";
+picker.accept = "audio/*,video/*,.mp3,.m4a,.aac,.flac,.wav,.ogg,.opus";
+picker.multiple = true;
+picker.style.display = "none";
+document.body.appendChild(picker);
+
+/* 选文件时（尤其是手机上）系统会把正在放的音乐暂停，
+   这里记下“打开选择框之前正在播放”，选完自动接着放并对齐到对方进度。 */
+let wantResume = false;
+function rememberPlayState() {
+  wantResume = !!audio.src && !audio.paused;
+}
+function maybeResume() {
+  if (!wantResume) return;
+  wantResume = false;
+  if (!audio.src) return;
+  // 选文件期间别人还在往前走，所以直接跳到“对方现在应该在的位置”
+  if (APP.paired && APP.remoteBase && APP.remoteBase.playing) {
+    const target = APP.remoteBase.pos + (Date.now() - APP.remoteBase.ts) / 1000;
+    const dur = audio.duration;
+    if (isFinite(target) && target > 0 && (!isFinite(dur) || target < dur - 0.3)) {
+      try { audio.currentTime = target; } catch (e) {}
+    }
+  }
+  if (audio.paused) playSafe();
+}
+window.addEventListener("focus", () => setTimeout(maybeResume, 400));
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) setTimeout(maybeResume, 400);
+});
+
+$("#btnAddSongs").onclick = () => { rememberPlayState(); picker.click(); };
+picker.onchange = () => {
+  const files = picker.files ? Array.from(picker.files) : [];
+  if (files.length) addFiles(files);
+  picker.value = "";
+  maybeResume();
+};
+
+UI.playlist.addEventListener("click", (e) => {
+  const item = e.target.closest(".plItem");
+  if (!item) return;
+  const id = item.getAttribute("data-id");
+  const actEl = e.target.closest("[data-act]");
+  const act = actEl ? actEl.getAttribute("data-act") : "play";
+  if (act === "up") moveTrack(id, -1);
+  else if (act === "down") moveTrack(id, 1);
+  else if (act === "del") deleteTrack(id);
+  else selectTrack(id, true);
+});
+
+UI.btnPlay.onclick = () => {
+  if (!audio.src) {
+    const first = APP.tracks.find((t) => t.url);
+    if (first) selectTrack(first.id, true);
+    return;
+  }
+  if (audio.paused) playSafe();
+  else audio.pause();
+  setTimeout(onLocalAction, 60);
+};
+
+$("#btnPrev").onclick = () => stepTrack(-1);
+$("#btnNext").onclick = () => stepTrack(1);
+
+UI.seek.oninput = () => {
+  if (!audio.src || !audio.duration) return;
+  audio.currentTime = (Number(UI.seek.value) / 1000) * audio.duration;
+  UI.tCur.textContent = fmtTime(audio.currentTime);
+  updateLyric(true);
+};
+UI.seek.onchange = () => {
+  if (!audio.src) return;
+  onLocalAction();
+};
+
+UI.vol.oninput = () => { audio.volume = Number(UI.vol.value) / 100; };
+
+/* 歌词文件选择 */
+const lrcPicker = document.createElement("input");
+lrcPicker.type = "file";
+lrcPicker.accept = ".lrc,text/plain";
+lrcPicker.style.display = "none";
+document.body.appendChild(lrcPicker);
+
+$("#btnLrc").onclick = () => {
+  if (!APP.curId) { hint("先在歌单里点一首歌，再给它加歌词"); return; }
+  rememberPlayState();
+  lrcPicker.click();
+};
+lrcPicker.onchange = () => {
+  const f = lrcPicker.files && lrcPicker.files[0];
+  lrcPicker.value = "";
+  if (f) {
+    const fr = new FileReader();
+    fr.onload = () => { applyLrcText(String(fr.result || "")); maybeResume(); };
+    fr.readAsText(f, "utf-8");
+  } else {
+    maybeResume();
+  }
+};
+
+/* 边听边聊 */
+$("#chatSend").onclick = sendChat;
+UI.chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); sendChat(); }
+});
+
+/* 刷新后恢复上次的歌单 */
+restorePlaylist();
+
+/* ===================== 锁屏 / 通知栏控制 ===================== */
+if ("mediaSession" in navigator) {
+  const ms = navigator.mediaSession;
+  const setAct = (name, fn) => { try { ms.setActionHandler(name, fn); } catch (e) {} };
+
+  const syncLockInfo = () => {
+    const t = findTrack(APP.curId);
+    if (!t) return;
+    try {
+      ms.metadata = new MediaMetadata({
+        title: String(t.name || "一起听").replace(/\.\w+$/, ""),
+        artist: "双人同步播放器",
+        album: "一起听",
+        artwork: [{ src: "icon-512.png", sizes: "512x512", type: "image/png" }],
+      });
+    } catch (e) {}
+    try { ms.playbackState = audio.paused ? "paused" : "playing"; } catch (e) {}
+  };
+
+  audio.addEventListener("play", syncLockInfo);
+  audio.addEventListener("pause", syncLockInfo);
+  audio.addEventListener("loadedmetadata", syncLockInfo);
+
+  setAct("play", () => { playSafe(); setTimeout(onLocalAction, 60); });
+  setAct("pause", () => { audio.pause(); setTimeout(onLocalAction, 60); });
+  setAct("previoustrack", () => stepTrack(-1));
+  setAct("nexttrack", () => stepTrack(1));
+  setAct("seekto", (d) => {
+    if (d && typeof d.seekTime === "number") {
+      audio.currentTime = d.seekTime;
+      setTimeout(onLocalAction, 60);
+    }
+  });
+}
+
+/* 注册离线缓存（PWA 必须以 http/https 打开才会生效） */
+if ("serviceWorker" in navigator && /^http/.test(location.protocol)) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+
+/* 首屏检查 */
+if (!window.RTCPeerConnection) {
+  setConn("当前浏览器不支持点对点直连，请用 Chrome 打开", "err");
+}
+setConn("未连接", "");
+</script>
+</body>
+</html>
