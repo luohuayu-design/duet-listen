@@ -4138,6 +4138,22 @@ async function addFiles(files) {
 const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|webm|wma|ape|mka|amr|mp4)$/i;
 function isAudioName(n) { return AUDIO_EXT.test(String(n || "")); }
 
+/* 浏览器到底能不能解这个文件：先看扩展名（wma/ape/mka 一律不行），再问浏览器自己 */
+function trackUnsupported(t) {
+  if (!t) return false;
+  const ext = (String(t.name || "").match(/\.([a-z0-9]{2,5})$/i) || [])[1];
+  const e = ext ? ext.toLowerCase() : "";
+  if (/^(wma|ape|mka)$/.test(e)) return true;
+  let r = "";
+  try { r = audio.canPlayType(t.type || guessMime(t.name)); } catch (err) { r = ""; }
+  return r === "";
+}
+function unsupportedHint(t) {
+  const ext = (String((t && t.name) || "").match(/\.([a-z0-9]{2,5})$/i) || [])[1];
+  return "「" + ((t && t.name) || "这首歌") + "」是 " + (ext ? "." + ext.toLowerCase() : "未知") +
+    " 格式，浏览器解不出来。建议先转成 MP3 再添加";
+}
+
 function fmtSize(bytes) {
   const n = Number(bytes) || 0;
   if (n < 1024) return n + " B";
@@ -4774,7 +4790,12 @@ function playSafe() {
     if (name === "NotAllowedError") {
       hint("浏览器拦住了自动播放，请再点一下播放键");
     } else if (name === "NotSupportedError") {
-      hint("这首歌解不了（格式不支持或文件没传完）");
+      const t = findTrack(APP.curId);
+      const ext = (String((t && t.name) || "").match(/\.([a-z0-9]{2,5})$/i) || [])[1];
+      hint(t
+        ? "「" + t.name + "」解不了（" + (ext ? "." + ext.toLowerCase() : "未知格式") +
+          "）：可能是格式不支持，或文件没传完整。建议转成 MP3，或让对方重新发一次"
+        : "这首歌的格式浏览器解不了，建议先转成 MP3 再添加", 8000);
     } else {
       hint("播放失败：" + name);
     }
@@ -4854,6 +4875,10 @@ function selectTrack(id, startPlay) {
   APP._playRetry = 0;
   const t = findTrack(id);
   if (!t) return;
+  if (trackUnsupported(t)) {
+    hint(unsupportedHint(t), 8000);
+    return;
+  }
   if (!t.url) {
     hint(t.state === "recv"
       ? "这首歌还在接收中，等进度到 100% 再点"
