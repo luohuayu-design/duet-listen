@@ -87,6 +87,19 @@
   .tip{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,180,60,.1);
        border:1px solid rgba(255,180,60,.3);color:#ffd08a;font-size:12.5px;line-height:1.6}
   .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:8px;background:var(--card2);color:var(--sub)}
+  .sndChips{display:flex;flex-wrap:wrap;gap:8px}
+  .sndChips .chip{flex:1 1 auto;white-space:nowrap}
+  .soundRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0 2px}
+  .soundName{font-size:14px;font-weight:600}
+  .soundDesc{font-size:12px;color:var(--sub);margin-top:4px;line-height:1.55}
+  .switch{position:relative;flex:none;width:46px;height:26px}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .switch i{position:absolute;inset:0;border-radius:99px;background:#3a3d50;transition:.18s;cursor:pointer}
+  .switch i:before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;
+                  background:#fff;transition:.18s}
+  .switch input:checked + i{background:var(--accent)}
+  .switch input:checked + i:before{transform:translateX(20px)}
+
   .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
   .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
   .plItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px}
@@ -305,6 +318,7 @@
       <span class="pill"><span class="dot ok" id="dotPill"></span><span id="pillText">已连接</span></span>
       <div class="topBtns">
         <button class="topBtn duetOnly" id="btnReconnectTop" title="连接不稳时手动重连">↻</button>
+        <button class="topBtn hidden" id="btnSound" title="声音与通话">🔊</button>
         <button class="topBtn duetOnly" id="btnOpenChat">消息<span class="badge hidden" id="chatDot"></span></button>
         <button class="topBtn" id="btnOpenList">☰ 歌单 <span class="num" id="listCount">0</span></button>
       </div>
@@ -444,6 +458,36 @@
         <button class="btn primary" id="btnSaveProfile">保存</button>
       </div>
       <p class="plsTip">名字和头像会显示在首页和「一起听」里，对方能直接看到，不需要密码。</p>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetSound">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">声音与通话</div>
+      <button class="topBtn" id="closeSound">收起</button>
+    </div>
+    <div class="sheetBody">
+      <div class="soundRow">
+        <div>
+          <div class="soundName">接管系统音频焦点</div>
+          <div class="soundDesc">开启后，来电和其他 App 的声音会按下面的规则处理</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="sndOn" /><i></i></label>
+      </div>
+      <div class="label" style="margin-top:16px">来电 / 通话时</div>
+      <div class="sndChips" id="sndCall">
+        <button class="chip" data-v="resume">暂停，挂断后续播</button>
+        <button class="chip" data-v="stay">暂停，不续播</button>
+        <button class="chip" data-v="ignore">不处理</button>
+      </div>
+      <div class="label" style="margin-top:16px">通知、其他 App 的短时声音</div>
+      <div class="sndChips" id="sndNotice">
+        <button class="chip" data-v="duck">压低音量，结束后恢复</button>
+        <button class="chip" data-v="pause">暂停，结束后续播</button>
+        <button class="chip" data-v="ignore">不处理</button>
+      </div>
+      <p class="plsTip" style="margin-top:18px">系统音频焦点只有安卓 App 能接管，网页版不显示这块设置。改完立即生效，不用重启。</p>
     </div>
   </section>
 
@@ -3146,6 +3190,11 @@ const UI = {
   sheetProfile: $("#sheetProfile"),
   sheetChoose: $("#sheetChoose"),
   sheetQr: $("#sheetQr"),
+  sheetSound: $("#sheetSound"),
+  btnSound: $("#btnSound"),
+  sndOn: $("#sndOn"),
+  sndCall: $("#sndCall"),
+  sndNotice: $("#sndNotice"),
   homeAvatar: $("#homeAvatar"),
   homeName: $("#homeName"),
   meAvatar: $("#meAvatar"),
@@ -3267,6 +3316,8 @@ function leaveDuet() {
 }
 /* 真正清空房间：先跟其他人打个招呼，再拆连接 */
 function dropRoom() {
+  afRelease();
+  focusUnduck();
   if (APP.room && APP.mqs.length) {
     /* 房主走的时候顺便指定接任的人，剩下的人就不用猜了 */
     const next = APP.role === "host" ? nextHostId() : "";
@@ -3566,6 +3617,7 @@ function openSheet(which) {
     : which === "scan" ? UI.sheetScan
     : which === "qr" ? UI.sheetQr
     : which === "profile" ? UI.sheetProfile
+    : which === "sound" ? UI.sheetSound
     : which === "choose" ? UI.sheetChoose
     : UI.sheetList;
   if (which === "list") renderPlaylist();
@@ -3586,6 +3638,7 @@ function closeSheets() {
   if (UI.sheetProfile) UI.sheetProfile.classList.remove("on");
   if (UI.sheetChoose) UI.sheetChoose.classList.remove("on");
   if (UI.sheetQr) UI.sheetQr.classList.remove("on");
+  if (UI.sheetSound) UI.sheetSound.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
   _maskHideTimer = setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
@@ -6689,7 +6742,7 @@ UI.btnPlay.onclick = () => {
     return;
   }
   if (audio.paused) { APP.wantPlaying = true; playSafe(); }
-  else { APP.wantPlaying = false; audio.pause(); }
+  else { APP.wantPlaying = false; audio.pause(); afRelease(); }
   setTimeout(onLocalAction, 60);
 };
 
@@ -6721,7 +6774,7 @@ UI.seek.onchange = () => {
   onLocalAction();
 };
 
-UI.vol.oninput = () => { audio.volume = Number(UI.vol.value) / 100; };
+UI.vol.oninput = () => { applyVol(); };
 
 /* 歌词文件选择 */
 const lrcPicker = document.createElement("input");
@@ -6794,6 +6847,101 @@ if ("mediaSession" in navigator) {
     }
   });
 }
+
+/* ============ 声音与通话：安卓音频焦点（只在 APK 里出现） ============ */
+const SND_KEY = "duet.sound";
+const SND = (() => {
+  let v = {};
+  try { v = JSON.parse(localStorage.getItem(SND_KEY) || "{}") || {}; } catch (e) { v = {}; }
+  return Object.assign({ on: true, call: "resume", notice: "duck" }, v);
+})();
+const AF = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AudioFocus) || null;
+
+function sndSave() { try { localStorage.setItem(SND_KEY, JSON.stringify(SND)); } catch (e) {} }
+function volBase() { return Number((UI.vol && UI.vol.value) || 0) / 100; }
+function applyVol() {
+  try { audio.volume = APP.duck ? Math.max(0.06, volBase() * 0.3) : volBase(); } catch (e) {}
+}
+function afRequest() {
+  if (!AF || !SND.on) return;
+  try { const r = AF.request(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+}
+function afRelease() {
+  if (!AF) return;
+  try { const r = AF.release(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+}
+function focusUnduck() {
+  if (APP.duck) { APP.duck = false; applyVol(); }
+}
+/* 被系统夺走焦点：allowResume 决定焦点还回来时要不要自己续播 */
+function focusPause(allowResume) {
+  APP.focusWasPlaying = !audio.paused || !!APP.wantPlaying;
+  APP.focusResume = !!allowResume;
+  if (!APP.focusWasPlaying) return;
+  APP.wantPlaying = false;
+  try { audio.pause(); } catch (e) {}
+}
+function focusResumeBack() {
+  if (!APP.focusWasPlaying) return;
+  APP.focusWasPlaying = false;
+  if (APP.focusResume) { APP.wantPlaying = true; playSafe(); }
+}
+function onAudioFocus(a) {
+  if (!SND.on) return;
+  const f = Number(a && a.focus);
+  const isCall = !!(a && a.call);
+  const pol = isCall ? SND.call : SND.notice;
+  if (f === 1) { focusUnduck(); focusResumeBack(); return; }          // 焦点回来了
+  if (f === -3) {                                                     // 短时、可压低
+    if (pol === "ignore") return;
+    if (!isCall && pol === "duck") { APP.duck = true; applyVol(); return; }
+    focusPause(pol === "resume" || pol === "pause");
+    return;
+  }
+  if (f === -2 || f === -1) {                                         // 彻底/临时被夺走
+    if (pol === "ignore") return;
+    if (pol === "duck") { APP.duck = true; applyVol(); return; }
+    focusPause(pol === "resume" || pol === "pause");
+  }
+}
+function renderSound() {
+  if (!UI.sheetSound) return;
+  const mark = (box, v) => {
+    if (!box) return;
+    box.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.v === v));
+    box.style.opacity = SND.on ? 1 : 0.4;
+    box.style.pointerEvents = SND.on ? "auto" : "none";
+  };
+  if (UI.sndOn) UI.sndOn.checked = !!SND.on;
+  mark(UI.sndCall, SND.call);
+  mark(UI.sndNotice, SND.notice);
+}
+if (UI.btnSound) {
+  if (AF) {
+    UI.btnSound.classList.remove("hidden");
+    try {
+      const h = AF.addListener ? AF.addListener("audioFocus", onAudioFocus) : null;
+      if (h && h.catch) h.catch(() => {});
+    } catch (e) {}
+    audio.addEventListener("play", afRequest);
+  }
+  UI.btnSound.onclick = () => { renderSound(); openSheet("sound"); };
+}
+if ($("#closeSound")) $("#closeSound").onclick = closeSheets;
+if (UI.sndOn) UI.sndOn.onchange = () => {
+  SND.on = !!UI.sndOn.checked;
+  sndSave();
+  renderSound();
+  if (SND.on) afRequest();
+  else { focusUnduck(); focusResumeBack(); afRelease(); }
+};
+if (UI.sndCall) UI.sndCall.querySelectorAll(".chip").forEach((c) => {
+  c.onclick = () => { SND.call = c.dataset.v; sndSave(); renderSound(); };
+});
+if (UI.sndNotice) UI.sndNotice.querySelectorAll(".chip").forEach((c) => {
+  c.onclick = () => { SND.notice = c.dataset.v; sndSave(); renderSound(); };
+});
+renderSound();
 
 /* iPhone：用 Safari 打开后「添加到主屏幕」才会全屏；这里给个一次性提示 */
 (function () {
