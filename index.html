@@ -4863,25 +4863,44 @@ function loadDuration(url) {
 }
 
 async function addFiles(files) {
-  let added = 0;
+  let added = 0, dup = 0, bad = 0;
+  const seen = Object.create(null);
+  const durJobs = [];
   for (const f of Array.from(files)) {
-    if (!isAudioName(f.name) && !(f.type && /audio/i.test(f.type))) continue;
+    if (!isAudioName(f.name) && !(f.type && /audio/i.test(f.type))) { bad++; continue; }
+    /* 同一批里重复选中、或者列表里已经有同名同大小的歌：只算一次，不再重复计入 */
+    const key = (f.name || "") + "|" + (f.size || 0);
+    if (seen[key]) { dup++; continue; }
+    seen[key] = 1;
+    if (APP.lib.some((t) => (t.name || "") === (f.name || "") && Math.abs((t.size || 0) - (f.size || 0)) < 1024)) { dup++; continue; }
     const id = newId();
     const url = URL.createObjectURL(f);
-    const dur = await loadDuration(url);
     const track = {
-      id, name: f.name, size: f.size, dur,
+      id, name: f.name, size: f.size, dur: 0,
       type: guessMime(f.name, f.type),
       blob: f, url, mine: true, owner: APP.me, state: "local", pct: 0, sending: false,
     };
     APP.lib.push(track);
     saveTrack(track);
-    saveOrder();
+    durJobs.push(track);
     added++;
   }
+  saveOrder();
   renderPlaylist();
   UI.txtListText.textContent = APP.lib.length + " 首在我的列表里" +
     (added ? (APP.mode === "solo" ? "" : "；切到「我的歌曲」点 ＋ 就能加进一起听") : "");
+  /* 时长放后台按顺序慢慢读：一次导入几百首也不会卡在读取元数据上 */
+  (async () => {
+    for (const t of durJobs) {
+      const d = await loadDuration(t.url);
+      if (d && Math.abs((t.dur || 0) - d) > 0.5) {
+        t.dur = d;
+        saveTrack(t);
+        renderPlaylist();
+      }
+    }
+  })();
+  return { added, dup, bad };
 }
 
 /* 从「我的列表」加进「一起听歌单」：按点击的先后排到末尾，两端顺序一致 */
@@ -4889,6 +4908,18 @@ function addToQueue(id) {
   const t = APP.lib.find((x) => x.id === id) || findTrack(id);
   if (!t) return;
   if (findInQueue(t.id)) { toast("「" + t.name + "」已经在一起听歌单里了"); return; }
+  /* 同一首文件（名字+大小一样）可能之前以另一个 id 进过歌单：接上别名，不再占第二个位置 */
+  const twin = APP.tracks.find((x) => trackKey(x) === trackKey(t));
+  if (twin) {
+    APP.alias[t.id] = twin.id;
+    if (!twin.url && t.url) {
+      twin.blob = t.blob; twin.url = t.url; twin.size = t.size;
+      twin.mine = t.mine; twin.owner = t.owner || twin.owner; twin.state = "local";
+      saveTrack(twin);
+    }
+    toast("「" + t.name + "」已经在一起听歌单里了");
+    return;
+  }
   APP.tracks.push(t);
   renderPlaylist();
   syncListCount();
@@ -4984,11 +5015,11 @@ $("#scanAddBtn").onclick = async () => {
   const picked = scanItems.filter((x) => x.on).map((x) => x.f);
   if (!picked.length) { toast("还没有勾选歌曲"); return; }
   closeSheets();
-  toast("正在加入 " + picked.length + " 首，请稍等…", 6000);
-  await addFiles(picked);
+  const r = await addFiles(picked);
   scanItems = [];
   maybeResume();
-  toast("已加入 " + picked.length + " 首");
+  toast("已加入 " + r.added + " 首" + (r.dup ? "，跳过 " + r.dup + " 首重复的" : "") +
+        (r.bad ? "，忽略 " + r.bad + " 个非音频文件" : ""));
 };
 
 function opAdd(track) {
@@ -5088,11 +5119,31 @@ function applyPlOp(m) {
       if (!myLib.dur && item.dur) myLib.dur = item.dur;
       if (!myLib.type && item.type) myLib.type = item.type;
       if (APP.lrcCache[item.id]) myLib.lrc = parseLrc(APP.lrcCache[item.id]);
+      /* 这首歌（同一文件）已经以别的 id 在歌单里：只补信息，不重复占位 */
+      const twin = APP.tracks.find((x) => trackKey(x) === trackKey(myLib));
+      if (twin) {
+        APP.alias[item.id] = twin.id;
+        if (!twin.url && myLib.url) {
+          twin.blob = myLib.blob; twin.url = myLib.url; twin.size = myLib.size;
+          twin.mine = myLib.mine; twin.owner = myLib.owner || twin.owner; twin.state = "local";
+        }
+        renderPlaylist();
+        return;
+      }
       APP.tracks.push(myLib);
       APP.plVer = Math.max(APP.plVer, m.ver || 0);
       renderPlaylist();
       syncListCount();
       hint("对方把「" + item.name + "」加进了一起听");
+      return;
+    }
+
+    /* 另外两个人加的如果是同一个文件，名字+大小一致：接上别名，不重复占位 */
+    const twinQ = APP.tracks.find((x) => trackKey(x) === trackKey({ name: item.name, size: item.size || 0 }));
+    if (twinQ) {
+      APP.alias[item.id] = twinQ.id;
+      APP.plVer = Math.max(APP.plVer, m.ver || 0);
+      renderPlaylist();
       return;
     }
 
