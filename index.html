@@ -2725,6 +2725,10 @@ class MqttWS {
   }
 
   connect() {
+    /* 防止自动重连和手动重连同时开跑，出现两条同一个 ClientId 的连接互相踢 */
+    clearTimeout(this._retryTimer);
+    this._retryTimer = null;
+    if (this.connected) return Promise.resolve();
     /* 两个中转站同时连，谁先握手成功就用谁；以前是一个一个等，最坏要干等 40 秒 */
     return new Promise((resolve, reject) => {
       const socks = [];
