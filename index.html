@@ -111,7 +111,7 @@
   .chatInput{letter-spacing:0 !important;text-transform:none !important;text-align:left !important;padding:11px 12px !important;font-size:14px !important}
 
   /* ===== 主界面顶栏 ===== */
-  .topBar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .topBar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
   .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);
         background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
   .topBtn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--fg);
@@ -187,10 +187,13 @@
   .modeText span{font-size:12px;color:var(--sub);line-height:1.45}
   .modeArrow{color:var(--sub);font-size:20px;flex:none}
 
-  .whoRow{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+  .whoRow{display:flex;align-items:center;gap:8px;margin:0 0 12px;flex-wrap:wrap}
   .whoItem{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--sub);max-width:47%}
   .whoItem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .whoItem .avatar{width:28px;height:28px}
+  .whoPeers{display:flex;align-items:center;gap:10px;margin-left:auto}
+  .whoCount{flex:none;font-size:11px;color:var(--sub);background:var(--card2);border:1px solid var(--line);
+            border-radius:999px;padding:2px 8px}
 
   /* 只有对应模式才显示的元素 */
   body:not(.mode-duet) .duetOnly{display:none !important}
@@ -228,7 +231,7 @@
 <div class="wrap">
   <header>
     <h1>一起听</h1>
-    <p class="sub">一个人安静听，或者两个人一起听</p>
+    <p class="sub">一个人安静听，或者最多三个人一起听</p>
   </header>
 
   <!-- 首页：两个入口 + 个人资料 -->
@@ -250,7 +253,7 @@
     </button>
     <button class="modeCard" id="btnDuet">
       <div class="modeIcon">👥</div>
-      <div class="modeText"><b>一起听歌</b><span>和对方同步播放、聊天，房主房客权限相同</span></div>
+      <div class="modeText"><b>一起听歌</b><span>最多 3 人同步播放、聊天，权限人人相同</span></div>
       <div class="modeArrow">›</div>
     </button>
   </section>
@@ -271,11 +274,14 @@
     </div>
     <div class="codeWrap hidden" id="codeWrap">
       <div class="code" id="roomCode">------</div>
-      <div class="codeTip">把这个房间号发给对方，让 Ta 输进来</div>
+      <div class="codeTip">把房间号发给他们，让 Ta 输进来（最多 3 人）</div>
     </div>
     <div class="row hidden" id="inviteRow" style="margin-top:10px">
       <button class="btn" id="btnCopyInvite" style="padding:12px;font-size:14px">复制邀请链接</button>
       <button class="btn" id="btnQr" style="flex:0 0 96px;padding:12px;font-size:14px">二维码</button>
+    </div>
+    <div class="row hidden" id="rowGoListen" style="margin-top:10px">
+      <button class="btn primary" id="btnGoListen">先进去听歌（边听边等人）</button>
     </div>
     <div class="row" style="margin-top:10px">
       <button class="btn" id="btnLobby">看看有哪些房间</button>
@@ -295,6 +301,7 @@
   <section class="card hidden" id="cardPlayer">
     <div class="topBar">
       <button class="topBtn" id="btnBackHome" title="返回首页">‹ 首页</button>
+      <button class="topBtn duetOnly" id="btnRoomCode" title="复制邀请链接">房号 <span class="num" id="topRoomCode">------</span></button>
       <span class="pill"><span class="dot ok" id="dotPill"></span><span id="pillText">已连接</span></span>
       <div class="topBtns">
         <button class="topBtn duetOnly" id="btnReconnectTop" title="连接不稳时手动重连">↻</button>
@@ -304,7 +311,8 @@
     </div>
     <div class="whoRow duetOnly" id="whoRow">
       <div class="whoItem"><img class="avatar" id="meAvatar" alt="" /><span id="meName">我</span></div>
-      <div class="whoItem" style="margin-left:auto"><span id="peerName">对方</span><img class="avatar" id="peerAvatar" alt="" /></div>
+      <span class="whoCount" id="whoCount">1/3</span>
+      <div class="whoPeers" id="whoPeers"></div>
     </div>
     <div class="songName" id="songName">—</div>
     <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
@@ -332,16 +340,17 @@
     </div>
     <details>
       <summary>使用说明 / 常见问题</summary>
-      <p><b>1. 两个模式</b>：首页先选「单机听歌」或「一起听歌」。单机听歌自己听，不联网；一起听歌再创建房间或输入房间号。点左上角「‹ 首页」随时切回来。</p>
-      <p><b>2. 房间号 / 大厅</b>：房主创建后得到 6 位房间号，也可以用「复制邀请链接」「二维码」邀请；不想输号就点「看看有哪些房间」，对方在用就会出现在列表里，点「加入」直接进。</p>
+      <p><b>1. 两个模式</b>：首页先选「单机听歌」或「一起听歌」。单机听歌自己听，不联网；一起听歌再创建房间或输入房间号，<b>一个房间最多 3 人</b>。点左上角「‹ 首页」随时切回来。</p>
+      <p><b>2. 房间号 / 大厅</b>：房主创建后得到 6 位房间号，也可以用「复制邀请链接」「二维码」邀请；不想输号就点「看看有哪些房间」，有人在线就会出现在列表里，点「加入」直接进。人满了（3 人）房间就不再出现在列表里，第 4 个人会被直接拒。</p>
       <p><b>3. 单机听歌</b>：分「全部音乐 / 我的歌单 / ★ 收藏 / 最近」。全部音乐里点歌就播，并按当前列表自动连播；点行尾的 ＋ 把歌加进自建歌单；「我的歌单」里可以新建、重命名、删除、加歌、移出。</p>
-      <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后两端同步。</p>
-      <p><b>5. 控制</b>：两边权力完全对等，谁都能播放、暂停、拖动、切歌。</p>
-      <p><b>6. 歌词</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，两边都会滚动显示。</p>
-      <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息对方立刻能看到。</p>
-      <p><b>8. 两个歌单</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、对方传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，两台设备按添加顺序显示同一份歌单；对方没有这首歌会自动传过去。开始播放要手动点播放键，没加载完会等加载完自动开播。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 直连已建立 / 重试第几次」。实在卡住就点右上角 ↻ 或连接页的「重新连接」。</p>
-      <p><b>9. 个人资料</b>：首页右上角点自己的头像/名字，可以选内置头像、从相册选图、改用户名；进入「一起听」后两端的顶栏和聊天都会显示头像和名字，不需要密码。</p>
-      <p><b>10. 限制</b>：音量各自独立；聊天记录不保存；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
+      <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后房间里所有人同步。</p>
+      <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。</p>
+      <p><b>6. 歌词</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，大家都会滚动显示。</p>
+      <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息其他人立刻能看到，带头像。</p>
+      <p><b>8. 歌单与传输</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、别人传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，所有人按添加顺序看到同一份歌单，并自动互相传文件。<b>中途进来的人只下「当前这首歌 + 下一首」</b>，下完自动对齐、开始播放，不会打断正在放的人；播放过程中会提前把下一首缓冲好。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 已连接 / 重试第几次」。实在卡住就点右上角 ↻。</p>
+      <p><b>9. 房主</b>：房主可以先建房、先放歌，别人进来不影响他。房主退出后，<b>房间里来得最早的人自动接任房主</b>，房间照常继续。</p>
+      <p><b>10. 个人资料</b>：首页右上角点自己的头像/名字，可以选内置头像、从相册选图、改用户名；进入「一起听」后所有人的顶栏和聊天都会显示头像和名字，不需要密码。</p>
+      <p><b>11. 限制</b>：音量各自独立；聊天记录不保存；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
     </details>
   </section>
 
@@ -3066,13 +3075,16 @@ const APP = {
   me: "u" + Math.random().toString(36).slice(2, 8),
   room: "",
   role: "",              // host | guest
-  mqs: [],               // 每个中转站一条连接，同时挂着，哪条通用哪条（两端总会落在同一个站）
+  mqs: [],               // 每个中转站一条连接，同时挂着，哪条通用哪条（同一房间的人总会落在同一个站）
   seenMid: new Set(),    // 同一条消息从多个中转站重复到达时只处理一次
   midSeq: 0,
   topic: "",
-  pc: null,
-  ctl: null,             // 主数据通道（只用来判断直连是否成功）
-  paired: false,
+  peers: {},             // 房间里的其他成员：peerId -> {pc, ctl, sigOut, jo, paired, ...}
+  pfById: {},            // 每个成员的资料 peerId -> {name, avatar}
+  jo: 0,                 // 我的加入顺序（房主 1，之后进来的依次变大）
+  hostId: "",            // 当前房主 id（房主退出会自动转让给别人）
+  needTimers: {},        // 催对方补传文件的重试定时器
+  paired: false,         // 至少有一个人直连成功（多人房间里是「派生值」）
   offset: null,          // 对方时钟 - 我的时钟（毫秒）
   bestRtt: Infinity,
   pingTimer: null,
@@ -3089,11 +3101,9 @@ const APP = {
   plVer: 0,
   plBy: "",
   pendingTarget: null,   // 远程要我切到某首还没传过来的歌
+  pendTs: 0,             // pendingTarget 的记录时间（用来防止歌单还没同步时乱下第一首）
   pendApply: null,       // 音频还没就绪时暂存的 {pos, playing}
   lastStateApplyTs: 0,
-  lastAnswer: null,
-  iceBuf: [],            // 远端描述还没设好时，先攒着 ICE 候选
-  tryCount: 0,           // 本次进房间已经重试了几次直连
   unread: 0,             // 未读消息条数（决定红点）
   shuffle: false,        // 随机播放开关
   shuffleSeed: 0,        // 随机种子（两端用同一个种子洗牌，才能同步）
@@ -3101,7 +3111,6 @@ const APP = {
   repeat: 0,             // 0 顺序（播完最后一首停），1 列表循环，2 单曲循环
   mode: "",              // ""=首页 | solo=单机听歌 | duet=一起听歌
   pf: { name: "", avatar: "" },       // 我的资料（localStorage）
-  peerPf: { name: "", avatar: "" },   // 对方的资料（进房后互通）
   pls: [],               // 自建歌单 [{id,name,ids}]（仅单机模式用，localStorage）
   plCur: "",             // 当前打开的自建歌单 id
   playQ: [],             // 单机连播队列（歌曲 id，按当前界面顺序）
@@ -3109,24 +3118,13 @@ const APP = {
   plQuery: "",           // 歌单搜索词
   plTab: "duet",         // 歌单筛选：duet|lib|all|pls|pl|fav|recent
   reorder: false,        // 歌单排序模式（拖动 / 上下移动）
-  sendQueue: [],         // 传歌排队（一次只传一首）
+  sendQueue: [],         // 传歌排队 [{t, pid}]（一次只传一首，不并发）
   sending: false,        // 当前是否正在传某一首
-  offerTimer: null,
   needSent: new Set(),   // 已经催过对方补传的歌曲 id
-  peerTracks: [],        // 对方最近一次报上来的歌单
+  peerTracks: [],        // 预留
   lrcCache: {},          // 对方发来的歌词原文（本地还没这首歌时先存着）
   lrcIdx: -1,            // 当前高亮到第几行歌词
   hintTimer: null,
-  reconnecting: false,   // 正在自动重连（防止重连逻辑自己套自己）
-  closingPeer: false,    // 主动销毁连接时的标记
-  hbTimer: null,         // 直连心跳定时器
-  hbSeq: 0,
-  lastPong: 0,           // 上一次收到对方心跳回音的时间
-  retryTimer: null,      // 直连重试定时器
-  retryWait: 0,          // 下一次重试等多久
-  myCands: [],           // 本端已发出的 ICE 候选（重发用）
-  lastOfferSdp: "",      // 房员已处理过的 offer 指纹（重复的忽略）
-  sigOut: {},            // 关键信令重发任务 {kind:{rid,timer,msg}}
   lastWakeTs: 0,         // 上次网络恢复检查时间（防抖）
 };
 
@@ -3152,8 +3150,8 @@ const UI = {
   homeName: $("#homeName"),
   meAvatar: $("#meAvatar"),
   meName: $("#meName"),
-  peerAvatar: $("#peerAvatar"),
-  peerName: $("#peerName"),
+  whoPeers: $("#whoPeers"),
+  whoCount: $("#whoCount"),
   profPreview: $("#profPreview"),
   profName: $("#profName"),
   avatarGrid: $("#avatarGrid"),
@@ -3166,6 +3164,7 @@ const UI = {
   lobbyBox: $("#lobbyBox"),
   lobbyList: $("#lobbyList"),
   lobbyCount: $("#lobbyCount"),
+  topRoomCode: $("#topRoomCode"),
   scanList: $("#scanList"),
   scanTotal: $("#scanTotal"),
   scanPick: $("#scanPick"),
@@ -3206,7 +3205,8 @@ function enterMain() {
   show(UI.cardConn, false);
   show(UI.cardPlayer, true);
   if (APP.mode === "solo") { setPill("单机听歌", "ok"); return; }
-  setPill(APP.paired ? "已连接" : "等待对方", APP.paired ? "ok" : "warn blink");
+  setPill(APP.paired ? ("已连接 · " + memberCount() + " 人") : "等待其他人加入",
+    APP.paired ? "ok" : "warn blink");
 }
 function setPill(text, state) {
   if (!UI.pillText) return;
@@ -3256,13 +3256,36 @@ function enterDuet() {
   show(UI.cardHome, false);
   show(UI.cardConn, true);
   show(UI.cardPlayer, false);
+  show($("#rowGoListen"), false);
   applyModeChrome();
   enterList();
 }
 function leaveDuet() {
   if (APP.room && APP.paired && !confirm("返回首页会退出当前的一起听房间，确定吗？")) return false;
-  APP.closingPeer = true;
-  try { teardownPeer(); } catch (e) {}
+  dropRoom();
+  return true;
+}
+/* 真正清空房间：先跟其他人打个招呼，再拆连接 */
+function dropRoom() {
+  if (APP.room && APP.mqs.length) {
+    /* 房主走的时候顺便指定接任的人，剩下的人就不用猜了 */
+    const next = APP.role === "host" ? nextHostId() : "";
+    try { publish({ k: "bye", from: APP.me, next: next || undefined }); } catch (e) {}
+    if (APP.role === "host") {
+      try { publishRaw(LOBBY_TOPIC, JSON.stringify(lobbyPayload("bye"))); } catch (e) {}
+    }
+  }
+  Object.keys(APP.peers).forEach((id) => {
+    const p = APP.peers[id];
+    p.closing = true;
+    try { closePeerConn(p, true); } catch (e) {}
+  });
+  APP.peers = {};
+  APP.pfById = {};
+  APP.sendQueue = [];
+  APP.sending = false;
+  APP.needTimers = {};
+  APP.needSent.clear();
   closeMqs();
   try { closeLobbyClient(); } catch (e) {}
   try { stopLobbyAd(); } catch (e) {}
@@ -3272,10 +3295,12 @@ function leaveDuet() {
   APP.pingTimer = null;
   APP.room = "";
   APP.role = "";
+  APP.hostId = "";
+  APP.jo = 0;
   APP.paired = false;
-  APP.reconnecting = false;
+  show($("#rowGoListen"), false);
+  renderWho();
   resetSessionQueue();
-  return true;
 }
 function goHome() {
   if (APP.mode === "duet" && APP.room && !leaveDuet()) return;
@@ -3315,27 +3340,44 @@ function saveProfileStore() {
 }
 function renderProfile() {
   const myAva = APP.pf.avatar || defaultAvatar();
-  const peerAva = APP.peerPf.avatar || defaultAvatar();
   if (UI.homeAvatar) UI.homeAvatar.src = myAva;
   if (UI.homeName) UI.homeName.textContent = APP.pf.name || "设置资料";
   if (UI.meAvatar) UI.meAvatar.src = myAva;
   if (UI.meName) UI.meName.textContent = APP.pf.name || "我";
-  if (UI.peerAvatar) UI.peerAvatar.src = peerAva;
-  if (UI.peerName) UI.peerName.textContent = APP.peerPf.name || "对方";
+  renderWho();
 }
-function applyPeerProfile(pf) {
-  if (!pf) return false;
+/* 顶栏的成员行：我 + 房间里的其他人（最多再两个）+ 人数 */
+function renderWho() {
+  if (!UI.whoPeers) return;
+  const ps = Object.keys(APP.peers).map((id) => APP.peers[id]);
+  if (UI.whoCount) UI.whoCount.textContent = (1 + ps.length) + "/" + MAX_MEMBERS;
+  UI.whoPeers.innerHTML = ps.map((p) => {
+    const pf = peerPfOf(p.id);
+    const name = esc(pf.name || "对方");
+    const ava = pf.avatar || defaultAvatar();
+    const host = p.id === APP.hostId ? '<span class="tag" style="padding:1px 5px;font-size:10px">房主</span>' : "";
+    return '<div class="whoItem"><span>' + name + "</span>" + host +
+      '<img class="avatar" src="' + ava + '" alt="" /></div>';
+  }).join("");
+}
+function peerPfOf(id) { return (id && APP.pfById[id]) || { name: "", avatar: "" }; }
+function applyPeerProfile(pf, fromId) {
+  if (!pf || !fromId || fromId === APP.me) return false;
   const n = String(pf.name != null ? pf.name : pf.n || "").slice(0, 12);
   let a = String(pf.avatar != null ? pf.avatar : pf.a || "");
   if (a && !/^data:image\//.test(a)) a = "";
-  if (n === APP.peerPf.name && a === APP.peerPf.avatar) return false;
-  APP.peerPf = { name: n, avatar: a };
-  renderProfile();
+  const old = APP.pfById[fromId] || { name: "", avatar: "" };
+  if (n === old.name && a === old.avatar) return false;
+  APP.pfById[fromId] = { name: n, avatar: a };
+  renderWho();
   return true;
 }
 function myPf() { return { n: APP.pf.name || "", a: APP.pf.avatar || "" }; }
 function helloMsg(extra) {
-  return Object.assign({ k: "hello", from: APP.me, role: APP.role, tracks: [] }, extra || {});
+  return Object.assign({
+    k: "hello", from: APP.me, role: APP.role, jo: APP.jo,
+    host: APP.hostId || "", tracks: [],
+  }, extra || {});
 }
 /* 资料单独发（头像可能是十几 KB 的图片，不能塞进每 1.5 秒一次的 hello） */
 function publishProfile(force) {
@@ -3632,7 +3674,7 @@ function saveOrder() {
 
 function listBase() {
   if (APP.mode === "solo") return APP.lib.length + " 首在我的音乐里";
-  return APP.tracks.length + " 首在一起听" + (APP.paired ? " · 已连接" : " · 等待对方");
+  return APP.tracks.length + " 首在一起听" + (APP.paired ? " · " + memberCount() + " 人已连接" : " · 等待其他人");
 }
 /* 临时提示：抽屉里的小字一起变，同时右上角弹一个轻提示，几秒后恢复常态文字 */
 function hint(text, ms) {
@@ -3696,9 +3738,14 @@ function resetSessionQueue() {
   APP.tracks = [];
   APP.plVer = 0;
   APP.plBy = "";
+  APP.stateVer = 0;
+  APP.lastBy = "";
   APP.alias = {};
   APP.pendingTarget = null;
   APP.pendPlayId = "";
+  APP.needSent.clear();
+  Object.keys(APP.needTimers).forEach((k) => clearTimeout(APP.needTimers[k]));
+  APP.needTimers = {};
   stopCurrentAudio();
   renderPlaylist();
   syncListCount();
@@ -3707,6 +3754,8 @@ function resetSessionQueue() {
 async function createRoom() {
   if (APP.room) return;
   APP.role = "host";
+  APP.hostId = APP.me;
+  APP.jo = 1;
   APP.room = randCode();
   resetSessionQueue();
   $("#btnCreate").disabled = true;
@@ -3721,11 +3770,13 @@ async function createRoom() {
     APP.room = "";
     return;
   }
-  setConn("房间已创建，等待对方加入…", "warn blink");
+  setConn("房间已创建，等待其他人加入…", "warn blink");
   UI.roomCode.textContent = APP.room;
   UI.inpCode.value = APP.room;
   show(UI.codeWrap, true);
   show($("#inviteRow"), true);
+  show($("#rowGoListen"), true);
+  UI.topRoomCode.textContent = APP.room;
   startLobbyAd();
   enterList();
 }
@@ -3737,6 +3788,8 @@ async function joinRoomByCode() {
     return;
   }
   APP.role = "guest";
+  APP.hostId = "";
+  APP.jo = 0;
   APP.room = code;
   resetSessionQueue();
   $("#btnJoin").disabled = true;
@@ -3751,7 +3804,7 @@ async function joinRoomByCode() {
     APP.room = "";
     return;
   }
-  setConn("已进入房间，正在寻找对方…", "warn blink");
+  setConn("已进入房间，正在寻找房间里的人…", "warn blink");
   show(UI.codeWrap, false);
   enterList();
 }
@@ -3759,8 +3812,88 @@ async function joinRoomByCode() {
 function enterList() {
   /* 还没连上，先留在连接页；连上后再切主界面 */
   UI.tagRole.textContent = APP.role === "host" ? "房主" : "加入者";
-  UI.txtListText.textContent = "等待对方加入…";
+  UI.txtListText.textContent = "等待其他人加入…";
+  UI.topRoomCode.textContent = APP.room || "------";
+  renderWho();
   renderPlaylist();
+}
+
+/* ===== 多人房间的基础设施 ===== */
+const MAX_MEMBERS = 3;
+
+function peerList() { return Object.keys(APP.peers).map((id) => APP.peers[id]); }
+function memberCount() { return 1 + Object.keys(APP.peers).length; }
+
+/* 认识一个新成员（不建连接，只记人） */
+function ensurePeer(id, info) {
+  if (!id || id === APP.me) return null;
+  let p = APP.peers[id];
+  if (!p) {
+    p = APP.peers[id] = {
+      id: id, jo: 0, arrive: (APP.arriveSeq = (APP.arriveSeq || 0) + 1), role: "", paired: false,
+      pc: null, ctl: null,
+      sigOut: {}, iceBuf: [], myCands: [],
+      lastAnswer: null, lastOfferSdp: "",
+      offerTimer: null, retryTimer: null,
+      hbTimer: null, lastPong: 0, hbSeq: 0, tryCount: 0,
+      retryWait: 0, reconnecting: false, closing: false,
+      lastHelloReply: 0, renewSent: 0,
+    };
+    renderWho();
+  }
+  if (info) {
+    if (typeof info.jo === "number" && info.jo > 0) p.jo = p.jo ? Math.min(p.jo, info.jo) : info.jo;
+    if (info.role) p.role = info.role;
+  }
+  return p;
+}
+
+/* 对方主动退出：把人和连接一起清掉 */
+function dropPeerRecord(id) {
+  const p = APP.peers[id];
+  if (!p) return;
+  try { closePeerConn(p, true); } catch (e) {}
+  delete APP.peers[id];
+  delete APP.pfById[id];
+  if (APP.hostId === id) APP.hostId = "";
+  refreshPaired();
+  renderWho();
+}
+
+/* 至少有一条直连就当作「已连接」 */
+function refreshPaired() {
+  APP.paired = peerList().some((p) => p.paired);
+}
+
+/* 房主退出后：房间里最早进来的那个人接任 */
+function nextHostId() {
+  const ps = peerList();
+  if (!ps.length) return "";
+  ps.sort((a, b) => (a.arrive || 999) - (b.arrive || 999));
+  return ps[0].id;
+}
+function becomeHost() {
+  APP.role = "host";
+  APP.hostId = APP.me;
+  UI.tagRole.textContent = "房主";
+  startLobbyAd();
+  renderWho();
+  toast("你成了新房主，房间继续");
+  publish({ k: "role", from: APP.me, host: APP.me });
+}
+function followNewHost(id) {
+  APP.role = "guest";
+  APP.hostId = id;
+  UI.tagRole.textContent = "加入者";
+  stopLobbyAd();
+  renderWho();
+}
+function electHost(byId) {
+  if (!APP.room) return;
+  const nid = byId || nextHostId();
+  if (!nid) return;
+  if (nid === APP.me) becomeHost();
+  else followNewHost(nid);
 }
 
 async function joinRoomChannel(room) {
@@ -3776,9 +3909,9 @@ async function joinRoomChannel(room) {
     mq.onOnline = () => {
       if (!APP.paired) {
         setPill("中转已连", "ok");
-        setConn("中转已连，等待对方…", "ok");
+        setConn("中转已连，等待其他人…", "ok");
       } else {
-        setPill("直连已建立", "ok");
+        setPill("已连接 · " + memberCount() + " 人", "ok");
       }
       publish(helloMsg());
     };
@@ -3810,10 +3943,13 @@ async function joinRoomChannel(room) {
   }
 
   publish(helloMsg());
+  /* 房间没满、或还有人没连上，就一直报到；别人进来时也能马上发现我 */
   clearInterval(APP.helloTimer);
   APP.helloTimer = setInterval(() => {
-    if (!APP.paired) publish(helloMsg());
-  }, 1500);
+    if (!APP.room) return;
+    if (memberCount() >= MAX_MEMBERS && peerList().every((p) => p.paired)) return;
+    publish(helloMsg());
+  }, 2500);
 
   clearInterval(APP.pingTimer);
   APP.pingTimer = setInterval(() => {
@@ -3858,7 +3994,9 @@ function publishRaw(topic, payload) {
 function onMqttMessage(topic, payload) {
   let m = null;
   try { m = JSON.parse(new TextDecoder().decode(payload)); } catch (e) { return; }
-  if (!m || m.from === APP.me) return;
+  if (!m || m.from === APP.me || !APP.room) return;
+  /* 点对点消息只给指定的人，其他人直接忽略（注意 move 操作里的 to 是序号，不能混） */
+  if (typeof m.to === "string" && m.to && m.to !== APP.me) return;
   /* 多个中转站会把同一条消息各送一次，只处理第一次 */
   if (m.mid) {
     if (APP.seenMid.has(m.mid)) return;
@@ -3868,67 +4006,128 @@ function onMqttMessage(topic, payload) {
 
   switch (m.k) {
     case "hello": {
-      if (m.pf) applyPeerProfile(m.pf);
+      if (m.pf) applyPeerProfile(m.pf, m.from);
       if (APP.mode === "duet") publishProfile(false);
-      if (APP.paired) {
-        if (m.renew && APP.role === "host") tryRestartIce();
+
+      /* 满员了：直接告诉新来的人，不让他进 */
+      if (!APP.peers[m.from] && memberCount() >= MAX_MEMBERS) {
+        publish({ k: "reject", from: APP.me, to: m.from, reason: "full" });
         break;
       }
-      if (APP.role === "host") {
-        const pc0 = APP.pc;
-        if (!pc0 || pc0.connectionState === "failed" || pc0.connectionState === "closed") {
-          if (pc0) teardownPeer();
-          createPeer(true);
-          setConn("对方已找到，正在建立直连…", "warn blink");
-        } else if (m.renew) {
-          tryRestartIce();
-        }
+      const p = ensurePeer(m.from, { jo: m.jo, role: m.role });
+      if (!p) break;
+      if (m.host && !APP.hostId) APP.hostId = m.host;
+      /* 记下自己排第几个进来：还不知道就排在对方后面，已经知道了就取更早的那个 */
+      if (m.jo > 0) APP.jo = APP.jo > 0 ? Math.min(APP.jo, m.jo) : (m.jo + 1);
+
+      // 还没建连接就回一声，让对方也认识我（同一个对端最多 2 秒一次）
+      const now = Date.now();
+      if (!p.pc && now - (p.lastHelloReply || 0) > 2000) {
+        p.lastHelloReply = now;
+        publish(helloMsg({ to: p.id }));
       }
+
+      /* 谁发起：id 大的那一端发 offer，永远不会两边同时发（没有 glare） */
+      if (APP.me > p.id) {
+        if (!p.pc || p.pc.connectionState === "failed" || p.pc.connectionState === "closed") {
+          if (!p.retryTimer) {
+            createPeer(p, true);
+            if (!p.paired) setConn("有新成员，正在建立直连…", "warn blink");
+          }
+        } else if (m.renew) {
+          tryRestartIce(p);
+        }
+      } else if (m.renew) {
+        // 我是被动端，等对方重新发 offer 就好
+      }
+      renderWho();
       break;
     }
     case "offer": {
-      if (APP.role !== "guest") break;
       sendAck(m);
+      const p = ensurePeer(m.from);
+      if (!p) break;
       const fp = m.sdp && m.sdp.sdp;
-      const pc0 = APP.pc;
-      if (!pc0 || pc0.signalingState === "closed" || pc0.connectionState === "failed") {
-        if (pc0) teardownPeer();
-        createPeer(false);
-        APP.lastOfferSdp = fp || "";
-        acceptOffer(m);
-      } else if (APP.paired && pc0.signalingState === "stable") {
+      if (!p.pc || p.pc.signalingState === "closed" || p.pc.connectionState === "failed") {
+        createPeer(p, false);
+        p.lastOfferSdp = fp || "";
+        acceptOffer(p, m);
+      } else if (p.paired && p.pc.signalingState === "stable") {
         // 对方换网 / restartIce 后会发来新 offer，这里重新协商
-        if (fp && fp !== APP.lastOfferSdp) {
-          APP.lastOfferSdp = fp;
-          acceptOffer(m);
+        if (fp && fp !== p.lastOfferSdp) {
+          p.lastOfferSdp = fp;
+          acceptOffer(p, m);
         }
-      } else if (!APP.paired && APP.lastAnswer) {
+      } else if (!p.paired && p.lastAnswer) {
         // 之前协商的 answer 可能丢了，重发一次
-        sigSend("answer", { k: "answer", sdp: APP.lastAnswer });
+        sigSend(p, "answer", { k: "answer", sdp: p.lastAnswer });
       }
       break;
     }
-    case "answer":
-      if (APP.pc && APP.pc.signalingState === "have-local-offer") {
-        APP.pc.setRemoteDescription(m.sdp)
-          .then(() => { flushIce(); sigStop("offer"); })
+    case "answer": {
+      const p = APP.peers[m.from];
+      if (p && p.pc && p.pc.signalingState === "have-local-offer") {
+        p.pc.setRemoteDescription(m.sdp)
+          .then(() => { flushIce(p); sigStop(p, "offer"); })
           .catch(() => {});
       }
       sendAck(m);
       break;
+    }
     case "ack":
       onSigAck(m);
       break;
-    case "ice":
-      if (!APP.pc || !m.c) break;
-      if (APP.pc.remoteDescription && APP.pc.remoteDescription.type) {
-        try { APP.pc.addIceCandidate(m.c).catch(() => {}); } catch (e) {}
+    case "ice": {
+      const p = APP.peers[m.from];
+      if (!p || !p.pc || !m.c) break;
+      if (p.pc.remoteDescription && p.pc.remoteDescription.type) {
+        try { p.pc.addIceCandidate(m.c).catch(() => {}); } catch (e) {}
       } else {
-        APP.iceBuf.push(m.c);   /* 对方的 SDP 还没到，先攒着，设好远端描述后补上 */
+        p.iceBuf.push(m.c);   /* 对方的 SDP 还没到，先攒着，设好远端描述后补上 */
       }
       break;
+    }
+    case "renew": {
+      const p = APP.peers[m.from];
+      if (p && APP.me > p.id) tryRestartIce(p);
+      break;
+    }
+    case "reject": {
+      if (m.reason === "full") {
+        toast("房间最多 " + MAX_MEMBERS + " 人，这间已经满了", 4500);
+        clearInterval(APP.helloTimer);
+        APP.helloTimer = null;
+        dropRoom();
+        goHome();
+      }
+      break;
+    }
+    case "bye": {
+      const p = APP.peers[m.from];
+      const wasHost = (APP.hostId === m.from) || (p && p.role === "host");
+      const next = m.next || "";
+      dropPeerRecord(m.from);
+      if (memberCount() <= 1) {
+        setConn("其他人都离开了，还在等新的人加入…", "warn blink");
+        setPill("等待其他人加入", "warn blink");
+      }
+      if (wasHost) electHost(next);
+      refreshPaired();
+      renderWho();
+      break;
+    }
+    case "role": {
+      if (m.host) {
+        APP.hostId = m.host;
+        APP.role = (m.host === APP.me) ? "host" : "guest";
+        UI.tagRole.textContent = APP.role === "host" ? "房主" : "加入者";
+        if (APP.role === "host") startLobbyAd(); else stopLobbyAd();
+        renderWho();
+      }
+      break;
+    }
     case "ping":
-      publish({ k: "pong", from: APP.me, seq: m.seq, t1: m.t1, t2: Date.now(), t3: Date.now() });
+      publish({ k: "pong", to: m.from, from: APP.me, seq: m.seq, t1: m.t1, t2: Date.now(), t3: Date.now() });
       break;
     case "pong":
       onPong(m);
@@ -3939,13 +4138,17 @@ function onMqttMessage(topic, payload) {
     case "pl_op":
       applyPlOp(m);
       break;
-    case "need":
-      // 对方没收到这首歌，补传一次
-      {
-        const t = findTrack(localId(m.id));
-        if (t && t.blob && t.mine) queueTrackSend(t);
-      }
+    case "need": {
+      // 有人没收到这首歌，我手上有就补传给他
+      const t = findTrack(localId(m.id));
+      if (!t || !t.blob) break;
+      const owner = t.owner || "";
+      // 原主人还在线的话让他自己发，别人不用抢
+      if (owner && owner !== APP.me && APP.peers[owner]) break;
+      if (t.sentTo) delete t.sentTo[m.from];   // 对方明确说没收到，就重新发一次
+      queueTrackSend(t, m.from);
       break;
+    }
     case "lrc": {
       if (!m.id || !m.text) break;
       APP.lrcCache[m.id] = m.text;
@@ -3954,7 +4157,7 @@ function onMqttMessage(topic, payload) {
         lt.lrc = parseLrc(m.text);
         if (lt.id === APP.curId) renderLyrics();
         saveTrack(lt);
-        hint("对方给「" + lt.name + "」加了歌词");
+        hint("有人给「" + lt.name + "」加了歌词");
       }
       break;
     }
@@ -3976,17 +4179,17 @@ function onMqttMessage(topic, payload) {
         APP.shuffle = !!m.on;
         APP.shuffleSeed = Number(m.seed) || 1;
         renderShuffleBtn();
-        toast(m.on ? "对方开启了随机播放" : "对方切回顺序播放");
+        toast(m.on ? "有人开启了随机播放" : "有人切回顺序播放");
       }
       break;
     case "profile":
-      if (applyPeerProfile({ name: m.name, avatar: m.avatar })) {
-        toast("对方更新了头像/名字");
+      if (applyPeerProfile({ name: m.name, avatar: m.avatar }, m.from)) {
+        toast("有人更新了头像/名字");
       }
       break;
     case "chat":
       if (typeof m.text === "string" && m.text) {
-        addChat(m.text.slice(0, 200), false);
+        addChat(m.text.slice(0, 200), false, m.from);
         /* 没停在消息界面时亮红点 */
         if (!UI.sheetChat.classList.contains("on")) markUnread();
       }
@@ -4006,294 +4209,335 @@ function onPong(m) {
   UI.clockVal.textContent = "对表 " + Math.round(APP.offset || 0) + "ms / 延迟 " + Math.round(rtt) + "ms";
 }
 
-/* ===================== WebRTC 点对点 ===================== */
-function createPeer(initiator) {
+/* ===================== WebRTC 点对点（每个成员一条独立连接） ===================== */
+function createPeer(p, initiator) {
+  if (!p) return;
+  closePeerConn(p, true);
+  p.closing = false;
+  p.paired = false;
+
   const pc = new RTCPeerConnection(ICE);
-  APP.pc = pc;
-  APP.myCands = [];
+  p.pc = pc;
+  p.myCands = [];
 
   pc.onicecandidate = (e) => {
     if (!e.candidate) return;
-    APP.myCands.push(e.candidate);
-    if (APP.myCands.length > 24) APP.myCands.shift();
-    publish({ k: "ice", from: APP.me, c: e.candidate });
+    p.myCands.push(e.candidate);
+    if (p.myCands.length > 24) p.myCands.shift();
+    publish({ k: "ice", from: APP.me, to: p.id, c: e.candidate });
   };
 
   pc.onconnectionstatechange = () => {
-    if (APP.pc !== pc) return;
+    if (p.pc !== pc) return;
     const st = pc.connectionState;
     if (st === "connected") {
-      APP.tryCount = 0;
-      APP.reconnecting = false;
+      p.tryCount = 0;
+      p.closing = false;
       setConn("已直连成功（不经过服务器）", "ok");
-      setPill("直连已建立", "ok");
+      setPill("已连接 · " + memberCount() + " 人", "ok");
       show(UI.tipFallback, false);
       pumpSendQueue();
+      ensureBuffer();
     } else if (st === "disconnected") {
       setPill("直连不稳，正在恢复", "warn blink");
-      if (APP.paired) {
+      if (p.paired) {
         // 先温和地重启 ICE，救不回来再整条重建
-        if (!tryRestartIce()) {
-          setTimeout(() => { if (APP.pc === pc && pc.connectionState !== "connected") reconnectPeer(); }, 3000);
+        if (!tryRestartIce(p)) {
+          setTimeout(() => { if (p.pc === pc && pc.connectionState !== "connected") reconnectPeer(p); }, 3000);
         }
       }
     } else if (st === "failed" || st === "closed") {
-      if (APP.paired) { reconnectPeer(); return; }
-      retryPair();
+      if (p.closing) return;
+      if (p.paired) reconnectPeer(p);
+      else retryPair(p);
     }
   };
 
   pc.oniceconnectionstatechange = () => {
-    if (APP.pc !== pc) return;
+    if (p.pc !== pc) return;
     if (pc.iceConnectionState === "failed") {
-      if (APP.paired) { if (!tryRestartIce()) reconnectPeer(); }
-      else retryPair();
+      if (p.paired) { if (!tryRestartIce(p)) reconnectPeer(p); }
+      else retryPair(p);
     }
   };
 
   pc.ondatachannel = (e) => {
     const label = e.channel.label || "";
     if (label.startsWith("file:")) {
-      receiveTrackChannel(e.channel, label.slice(5));
+      receiveTrackChannel(e.channel, label.slice(5), p);
     } else {
-      bindCtlChannel(e.channel);
+      bindCtlChannel(p, e.channel);
     }
   };
 
   if (initiator) {
-    bindCtlChannel(pc.createDataChannel("ctl", { ordered: true }));
+    bindCtlChannel(p, pc.createDataChannel("ctl", { ordered: true }));
     pc.createOffer()
       .then((o) => pc.setLocalDescription(o))
       .then(() => {
-        if (APP.pc === pc && pc.localDescription) {
-          sigSend("offer", { k: "offer", sdp: pc.localDescription }, 12);
+        if (p.pc === pc && pc.localDescription) {
+          sigSend(p, "offer", { k: "offer", sdp: pc.localDescription }, 12);
         }
       })
       .catch(() => {});
   }
 
   /* 兜底看门狗：22 秒还没连上就换一轮重试，避免一直干等 */
-  clearTimeout(APP.offerTimer);
-  APP.offerTimer = setTimeout(() => {
-    if (APP.pc !== pc || APP.paired) return;
+  clearTimeout(p.offerTimer);
+  p.offerTimer = setTimeout(() => {
+    if (p.pc !== pc || p.paired) return;
     if (pc.connectionState === "connected") return;
-    retryPair();
+    retryPair(p);
   }, 22000);
 }
 
+/* 拆掉某一个人的连接（保留成员记录，方便重连） */
+function closePeerConn(p, markClosing) {
+  if (!p) return;
+  if (markClosing) p.closing = true;
+  clearTimeout(p.offerTimer);
+  p.offerTimer = null;
+  clearTimeout(p.retryTimer);
+  p.retryTimer = null;
+  stopCtlHeartbeat(p);
+  sigStopAll(p);
+
+  const dc0 = p.ctl;
+  p.ctl = null;
+  try { if (dc0) dc0.close(); } catch (e) {}
+
+  const pc0 = p.pc;
+  p.pc = null;
+  try { if (pc0) pc0.close(); } catch (e) {}
+
+  const was = p.paired;
+  p.paired = false;
+  p.lastAnswer = null;
+  p.lastOfferSdp = "";
+  p.iceBuf = [];
+  p.myCands = [];
+  if (was) refreshPaired();
+}
+
 /* 关键信令重发（等对方 ack，收到就停，最多重试 tries 次） */
-function sigSend(kind, msg, tries) {
-  sigStop(kind);
+function sigSend(p, kind, msg, tries) {
+  if (!p) return;
+  sigStop(p, kind);
   const rid = kind + "-" + Math.random().toString(36).slice(2, 8);
-  const full = Object.assign({ from: APP.me, rid: rid }, msg);
+  const full = Object.assign({ from: APP.me, to: p.id, rid: rid }, msg);
   const rec = { rid: rid, msg: full, n: 0, timer: null };
   rec.timer = setInterval(() => {
-    if (!APP.room) { sigStop(kind); return; }
+    if (!APP.room || !APP.peers[p.id]) { sigStop(p, kind); return; }
     rec.n++;
-    if (rec.n >= (tries || 8)) { sigStop(kind); return; }
+    if (rec.n >= (tries || 8)) { sigStop(p, kind); return; }
     publish(full);
     // offer 重发时顺带把最近的候选再喊一遍，防止候选那几条丢了
-    if (kind === "offer" && APP.myCands.length) {
-      APP.myCands.slice(-6).forEach((c) => publish({ k: "ice", from: APP.me, c: c }));
+    if (kind === "offer" && p.myCands.length) {
+      p.myCands.slice(-6).forEach((c) => publish({ k: "ice", from: APP.me, to: p.id, c: c }));
     }
   }, kind === "offer" ? 2500 : 2000);
-  APP.sigOut[kind] = rec;
+  p.sigOut[kind] = rec;
   publish(full);
 }
 
-function sigStop(kind) {
-  const r = APP.sigOut[kind];
+function sigStop(p, kind) {
+  const r = p && p.sigOut[kind];
   if (!r) return;
   clearInterval(r.timer);
-  delete APP.sigOut[kind];
+  delete p.sigOut[kind];
 }
-function sigStopAll() { Object.keys(APP.sigOut).forEach((k) => sigStop(k)); }
+function sigStopAll(p) { if (p) Object.keys(p.sigOut).forEach((k) => sigStop(p, k)); }
 function onSigAck(m) {
   if (!m.rid) return;
-  Object.keys(APP.sigOut).forEach((k) => {
-    if (APP.sigOut[k] && APP.sigOut[k].rid === m.rid) sigStop(k);
+  peerList().forEach((p) => {
+    Object.keys(p.sigOut).forEach((k) => {
+      if (p.sigOut[k] && p.sigOut[k].rid === m.rid) sigStop(p, k);
+    });
   });
 }
 function sendAck(m) {
   if (!m.rid) return;
-  publish({ k: "ack", from: APP.me, rid: m.rid });
+  publish({ k: "ack", from: APP.me, to: m.from, rid: m.rid });
 }
 
-function flushIce() {
-  const pc = APP.pc;
-  const buf = APP.iceBuf.splice(0);
+function flushIce(p) {
+  const pc = p && p.pc;
   if (!pc) return;
+  const buf = p.iceBuf.splice(0);
   buf.forEach((c) => { try { pc.addIceCandidate(c).catch(() => {}); } catch (e) {} });
 }
 
-function acceptOffer(m) {
+function acceptOffer(p, m) {
   setConn("正在建立直连…", "warn blink");
-  const pc = APP.pc;
+  const pc = p && p.pc;
   if (!pc) return;
   pc.setRemoteDescription(m.sdp)
-    .then(() => { flushIce(); return pc.createAnswer(); })
+    .then(() => { flushIce(p); return pc.createAnswer(); })
     .then((a) => pc.setLocalDescription(a))
     .then(() => {
-      if (APP.pc !== pc || !pc.localDescription) return;
-      APP.lastAnswer = pc.localDescription;
-      sigSend("answer", { k: "answer", sdp: pc.localDescription }, 6);
+      if (p.pc !== pc || !pc.localDescription) return;
+      p.lastAnswer = pc.localDescription;
+      sigSend(p, "answer", { k: "answer", sdp: pc.localDescription }, 6);
     })
     .catch(() => {});
 }
 
 /* 温和恢复：只重启 ICE 重新打洞，不掉歌单、不用重传 */
-function tryRestartIce() {
-  const pc = APP.pc;
+function tryRestartIce(p) {
+  const pc = p && p.pc;
   if (!pc || typeof pc.restartIce !== "function") return false;
   if (pc.signalingState !== "stable") return false;
   try {
     pc.restartIce();
     setPill("正在重新打洞…", "warn blink");
-    if (APP.role === "host") {
+    if (APP.me > p.id) {
+      // id 大的这一端负责重新发 offer
       pc.createOffer()
         .then((o) => pc.setLocalDescription(o))
         .then(() => {
-          if (APP.pc === pc && pc.localDescription) {
-            sigSend("offer", { k: "offer", sdp: pc.localDescription }, 6);
+          if (p.pc === pc && pc.localDescription) {
+            sigSend(p, "offer", { k: "offer", sdp: pc.localDescription }, 6);
           }
         })
         .catch(() => {});
     } else {
-      // 房员自己没有协商主动权，喊房主重来一次
-      publish(helloMsg({ renew: true }));
+      // 让另一头重新协商
+      const now = Date.now();
+      if (now - (p.renewSent || 0) > 5000) {
+        p.renewSent = now;
+        publish({ k: "renew", from: APP.me, to: p.id });
+      }
     }
     return true;
   } catch (e) { return false; }
 }
 
 /* 直连心跳：3 秒一次，10 秒没回音就当断了 */
-function startCtlHeartbeat() {
-  stopCtlHeartbeat();
-  APP.lastPong = Date.now();
-  APP.hbSeq = 0;
-  APP.hbTimer = setInterval(() => {
-    const dc = APP.ctl;
-    if (!dc || dc.readyState !== "open") { stopCtlHeartbeat(); return; }
-    APP.hbSeq++;
-    try { dc.send(JSON.stringify({ t: "hb", s: APP.hbSeq })); } catch (e) {}
+function startCtlHeartbeat(p) {
+  if (!p) return;
+  stopCtlHeartbeat(p);
+  p.lastPong = Date.now();
+  p.hbSeq = 0;
+  p.hbTimer = setInterval(() => {
+    const dc = p.ctl;
+    if (!dc || dc.readyState !== "open") { stopCtlHeartbeat(p); return; }
+    p.hbSeq++;
+    try { dc.send(JSON.stringify({ t: "hb", s: p.hbSeq })); } catch (e) {}
     // 锁屏 / 切后台时系统会挂起定时器，这时候不判死
-    if (!document.hidden && Date.now() - APP.lastPong > 10000) {
-      stopCtlHeartbeat();
-      APP.paired = false;
+    if (!document.hidden && Date.now() - p.lastPong > 10000) {
+      stopCtlHeartbeat(p);
+      p.paired = false;
+      refreshPaired();
       setPill("直连断了，自动重连", "warn blink");
-      reconnectPeer();
+      reconnectPeer(p);
     }
   }, 3000);
 }
-function stopCtlHeartbeat() {
-  clearInterval(APP.hbTimer);
-  APP.hbTimer = null;
-}
-
-/* 拆掉当前连接，但不触发自动重连 */
-function teardownPeer() {
-  APP.closingPeer = true;
-  clearInterval(APP.offerTimer);
-  clearTimeout(APP.offerTimer);
-  clearTimeout(APP.retryTimer);
-  stopCtlHeartbeat();
-  sigStopAll();
-  try { if (APP.ctl) APP.ctl.close(); } catch (e) {}
-  try { if (APP.pc) APP.pc.close(); } catch (e) {}
-  APP.ctl = null;
-  APP.pc = null;
-  APP.offerTimer = null;
-  APP.lastAnswer = null;
-  APP.lastOfferSdp = "";
-  APP.iceBuf = [];
-  APP.myCands = [];
-  APP.sendQueue = [];
-  APP.sending = false;
-  setTimeout(() => { APP.closingPeer = false; }, 400);
+function stopCtlHeartbeat(p) {
+  if (!p) return;
+  clearInterval(p.hbTimer);
+  p.hbTimer = null;
 }
 
 /* 直连失败（手机流量对流量很常见）：无限重试，间隔指数变长，不会一直猛打 */
-function retryPair() {
-  if (!APP.room || APP.paired) return;
-  APP.tryCount++;
-  const base = Math.min(1200 * Math.pow(1.7, Math.min(APP.tryCount - 1, 6)), 20000);
+function retryPair(p) {
+  if (!p || !APP.room || p.paired) return;
+  p.tryCount = (p.tryCount || 0) + 1;
+  const base = Math.min(1200 * Math.pow(1.7, Math.min(p.tryCount - 1, 6)), 20000);
   const wait = base + Math.random() * 800;
-  APP.retryWait = Math.round(wait);
-  setConn("直连没通，正在第 " + APP.tryCount + " 次重试（" + Math.round(wait / 1000) + " 秒后）…", "warn blink");
-  setPill("重试第 " + APP.tryCount + " 次", "warn blink");
-  if (APP.tryCount >= 5) show(UI.tipFallback, true);
+  p.retryWait = Math.round(wait);
+  setConn("直连没通，正在第 " + p.tryCount + " 次重试（" + Math.round(wait / 1000) + " 秒后）…", "warn blink");
+  setPill("重试第 " + p.tryCount + " 次", "warn blink");
+  if (p.tryCount >= 5) show(UI.tipFallback, true);
 
-  teardownPeer();
-  clearTimeout(APP.retryTimer);
-  APP.retryTimer = setTimeout(() => {
-    if (!APP.room || APP.paired || APP.pc) return;
+  closePeerConn(p, true);
+  clearTimeout(p.retryTimer);
+  p.retryTimer = setTimeout(() => {
+    p.closing = false;
+    if (!APP.room || p.paired || p.pc || !APP.peers[p.id]) return;
     mqKick();
-    if (APP.role === "host") createPeer(true);
-    else publish(helloMsg({ renew: true }));
+    if (APP.me > p.id) createPeer(p, true);
+    else publish(helloMsg({ to: p.id }));
   }, wait);
 }
 
-function bindCtlChannel(dc) {
-  APP.ctl = dc;
+function bindCtlChannel(p, dc) {
+  p.ctl = dc;
   dc.onmessage = (ev) => {
-    APP.lastPong = Date.now();
+    p.lastPong = Date.now();
     if (typeof ev.data === "string" && ev.data.indexOf("hb") >= 0) {
       try { dc.send(JSON.stringify({ t: "pong" })); } catch (e) {}
     }
   };
   dc.onopen = () => {
-    APP.paired = true;
-    APP.reconnecting = false;
-    APP.closingPeer = false;
-    APP.tryCount = 0;
-    clearInterval(APP.helloTimer);
-    clearTimeout(APP.offerTimer);
-    sigStopAll();
-    startCtlHeartbeat();
+    if (p.ctl !== dc) return;
+    p.paired = true;
+    p.closing = false;
+    p.tryCount = 0;
+    clearTimeout(p.offerTimer);
+    sigStopAll(p);
+    startCtlHeartbeat(p);
+    refreshPaired();
     setConn("已直连成功（不经过服务器）", "ok");
-    setPill("直连已建立", "ok");
+    setPill("已连接 · " + memberCount() + " 人", "ok");
     UI.txtListText.textContent = "已连接，可以添加歌曲了";
     show(UI.tipFallback, false);
     show(UI.rowRetryConn, false);
     enterMain();
     publishMode();
-    /* 连上的这一刻把「一起听歌单」和资料重报一遍：中间断线时对方加的歌也能补上 */
+    /* 连上的这一刻把「一起听歌单」和资料重报一遍：中间断线时别人加的歌也能补上 */
     publishProfile(true);
     publish(helloMsg());
     syncQueueToPeer();
-    sendAllMyTracks();
+    /* 新进来的人要马上知道当前放到哪首歌，好把这首歌下下来对齐 */
+    sendStateNow(p);
+    ensureBuffer();
+    renderWho();
   };
   dc.onclose = () => {
-    APP.paired = false;
-    stopCtlHeartbeat();
-    if (!APP.room || APP.closingPeer) return;
-    reconnectPeer();
+    if (p.ctl !== dc) return;    // 主动关闭，不当作掉线
+    p.ctl = null;
+    p.paired = false;
+    stopCtlHeartbeat(p);
+    refreshPaired();
+    if (!APP.room || p.closing) return;
+    reconnectPeer(p);
   };
 }
 
-/* 断线自动重连：重新建立点对点连接，成功后会自动补传本机歌曲 */
-function reconnectPeer() {
-  if (!APP.room || APP.reconnecting) return;
-  APP.reconnecting = true;
-  APP.paired = false;
-  APP.tryCount = 0;
+/* 把「我现在放到哪、是否在播」单独发给某个人 */
+function sendStateNow(p) {
+  if (!audio.src) return;
+  publish({
+    k: "state", from: APP.me, ver: APP.stateVer, by: APP.lastBy || APP.me,
+    to: (p && p.id) || undefined,
+    trk: APP.curId, pos: audio.currentTime, playing: !audio.paused, ts: Date.now(),
+  });
+}
+
+/* 断线自动重连：只重建这一个人，不影响房间里其他成员 */
+function reconnectPeer(p) {
+  if (!APP.room || !p) return;
+  if (p.reconnecting) return;
+  p.reconnecting = true;
+  p.paired = false;
+  p.tryCount = 0;
+  refreshPaired();
   setConn("连接断了，正在自动重连…", "warn blink");
   setPill("重连中…", "warn blink");
 
-  teardownPeer();
+  closePeerConn(p, true);
+  publish(helloMsg({ to: p.id }));
 
-  // 靠 MQTT 每 1.5 秒喊一声，让对方知道我们还在
-  clearInterval(APP.helloTimer);
-  APP.helloTimer = setInterval(() => {
-    if (!APP.paired) publish(helloMsg());
-  }, 1500);
-
-  // 房主主动重新发 offer，房员等 offer 来了再应答
-  if (APP.role === "host") {
+  // 谁 id 大谁主动重新发 offer，另一方等 offer
+  if (APP.me > p.id) {
     setTimeout(() => {
-      APP.closingPeer = false;
-      if (APP.room && !APP.paired && !APP.pc) createPeer(true);
-    }, 250);
+      p.reconnecting = false;
+      p.closing = false;
+      if (APP.room && !p.paired && !p.pc && APP.peers[p.id]) createPeer(p, true);
+    }, 300);
+  } else {
+    setTimeout(() => { p.reconnecting = false; }, 1500);
   }
 }
 
@@ -4303,89 +4547,80 @@ function netWake() {
   const now = Date.now();
   if (now - APP.lastWakeTs < 1200) return;
   APP.lastWakeTs = now;
-  APP.lastPong = now;                        // 先给一次机会，别刚回前台就误判
-  if (!mqAnyConnected()) {
-    mqKick();
-  }
-  if (APP.paired) {
-    const pc = APP.pc;
-    if (pc && pc.connectionState !== "connected") {
-      if (!tryRestartIce()) reconnectPeer();
+  if (!mqAnyConnected()) mqKick();
+  peerList().forEach((p) => {
+    p.lastPong = now;                        // 先给一次机会，别刚回前台就误判
+    if (p.paired) {
+      if (p.pc && p.pc.connectionState !== "connected") {
+        if (!tryRestartIce(p)) reconnectPeer(p);
+      }
+      return;
     }
-    return;
-  }
-  if (APP.pc && APP.pc.connectionState !== "failed" && APP.pc.connectionState !== "closed") {
-    return;                                   // 正在建连，别打断
-  }
-  APP.tryCount = 0;
-  if (APP.role === "host") createPeer(true);
-  else publish(helloMsg({ renew: true }));
+    if (p.pc && p.pc.connectionState !== "failed" && p.pc.connectionState !== "closed") {
+      return;                                // 正在建连，别打断
+    }
+    p.tryCount = 0;
+    clearTimeout(p.retryTimer);
+    p.retryTimer = null;
+    if (APP.me > p.id) createPeer(p, true);
+    else publish(helloMsg({ to: p.id }));
+  });
 }
 
 /* 手动重连：卡住的时候点一下 */
 function forceReconnect() {
-  if (!APP.room) { toast("先创建房间，或输入对方的房间号加入"); return; }
+  if (!APP.room) { toast("先创建房间，或输入房间号加入"); return; }
   APP.lastWakeTs = Date.now();
-  APP.reconnecting = false;
-  APP.paired = false;
-  APP.tryCount = 0;
-  stopCtlHeartbeat();
   if (!mqAnyConnected()) mqKick();
-  teardownPeer();
   setConn("正在重新连接…", "warn blink");
   setPill("重连中…", "warn blink");
   show(UI.rowRetryConn, true);
-  if (APP.role === "host") {
-    setTimeout(() => {
-      APP.closingPeer = false;
-      if (APP.room && !APP.paired && !APP.pc) createPeer(true);
-    }, 150);
-  } else {
-    publish(helloMsg({ renew: true }));
-  }
+  peerList().forEach((p) => {
+    p.reconnecting = false;
+    p.tryCount = 0;
+    reconnectPeer(p);
+  });
+  publish(helloMsg());
 }
 
 /* 重连/配对成功时，把当前一起听歌单逐首重报一次（对方已有的会自动跳过） */
 function syncQueueToPeer() {
   if (!APP.mqs.length || !APP.tracks.length) return;
-  APP.plVer++;
-  APP.plBy = APP.me;
   const ver = APP.plVer;
   APP.tracks.forEach((t) => {
     publish({
-      k: "pl_op", from: APP.me, ver, by: APP.plBy, op: "add",
-      item: { id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type },
+      k: "pl_op", from: APP.me, ver, by: APP.plBy || APP.me, op: "add",
+      item: {
+        id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
+        owner: t.owner || (t.mine ? APP.me : ""),
+      },
     });
   });
 }
 
-/* 把一起听歌单里我上传的歌发给对方（歌单为空就什么都不传） */
-function sendAllMyTracks() {
-  APP.tracks.forEach((t) => {
-    if (!t.blob || !t.mine) return;
-    if (t.owner && t.owner !== APP.me) return;
-    queueTrackSend(t);
-  });
-  /* 进房前就排在队列里的歌不会被 queueTrackSend 重复入队，
-     所以这里必须主动踢一脚，否则队列会一直躺着不传 */
-  pumpSendQueue();
-}
-
-/* 传歌排队：一次只传一首，不并发，保证速度 */
-function queueTrackSend(t) {
-  if (!t.blob || t.sending) return;
-  if (APP.sendQueue.indexOf(t) >= 0) return;
-  APP.sendQueue.push(t);
+/* 传歌排队：一次只传一首，不并发，保证速度；别人没连上就先跳过，等重连再补 */
+function queueTrackSend(t, pid) {
+  if (!t || !t.blob || !pid) return;
+  const p = APP.peers[pid];
+  if (!p) return;
+  if (!t.sentTo) t.sentTo = {};
+  if (t.sentTo[pid]) return;
+  if (APP.sendQueue.some((j) => j.t === t && j.pid === pid)) return;
+  APP.sendQueue.push({ t: t, pid: pid });
   pumpSendQueue();
 }
 
 function pumpSendQueue() {
   if (APP.sending) return;
-  const t = APP.sendQueue.shift();
-  if (!t) return;
-  if (!t.blob) { pumpSendQueue(); return; }
-  APP.sending = true;
-  sendTrackToPeer(t);
+  while (APP.sendQueue.length) {
+    const job = APP.sendQueue.shift();
+    const p = APP.peers[job.pid];
+    if (!p || !p.pc || p.pc.connectionState !== "connected") continue;
+    if (!job.t.blob) continue;
+    APP.sending = true;
+    sendTrackToPeer(job.t, p);
+    return;
+  }
 }
 
 function onTrackSent() {
@@ -4394,16 +4629,16 @@ function onTrackSent() {
   setTimeout(() => { if (!APP.sending) pumpSendQueue(); }, 700);
 }
 
-function sendTrackToPeer(t) {
-  if (!APP.pc || APP.pc.connectionState !== "connected") {
+function sendTrackToPeer(t, p) {
+  if (!p || !p.pc || p.pc.connectionState !== "connected") {
     APP.sending = false;
-    APP.sendQueue.unshift(t);   // 没连上，放回队首，重连后再传
+    if (p && APP.peers[p.id]) APP.sendQueue.unshift({ t: t, pid: p.id });
     return;
   }
 
   let dc;
   try {
-    dc = APP.pc.createDataChannel("file:" + t.id, { ordered: true });
+    dc = p.pc.createDataChannel("file:" + t.id, { ordered: true });
   } catch (e) {
     APP.sending = false;
     pumpSendQueue();
@@ -4426,16 +4661,19 @@ function sendTrackToPeer(t) {
       t.state = "local";
       t.pct = 0;
       t.retry = 0;
+      if (!t.sentTo) t.sentTo = {};
+      t.sentTo[p.id] = true;
     } else {
-      /* 传了一半断掉：自动补传这一首（最多 5 回），不整包重来其他歌 */
+      /* 传了一半断掉：只补这一首（最多 5 回），不重传整个歌单 */
       t.state = "waiting";
       t.pct = 0;
       t.retry = (t.retry || 0) + 1;
-      if (t.retry <= 5) {
+      const retry = t.retry;
+      if (retry <= 5) {
         setTimeout(() => {
           if (t.sending) return;
-          if (!APP.pc || APP.pc.connectionState !== "connected") return;
-          APP.sendQueue.unshift(t);
+          if (!APP.peers[p.id] || !p.pc || p.pc.connectionState !== "connected") return;
+          APP.sendQueue.unshift({ t: t, pid: p.id });
           pumpSendQueue();
         }, 1800);
       }
@@ -4480,7 +4718,7 @@ function sendTrackToPeer(t) {
   dc.onclose = () => finish(false);
 }
 
-function receiveTrackChannel(dc, trackId) {
+function receiveTrackChannel(dc, trackId, p) {
   dc.binaryType = "arraybuffer";
   const chunks = [];
   let received = 0;
@@ -4505,8 +4743,8 @@ function receiveTrackChannel(dc, trackId) {
     let t = findTrack(localId(trackId));
     if (!t) {
       t = {
-        id: trackId, name: "对方传来的歌曲", size: declaredSize || received, dur: 0,
-        type: "", blob: null, url: null, mine: false,
+        id: trackId, name: "传过来的歌曲", size: declaredSize || received, dur: 0,
+        type: "", blob: null, url: null, mine: false, owner: (p && p.id) || "",
         state: "waiting", pct: 0, sending: false, synthetic: true,
       };
       APP.tracks.push(t);
@@ -4519,8 +4757,8 @@ function receiveTrackChannel(dc, trackId) {
       t.pct = 0;
       renderPlaylist();
       UI.txtListText.textContent = "「" + t.name + "」没传完整（" + received + "/" + expect + "），正在让对方重发…";
-      APP.needSent.delete(t.id);
-      requestTrackFile(t.id);
+      clearNeedFor(t.id);
+      requestTrackFile(t.id, t.owner || (p && p.id) || "");
       return;
     }
 
@@ -4528,8 +4766,10 @@ function receiveTrackChannel(dc, trackId) {
     if (t.url && t.blob && expect && t.blob.size === expect) {
       t.state = "local";
       t.pct = 0;
+      clearNeedFor(t.id);
       renderPlaylist();
       if (APP.pendPlayId === t.id) { APP.pendPlayId = ""; selectTrack(t.id, true); }
+      ensureBuffer();
       return;
     }
 
@@ -4542,12 +4782,14 @@ function receiveTrackChannel(dc, trackId) {
     t.url = URL.createObjectURL(blob);
     t.state = "local";
     t.pct = 0;
+    t.synthetic = false;
     // 对方先发过歌词的话，文件到了就能用
     if (!t.lrc && APP.lrcCache[trackId]) t.lrc = parseLrc(APP.lrcCache[trackId]);
     // 收到的歌也存进「我的列表」，下次不用再传
     if (!APP.lib.some((x) => x.id === t.id)) APP.lib.push(t);
     saveTrack(t);
     saveOrder();
+    clearNeedFor(t.id);
     renderPlaylist();
     if (t.id === APP.curId) renderLyrics();
 
@@ -4563,9 +4805,10 @@ function receiveTrackChannel(dc, trackId) {
     if (APP.pendingTarget) {
       const wantId = localId(APP.pendingTarget.trk);
       if (wantId === t.id) {
-        const p = APP.pendingTarget;
+        const pend = APP.pendingTarget;
         APP.pendingTarget = null;
-        applyPeerState(p, true); // 强制应用：这条指令之前因为没文件被压后了
+        applyPeerState(pend, true); // 强制应用：这条指令之前因为没文件被压后了
+        ensureBuffer();
         return;
       }
     }
@@ -4574,9 +4817,12 @@ function receiveTrackChannel(dc, trackId) {
     if (APP.pendPlayId === t.id) {
       APP.pendPlayId = "";
       selectTrack(t.id, true);
+      ensureBuffer();
       return;
     }
     if (APP.curId === t.id && !audio.src) loadTrackAudio(t);
+    /* 这首到齐了，赶紧把下一首也提前下下来 */
+    ensureBuffer();
   };
 
   dc.onmessage = (ev) => {
@@ -4648,8 +4894,9 @@ function addToQueue(id) {
   syncListCount();
   toast("已加入一起听：「" + t.name + "」");
   opAdd(t);
-  // 自己上传的歌要传给对方；对方本来就有这首歌的话，接收端会自动跳过、不重复保存
-  if (t.mine && t.blob) queueTrackSend(t);
+  // 自己上传的歌要传给房间里其他人；对方本来就有这首歌的话，接收端会自动跳过、不重复保存
+  if (t.mine && t.blob) peerList().forEach((p) => queueTrackSend(t, p.id));
+  ensureBuffer();
 }
 
 /* ===== 扫描本地歌曲：选文件夹 → 列出结果 → 勾选后加入（有全选） ===== */
@@ -4750,7 +4997,10 @@ function opAdd(track) {
   APP.plBy = APP.me;
   const msg = {
     k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "add",
-    item: { id: track.id, name: track.name, size: track.size, dur: track.dur, type: track.type },
+    item: {
+      id: track.id, name: track.name, size: track.size, dur: track.dur, type: track.type,
+      owner: track.owner || (track.mine ? APP.me : ""),
+    },
   };
   publish(msg);
   setTimeout(() => publish(msg), 400);
@@ -4849,7 +5099,7 @@ function applyPlOp(m) {
     APP.tracks.push({
       id: item.id, name: item.name, size: item.size || 0, dur: item.dur || 0,
       type: guessMime(item.name, item.type),
-      blob: null, url: null, mine: false, owner: m.from || "",
+      blob: null, url: null, mine: false, owner: item.owner || m.from || "",
       state: "waiting", pct: 0, sending: false,
     });
     APP.plVer = Math.max(APP.plVer, m.ver || 0);
@@ -4860,8 +5110,9 @@ function applyPlOp(m) {
     }
     renderPlaylist();
     syncListCount();
-    hint("对方把「" + item.name + "」加进了一起听，正在接收…");
-    requestTrackFile(item.id);
+    hint("「" + item.name + "」被加进了一起听歌单");
+    /* 不盲目下载整个歌单：只补当前正在放的 + 下一首 */
+    ensureBuffer();
     return;
   }
 
@@ -4919,16 +5170,63 @@ function applyPlOp(m) {
   }
 }
 
-/* 对方新增的歌 5 秒还没传过来，就催一次补传 */
-function requestTrackFile(id) {
-  if (!APP.mqs.length) return;
-  setTimeout(() => {
-    const t = findTrack(localId(id));
+/* 预缓冲：手上有「当前这首 + 下一首」就够了，其余等轮到了再下 */
+function ensureBuffer() {
+  if (!APP.room || !APP.mqs.length) return;
+  /* 还没人开始放歌时先不下载，等收到「当前放到哪首」再按需拉 */
+  if (!APP.curId && !APP.pendingTarget) return;
+  const list = activeTracks();
+  if (!list.length) return;
+  let idx = list.findIndex((t) => t.id === APP.curId);
+  /* 刚进房间、还在等当前歌传过来时，按「未来要播的那首」来缓冲 */
+  if (APP.pendingTarget) {
+    const pid = localId(APP.pendingTarget.trk);
+    const pi = list.findIndex((t) => t.id === pid);
+    if (pi >= 0) { idx = pi; }
+    else if (!APP.curId && Date.now() - (APP.pendTs || 0) < 8000) {
+      /* 歌单还没把这首同步过来：先别乱猜去下第一首，等它进列表再拉 */
+      return;
+    }
+  }
+  if (idx < 0) idx = 0;
+  const need = [list[idx]];
+  if (idx + 1 < list.length) need.push(list[idx + 1]);
+  else if (APP.repeat === 1 && list.length > 1) need.push(list[0]);
+  need.forEach((t) => {
     if (!t || t.url) return;
-    if (APP.needSent.has(id)) return;
-    APP.needSent.add(id);
-    publish({ k: "need", from: APP.me, id });
-  }, 5000);
+    requestTrackFile(t.id, t.owner || "");
+  });
+}
+
+function clearNeedFor(id) {
+  const lid = localId(id);
+  Object.keys(APP.needTimers).forEach((k) => {
+    if (k.indexOf(lid + "|") === 0) {
+      clearTimeout(APP.needTimers[k]);
+      delete APP.needTimers[k];
+    }
+  });
+}
+
+/* 缺歌就向歌的主人要；主人不在线就广播问一圈，最多催 4 回 */
+function requestTrackFile(id, owner) {
+  if (!APP.mqs.length) return;
+  const lid = localId(id);
+  const ownerId = owner || "";
+  const key = lid + "|" + ownerId;
+  if (APP.needTimers[key]) return;
+  let tries = 0;
+  const tick = () => {
+    delete APP.needTimers[key];
+    const t = findTrack(lid);
+    if (!t || t.url || !APP.room) return;
+    const to = ownerId && APP.peers[ownerId] ? ownerId : undefined;
+    publish({ k: "need", from: APP.me, to: to, id: t.id });
+    tries++;
+    if (tries >= 4) return;
+    APP.needTimers[key] = setTimeout(tick, 2500 + tries * 1500);
+  };
+  APP.needTimers[key] = setTimeout(tick, 900);
 }
 
 /* 对方握手时不再整份歌单导入：一起听歌单只由双方手动添加 */
@@ -5348,7 +5646,7 @@ async function findLyricsOnline() {
 }
 
 /* ===================== 边听边聊 ===================== */
-function addChat(text, mine) {
+function addChat(text, mine, fromId) {
   if (!UI.chatList || !text) return;
   const empty = UI.chatList.querySelector(".chatEmpty");
   if (empty) empty.remove();
@@ -5356,7 +5654,7 @@ function addChat(text, mine) {
   line.className = "chatLine " + (mine ? "me" : "peer");
   const ava = document.createElement("img");
   ava.className = "chatAva";
-  ava.src = mine ? (APP.pf.avatar || defaultAvatar()) : (APP.peerPf.avatar || defaultAvatar());
+  ava.src = mine ? (APP.pf.avatar || defaultAvatar()) : (peerPfOf(fromId).avatar || defaultAvatar());
   ava.alt = "";
   const el = document.createElement("div");
   el.className = "chatMsg " + (mine ? "me" : "peer");
@@ -5544,6 +5842,7 @@ function selectTrack(id, startPlay) {
   if (!t.url) {
     if (t.state === "recv" || t.state === "waiting") {
       APP.pendPlayId = id;   // 加载好之后自动开始播
+      requestTrackFile(t.id, t.owner || "");
       hint("「" + t.name + "」还在加载，进度到 100% 会自己开始播放");
     } else {
       hint("这首歌还没传到你设备上，先别急（可以让对方用微信把歌发给你，再用「添加歌曲」加进来）");
@@ -5554,6 +5853,7 @@ function selectTrack(id, startPlay) {
   if (APP.mode === "solo") APP.playQ = playQueueList().map((x) => x.id);
   loadTrackAudio(t);
   if (startPlay) { APP.wantPlaying = true; playSafe(); }
+  ensureBuffer();
   setTimeout(onLocalAction, 40);
 }
 
@@ -5679,7 +5979,11 @@ function stepTrack(dir) {
   if (APP.shuffle) {
     const t = shuffleNeighbor(dir, list);
     if (!t) { hint("随机列表里没有能播的歌"); return; }
-    if (!t.url) { hint("这首还没传过来，稍等"); return; }
+    if (!t.url) {
+      requestTrackFile(t.id, t.owner || "");
+      hint("这首还没传过来，已开始下载");
+      return;
+    }
     selectTrack(t.id, true);
     return;
   }
@@ -5691,7 +5995,8 @@ function stepTrack(dir) {
   if (j >= list.length) j = list.length - 1;
   const t = list[j];
   if (!t.url) {
-    hint(APP.mode === "solo" ? "这首歌还没加载好" : "下一首还没传过来");
+    requestTrackFile(t.id, t.owner || "");
+    hint(APP.mode === "solo" ? "这首歌还没加载好" : "下一首还没传过来，已开始下载");
     return;
   }
   selectTrack(t.id, true);
@@ -5701,7 +6006,7 @@ audio.onended = () => {
   if (Date.now() - APP.lastStateApplyTs < 1500) return; // 对方刚改过，别重复推进
 
   if (APP.repeat === 2) {
-    // 单曲循环：原地重播（两端都会各自重播，再把状态广播过去对齐）
+    // 单曲循环：原地重播（各自重播，再把状态广播过去对齐）
     try { audio.currentTime = 0; } catch (e) {}
     APP.remoteBase = { pos: 0, ts: Date.now(), playing: true };
     playSafe();
@@ -5713,6 +6018,7 @@ audio.onended = () => {
   if (APP.shuffle) {
     const t = shuffleNeighbor(1, list);
     if (t && t.url) selectTrack(t.id, true);
+    else if (t) requestTrackFile(t.id, t.owner || "");
     return;
   }
 
@@ -5723,10 +6029,12 @@ audio.onended = () => {
     selectTrack(next.id, true);
     return;
   }
+  if (next) requestTrackFile(next.id, next.owner || "");
   // 顺序播放到底：停下
   UI.btnPlay.textContent = "▶";
   APP.remoteBase = null;
   onLocalAction();
+  ensureBuffer();
 };
 
 /* ===================== 播放状态同步（双方对等） ===================== */
@@ -5758,19 +6066,28 @@ function applyPeerState(m, force) {
   let target = (m.pos || 0) + elapsed;
   if (!isFinite(target) || target < 0) target = 0;
 
+  const prevVer = APP.stateVer;
+  const prevBy = APP.lastBy;
+
   if (!force) {
     if (m.ver < APP.stateVer) return;
     if (m.ver === APP.stateVer) {
       const by = m.by || "";
-      if (by < APP.lastBy) return;
-      if (by === APP.lastBy) {
-        /* 对方每 5 秒补发一次同一个状态：只更新基准用于显示差距，
-           绝不拉拽本地进度。中间怎么播是各自的事，只在开播/停播时对齐。 */
-        APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
-        return;
+      /* 还在等这首歌传过来：说明上一条同版本的状态没能应用成功，
+         不能按“重复补发”丢掉，要继续往下走去重试 */
+      if (!APP.pendingTarget) {
+        if (by < APP.lastBy) return;
+        if (by === APP.lastBy) {
+          /* 对方每 5 秒补发一次同一个状态：只更新基准用于显示差距，
+             绝不拉拽本地进度。中间怎么播是各自的事，只在开播/停播时对齐。 */
+          APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
+          return;
+        }
       }
     }
   }
+  /* 是不是一条新的指令（用来决定要不要弹提示，重试时不再重复弹） */
+  const fresh = !!force || m.ver > prevVer || (m.by || "") !== (prevBy || "");
 
   /* ver 是各自设备累加的，不能直接拿来比大小，否则谁的数字大谁就永远压死对方。
      这里按 Lamport 时钟处理：收到对方的版本就「只升不降」，自己再动作时在更高的基数上加一。 */
@@ -5786,18 +6103,24 @@ function applyPeerState(m, force) {
   // 让对方那边看到「对方在干什么」
   const prevId = APP.curId;
   const prevPlaying = !audio.paused;
-  if (m.trk && wantId !== prevId) {
-    hint("对方切到「" + (t ? t.name : "另一首歌") + "」");
-  } else if (!!m.playing !== prevPlaying) {
-    hint(m.playing ? "对方开始播放" : "对方暂停了");
+  if (fresh) {
+    if (m.trk && wantId !== prevId) {
+      hint("房间切到「" + (t ? t.name : "另一首歌") + "」");
+    } else if (!!m.playing !== prevPlaying) {
+      hint(m.playing ? "有人开始播放" : "有人暂停了");
+    }
   }
 
   try {
     if (wantId && wantId !== APP.curId) {
       if (!t || !t.url) {
         APP.pendingTarget = m; // 等这首歌传过来再切
+        APP.pendTs = Date.now();
         keepBase = false;
         APP.remoteBase = null;
+        if (t) requestTrackFile(t.id, t.owner || "");
+        /* 歌单还没同步到这首时先别猜，等它进列表后由 ensureBuffer 接手 */
+        ensureBuffer();
         return;
       }
       loadTrackAudio(t);
@@ -6079,6 +6402,11 @@ $("#btnCopyInvite").onclick = copyInvite;
 $("#btnCopyInvite2").onclick = copyInvite;
 $("#btnQr").onclick = () => { renderQr(); openSheet("qr"); };
 $("#closeQr").onclick = closeSheets;
+$("#btnRoomCode").onclick = copyInvite;
+$("#btnGoListen").onclick = () => {
+  show($("#rowGoListen"), false);
+  enterMain();
+};
 
 /* 从邀请链接打开时，自动填房间号并加入 */
 (function joinFromLink() {
@@ -6114,12 +6442,12 @@ function onLobbyMsg(topic, payload) {
   renderLobby();
 }
 
-/* 只显示 15 秒内还在"报到"的房间；已经满两个人的不显示 */
+/* 只显示 15 秒内还在"报到"的房间；已经满员（3 人）的不显示 */
 function liveRooms() {
   const now = Date.now();
   return Object.keys(LOBBY.rooms)
     .map((k) => LOBBY.rooms[k])
-    .filter((r) => r && now - r.ts < LOBBY_TTL && r.n < 2)
+    .filter((r) => r && now - r.ts < LOBBY_TTL && r.n < MAX_MEMBERS)
     .sort((a, b) => b.ts - a.ts);
 }
 
@@ -6136,10 +6464,11 @@ function renderLobby() {
   }
   UI.lobbyList.innerHTML = rooms.map((r) => {
     const song = r.song ? "正在听《" + r.song + "》" : "还没开始放歌";
+    const ppl = (Number(r.n) || 1) + "/" + MAX_MEMBERS + " 人";
     return '<div class="lobbyItem">' +
       '<div class="plMain">' +
       '<div class="plName">房间 ' + esc(r.code) + "</div>" +
-      '<div class="plMeta">' + esc(song) + "</div>" +
+      '<div class="plMeta">' + esc(song) + " · " + ppl + "</div>" +
       "</div>" +
       '<button class="btn primary" data-join="' + esc(r.code) + '" style="flex:0 0 76px;padding:10px;font-size:14px">加入</button>' +
       "</div>";
@@ -6207,7 +6536,7 @@ function lobbyPayload(kind) {
   const t = findTrack(APP.curId);
   return {
     k: "lobby", t: kind || "room", code: APP.room, from: APP.me,
-    song: t ? t.name : "", n: APP.paired ? 2 : 1,
+    song: t ? t.name : "", n: memberCount(),
   };
 }
 
@@ -6227,8 +6556,13 @@ function stopLobbyAd() {
 }
 
 window.addEventListener("pagehide", () => {
-  if (APP.room && APP.mqs.length && APP.role === "host") {
-    try { publishRaw(LOBBY_TOPIC, JSON.stringify(lobbyPayload("bye"))); } catch (e) {}
+  if (APP.room && APP.mqs.length) {
+    // 打个招呼：房主走了的话，会自动把房主交给房间里最早进来的人
+    const next = APP.role === "host" ? nextHostId() : "";
+    try { publish({ k: "bye", from: APP.me, next: next || undefined }); } catch (e) {}
+    if (APP.role === "host") {
+      try { publishRaw(LOBBY_TOPIC, JSON.stringify(lobbyPayload("bye"))); } catch (e) {}
+    }
   }
   stopLobbyAd();
 });
