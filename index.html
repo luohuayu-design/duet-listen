@@ -155,6 +155,10 @@
   .modeHint{font-size:12px;color:var(--sub)}
   .qrBox{display:flex;justify-content:center;align-items:center;padding:10px;min-height:120px}
   .qrBox svg{max-width:230px;max-height:230px}
+  .lobbyList{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .lobbyItem{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line);
+             border-radius:12px;padding:10px}
+  .lobbyItem .plMain{flex:1;min-width:0}
 
   /* ===== 轻提示 ===== */
   .toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translate(-50%,-14px);
@@ -189,6 +193,18 @@
     <div class="row hidden" id="inviteRow" style="margin-top:10px">
       <button class="btn" id="btnCopyInvite" style="padding:12px;font-size:14px">复制邀请链接</button>
       <button class="btn" id="btnQr" style="flex:0 0 96px;padding:12px;font-size:14px">二维码</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="btnLobby">看看有哪些房间</button>
+    </div>
+    <div class="hidden" id="lobbyBox">
+      <div class="row" style="margin-top:10px">
+        <span class="label" style="margin:0">在线房间</span>
+        <span class="tag" id="lobbyCount">搜索中…</span>
+        <button class="topBtn" id="btnLobbyRefresh" style="margin-left:auto">刷新</button>
+        <button class="topBtn" id="btnLobbyClose" style="margin-left:6px">收起</button>
+      </div>
+      <div class="lobbyList" id="lobbyList"></div>
     </div>
   </section>
 
@@ -227,7 +243,7 @@
     </div>
     <details>
       <summary>使用说明 / 常见问题</summary>
-      <p><b>1. 房间号</b>：房主创建后得到 6 位房间号，可以「复制邀请链接」或「二维码」发给对方，对方点链接会自动进房。</p>
+      <p><b>1. 房间号 / 大厅</b>：房主创建后得到 6 位房间号，也可以用「复制邀请链接」「二维码」邀请；不想输号就点「看看有哪些房间」，对方在用就会出现在列表里，点「加入」直接进。</p>
       <p><b>2. 歌单</b>：点右上角「☰ 歌单」打开抽屉。两边都能添加歌，加完对方会自动收到（点对点直传，一首传完再传下一首）。</p>
       <p><b>3. 找歌 / 排序</b>：歌单顶部可搜索、按「★ 收藏 / 最近」筛选；点「排序」进入排序模式，拖左边的 ☰ 或用 ↑ ↓ 调整（两边同步）。</p>
       <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后两端同步。</p>
@@ -2944,6 +2960,9 @@ const UI = {
   qrTip: $("#qrTip"),
   plSearch: $("#plSearch"),
   plFilterCount: $("#plFilterCount"),
+  lobbyBox: $("#lobbyBox"),
+  lobbyList: $("#lobbyList"),
+  lobbyCount: $("#lobbyCount"),
   scanList: $("#scanList"),
   scanTotal: $("#scanTotal"),
   scanPick: $("#scanPick"),
@@ -3169,6 +3188,8 @@ async function createRoom() {
   APP.role = "host";
   APP.room = randCode();
   $("#btnCreate").disabled = true;
+  closeLobbyClient();
+  stopLobbyAd();
   setConn("正在连接中转服务器…", "warn blink");
   try {
     await joinRoomChannel(APP.room);
@@ -3183,6 +3204,7 @@ async function createRoom() {
   UI.inpCode.value = APP.room;
   show(UI.codeWrap, true);
   show($("#inviteRow"), true);
+  startLobbyAd();
   enterList();
 }
 
@@ -3195,6 +3217,8 @@ async function joinRoomByCode() {
   APP.role = "guest";
   APP.room = code;
   $("#btnJoin").disabled = true;
+  closeLobbyClient();
+  stopLobbyAd();
   setConn("正在连接中转服务器…", "warn blink");
   try {
     await joinRoomChannel(code);
@@ -4890,6 +4914,137 @@ $("#closeQr").onclick = closeSheets;
   UI.inpCode.value = code;
   setTimeout(() => { if (!APP.room) joinRoomByCode(); }, 500);
 })();
+
+/* ---------- 房间大厅：看在线房间，点一下直接进 ---------- */
+const LOBBY_TOPIC = TOPIC_PREFIX + "lobby";
+const LOBBY_TTL = 16000;
+
+const LOBBY = { rooms: {}, pruneTimer: null, adTimer: null };
+
+function onLobbyMsg(topic, payload) {
+  if (!APP.lobbyMq) return;
+  const m = APP.lobbyMq._decode(payload);
+  if (!m || m.k !== "lobby" || !m.code) return;
+  if (m.t === "bye") { delete LOBBY.rooms[m.code]; renderLobby(); return; }
+  LOBBY.rooms[m.code] = {
+    code: String(m.code).toUpperCase(),
+    song: String(m.song || ""),
+    n: Number(m.n) || 1,
+    ts: Date.now(),
+  };
+  renderLobby();
+}
+
+/* 只显示 15 秒内还在"报到"的房间；已经满两个人的不显示 */
+function liveRooms() {
+  const now = Date.now();
+  return Object.keys(LOBBY.rooms)
+    .map((k) => LOBBY.rooms[k])
+    .filter((r) => r && now - r.ts < LOBBY_TTL && r.n < 2)
+    .sort((a, b) => b.ts - a.ts);
+}
+
+function renderLobby() {
+  if (!UI.lobbyList) return;
+  const rooms = liveRooms();
+  if (UI.lobbyCount) {
+    UI.lobbyCount.textContent = rooms.length ? rooms.length + " 个在线"
+      : (APP.lobbyMq && APP.lobbyMq.connected ? "暂时没有" : "正在搜索…");
+  }
+  if (!rooms.length) {
+    UI.lobbyList.innerHTML = '<div class="plEmpty">暂时没人在线，让朋友先点「创建房间」</div>';
+    return;
+  }
+  UI.lobbyList.innerHTML = rooms.map((r) => {
+    const song = r.song ? "正在听《" + r.song + "》" : "还没开始放歌";
+    return '<div class="lobbyItem">' +
+      '<div class="plMain">' +
+      '<div class="plName">房间 ' + esc(r.code) + "</div>" +
+      '<div class="plMeta">' + esc(song) + "</div>" +
+      "</div>" +
+      '<button class="btn primary" data-join="' + esc(r.code) + '" style="flex:0 0 76px;padding:10px;font-size:14px">加入</button>' +
+      "</div>";
+  }).join("");
+}
+
+async function openLobby() {
+  show(UI.lobbyBox, true);
+  $("#btnLobby").disabled = true;
+  renderLobby();
+  clearInterval(LOBBY.pruneTimer);
+  LOBBY.pruneTimer = setInterval(renderLobby, 2000);
+  if (APP.lobbyMq && APP.lobbyMq.connected) return;
+  if (UI.lobbyCount) UI.lobbyCount.textContent = "正在搜索…";
+  try {
+    const mq = new MqttWS(BROKERS, APP.me + "L", onLobbyMsg);
+    await mq.connect();
+    APP.lobbyMq = mq;
+    mq.subscribe(LOBBY_TOPIC);
+  } catch (e) {
+    if (UI.lobbyCount) UI.lobbyCount.textContent = "连不上中转服务器";
+    toast("连不上中转服务器，房间列表暂时打不开", 4000);
+  }
+  renderLobby();
+}
+
+function closeLobbyClient() {
+  clearInterval(LOBBY.pruneTimer);
+  LOBBY.pruneTimer = null;
+  if (APP.lobbyMq) {
+    try { if (APP.lobbyMq.ws) APP.lobbyMq.ws.close(); } catch (e) {}
+    APP.lobbyMq = null;
+  }
+  LOBBY.rooms = {};
+  if (UI.lobbyBox) show(UI.lobbyBox, false);
+  const b = $("#btnLobby");
+  if (b) b.disabled = false;
+}
+
+function joinFromLobby(code) {
+  if (!code) return;
+  UI.inpCode.value = code;
+  closeLobbyClient();
+  joinRoomByCode();
+}
+
+/* 房主每 6 秒在大厅"报到"一次；App 一关就自动从列表消失 */
+function lobbyPayload(kind) {
+  const t = findTrack(APP.curId);
+  return {
+    k: "lobby", t: kind || "room", code: APP.room, from: APP.me,
+    song: t ? t.name : "", n: APP.paired ? 2 : 1,
+  };
+}
+
+function startLobbyAd() {
+  stopLobbyAd();
+  const beat = () => {
+    if (!APP.room || !APP.mq) return;
+    try { APP.mq.publish(LOBBY_TOPIC, JSON.stringify(lobbyPayload("room"))); } catch (e) {}
+  };
+  beat();
+  LOBBY.adTimer = setInterval(beat, 6000);
+}
+
+function stopLobbyAd() {
+  clearInterval(LOBBY.adTimer);
+  LOBBY.adTimer = null;
+}
+
+window.addEventListener("pagehide", () => {
+  if (APP.room && APP.mq && APP.role === "host") {
+    try { APP.mq.publish(LOBBY_TOPIC, JSON.stringify(lobbyPayload("bye"))); } catch (e) {}
+  }
+  stopLobbyAd();
+});
+
+$("#btnLobby").onclick = openLobby;
+$("#btnLobbyRefresh").onclick = () => { LOBBY.rooms = {}; renderLobby(); };
+$("#btnLobbyClose").onclick = closeLobbyClient;
+UI.lobbyList.onclick = (e) => {
+  const b = e.target.closest("[data-join]");
+  if (b) joinFromLobby(b.getAttribute("data-join"));
+};
 
 UI.playlist.addEventListener("click", (e) => {
   const item = e.target.closest(".plItem");
