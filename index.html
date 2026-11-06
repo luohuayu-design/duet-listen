@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#12131a" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="一起听" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icon-512.png" />
@@ -106,6 +107,42 @@
   .chatMsg.me{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
   .chatMsg.peer{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
   .chatInput{letter-spacing:0 !important;text-transform:none !important;text-align:left !important;padding:11px 12px !important;font-size:14px !important}
+
+  /* ===== 主界面顶栏 ===== */
+  .topBar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);
+        background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
+  .topBtn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--fg);
+          background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;
+          cursor:pointer;font-family:inherit}
+  .topBtn:active{transform:scale(.96)}
+  .topBtn .num{font-size:11px;color:var(--sub);font-weight:500}
+
+  /* ===== 底部抽屉 ===== */
+  .mask{position:fixed;inset:0;background:rgba(6,7,12,.6);z-index:50;opacity:0;transition:opacity .2s}
+  .mask.on{opacity:1}
+  .sheet{position:fixed;left:50%;bottom:0;z-index:51;width:100%;max-width:520px;max-height:80vh;
+         display:flex;flex-direction:column;
+         background:var(--card);border-top:1px solid var(--line);border-radius:20px 20px 0 0;
+         box-shadow:0 -12px 40px rgba(0,0,0,.55);padding:8px 14px calc(14px + env(safe-area-inset-bottom));
+         transform:translate(-50%,100%);transition:transform .25s ease}
+  .sheet.on{transform:translate(-50%,0)}
+  .sheetHandle{width:40px;height:4px;border-radius:4px;background:#3a3d50;margin:2px auto 10px;flex:none}
+  .sheetHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex:none}
+  .sheetTitle{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .tabs{display:flex;gap:8px;margin-bottom:10px;flex:none}
+  .tab{flex:1;border:1px solid var(--line);background:transparent;color:var(--sub);border-radius:10px;
+       padding:9px;font-size:13px;font-family:inherit;cursor:pointer;transition:.15s}
+  .tab.on{background:rgba(91,140,255,.16);border-color:var(--accent);color:#fff;font-weight:600}
+  .sheetBody{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .sheetBody .playlist{margin-top:8px}
+
+  /* ===== 轻提示 ===== */
+  .toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translate(-50%,-14px);
+         z-index:70;max-width:88vw;background:rgba(38,40,54,.97);border:1px solid var(--line);border-radius:12px;
+         padding:9px 14px;font-size:13px;line-height:1.5;text-align:center;color:var(--fg);
+         opacity:0;pointer-events:none;transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
@@ -132,32 +169,12 @@
     </div>
   </section>
 
-  <!-- 第二步：歌单 -->
-  <section class="card hidden" id="cardList">
-    <div class="label">第二步 · 歌单 <span class="tag" id="tagRole"></span></div>
-    <div class="row">
-      <button class="btn primary" id="btnAddSongs">添加歌曲（可多选）</button>
-    </div>
-    <div class="playlist" id="playlist"></div>
-    <div class="status" id="txtList"><span class="dot warn blink"></span><span id="txtListText">等待对方加入…</span></div>
-    <div class="tip hidden" id="tipFallback">
-      点对点直连失败时，歌曲没法自动传送。解决办法：让对方用 <b>微信/QQ</b> 把歌发过来，
-      你在自己这边用「添加歌曲」加进去，然后两边点<b>同一首歌</b>，同步依然有效（播放/暂停/进度仍会跟随）。
-    </div>
-
-    <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
-      <div class="label">边听边聊</div>
-      <div class="chatList" id="chatList"><div class="chatEmpty">说点什么，对方马上能看到</div></div>
-      <div class="row" style="margin-top:8px">
-        <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…" autocomplete="off" />
-        <button class="btn" id="chatSend" style="flex:0 0 76px;padding:12px">发送</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- 第三步：播放器 -->
+  <!-- 主界面：连接成功后显示 -->
   <section class="card hidden" id="cardPlayer">
-    <div class="label">第三步 · 一起听</div>
+    <div class="topBar">
+      <span class="pill"><span class="dot ok" id="dotPill"></span><span id="pillText">已连接</span></span>
+      <button class="topBtn" id="btnOpenList">☰ 播放列表 <span class="num" id="listCount">0</span></button>
+    </div>
     <div class="songName" id="songName">—</div>
     <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
     <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
@@ -173,21 +190,59 @@
       <span>音量</span>
       <input type="range" id="vol" min="0" max="100" value="100" />
     </div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn" id="btnLrc" style="padding:11px;font-size:14px">给这首歌加歌词（.lrc）</button>
-    </div>
     <div class="lyrics hidden" id="lyrics"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="btnAddSongsMain">＋ 添加歌曲</button>
+      <button class="btn" id="btnLrc" style="flex:0 0 100px;padding:12px;font-size:13px">加歌词</button>
+    </div>
     <details>
       <summary>使用说明 / 常见问题</summary>
       <p><b>1. 房间号</b>：房主创建后得到 6 位房间号，对方输入即可加入。</p>
-      <p><b>2. 歌单</b>：两边都能「添加歌曲」，可以多选。加完对方会自动收到同一首歌（点对点直传，不经服务器）。</p>
-      <p><b>3. 排序 / 删除</b>：每首歌右边的 ↑ ↓ 调顺序，✕ 从歌单删除（两边都会删），对方那边会同步。</p>
+      <p><b>2. 歌单</b>：点右上角「播放列表」打开抽屉。两边都能添加歌，加完对方会自动收到（点对点直传，不经服务器）。</p>
+      <p><b>3. 排序 / 删除</b>：抽屉里每首歌右侧的 ↑ ↓ 调顺序，✕ 删除（两边同步）。</p>
       <p><b>4. 控制</b>：两边权力完全对等，谁都能播放、暂停、拖动、切歌。</p>
-      <p><b>5. 歌词</b>：点「给这首歌加歌词」，选一个 .lrc 文件，两边都会滚动显示当前唱到的那句。</p>
-      <p><b>6. 聊天</b>：歌单下面的「边听边聊」，发的消息对方立刻能看到（只在这次打开期间有效）。</p>
-      <p><b>7. 记住歌单</b>：歌曲已经存在本机浏览器里，刷新后会自动恢复；直连断了会自动重连并补传。</p>
-      <p><b>8. 限制</b>：音量各自独立；聊天记录不做保存；换了浏览器（比如手机换用别的 App 打开）不会带过来。</p>
+      <p><b>5. 歌词</b>：点「加歌词」选一个 .lrc 文件，两边都会滚动显示当前唱到的那句。</p>
+      <p><b>6. 聊天</b>：抽屉里切到「聊天」，发的消息对方立刻能看到。</p>
+      <p><b>7. 记住歌单</b>：歌曲存在本机，刷新后自动恢复；直连断了会自动重连并补传。</p>
+      <p><b>8. 限制</b>：音量各自独立；聊天记录不保存。</p>
     </details>
+  </section>
+
+  <!-- 轻提示 -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 播放列表 / 聊天 抽屉 -->
+  <div class="mask hidden" id="mask"></div>
+  <section class="sheet" id="sheet">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">播放列表 <span class="tag" id="tagRole"></span></div>
+      <button class="topBtn" id="sheetClose">收起</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" id="tabBtnList">歌单 <span class="num" id="tabCount">0</span></button>
+      <button class="tab" id="tabBtnChat">聊天</button>
+    </div>
+
+    <div class="sheetBody" id="tabList">
+      <div class="row">
+        <button class="btn primary" id="btnAddSongs">添加歌曲（可多选）</button>
+      </div>
+      <div class="playlist" id="playlist"></div>
+      <div class="status" id="txtList"><span class="dot warn blink"></span><span id="txtListText">等待对方加入…</span></div>
+      <div class="tip hidden" id="tipFallback">
+        点对点直连失败时，歌曲没法自动传送。解决办法：让对方用 <b>微信/QQ</b> 把歌发过来，
+        你在自己这边用「添加歌曲」加进去，然后两边点<b>同一首歌</b>，同步依然有效（播放/暂停/进度仍会跟随）。
+      </div>
+    </div>
+
+    <div class="sheetBody hidden" id="tabChat">
+      <div class="chatList" id="chatList"><div class="chatEmpty">说点什么，对方马上能看到</div></div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…" autocomplete="off" />
+        <button class="btn" id="chatSend" style="flex:0 0 76px;padding:12px">发送</button>
+      </div>
+    </div>
   </section>
 
   <audio id="audio" preload="auto" playsinline></audio>
@@ -472,8 +527,20 @@ const UI = {
   codeWrap: $("#codeWrap"),
   roomCode: $("#roomCode"),
   inpCode: $("#inpCode"),
-  cardList: $("#cardList"),
+  cardConn: $("#cardConn"),
   cardPlayer: $("#cardPlayer"),
+  sheet: $("#sheet"),
+  mask: $("#mask"),
+  btnOpenList: $("#btnOpenList"),
+  listCount: $("#listCount"),
+  tabCount: $("#tabCount"),
+  tabBtnList: $("#tabBtnList"),
+  tabBtnChat: $("#tabBtnChat"),
+  tabList: $("#tabList"),
+  tabChat: $("#tabChat"),
+  toast: $("#toast"),
+  dotPill: $("#dotPill"),
+  pillText: $("#pillText"),
   playlist: $("#playlist"),
   txtListText: $("#txtListText"),
   tipFallback: $("#tipFallback"),
@@ -496,6 +563,57 @@ function setConn(text, state) {
   UI.dotConn.className = "dot" + (state ? " " + state : "");
 }
 function show(el, yes) { el.classList.toggle("hidden", !yes); }
+
+/* 连接成功后切到主界面，连接页收起 */
+function enterMain() {
+  show(UI.cardConn, false);
+  show(UI.cardPlayer, true);
+  setPill(APP.paired ? "已连接" : "等待对方", APP.paired ? "ok" : "warn blink");
+}
+function setPill(text, state) {
+  if (!UI.pillText) return;
+  UI.pillText.textContent = text;
+  UI.dotPill.className = "dot" + (state ? " " + state : "");
+}
+
+/* 底部抽屉：歌单 / 聊天 */
+function openSheet(tab) {
+  switchTab(tab || "list");
+  if (tab !== "chat") renderPlaylist();
+  UI.mask.classList.remove("hidden");
+  requestAnimationFrame(() => {
+    UI.mask.classList.add("on");
+    UI.sheet.classList.add("on");
+  });
+}
+function closeSheet() {
+  UI.sheet.classList.remove("on");
+  UI.mask.classList.remove("on");
+  setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
+}
+function switchTab(tab) {
+  const isChat = tab === "chat";
+  UI.tabBtnList.classList.toggle("on", !isChat);
+  UI.tabBtnChat.classList.toggle("on", isChat);
+  show(UI.tabList, !isChat);
+  show(UI.tabChat, isChat);
+}
+
+function syncListCount() {
+  const n = APP.tracks.length;
+  if (UI.listCount) UI.listCount.textContent = n;
+  if (UI.tabCount) UI.tabCount.textContent = n;
+}
+
+/* 顶部轻提示，不占版面，任何时候都看得见 */
+let _toastTimer = null;
+function toast(text, ms) {
+  if (!UI.toast) return;
+  UI.toast.textContent = text;
+  UI.toast.classList.add("on");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => UI.toast.classList.remove("on"), ms || 2600);
+}
 
 /* ===================== 歌单本地保存（浏览器自带数据库） =====================
    刷新/关掉页面后歌单还在，不用每次重新添加。 */
@@ -556,9 +674,10 @@ function saveOrder() {
 function listBase() {
   return APP.tracks.length + " 首" + (APP.paired ? " · 已连接" : " · 等待对方");
 }
-/* 临时提示，几秒后自动恢复成常态文字 */
+/* 临时提示：抽屉里的小字一起变，同时右上角弹一个轻提示，几秒后恢复常态文字 */
 function hint(text, ms) {
   UI.txtListText.textContent = text;
+  toast(text, Math.min(ms || 3000, 4000));
   clearTimeout(APP.hintTimer);
   APP.hintTimer = setTimeout(() => { UI.txtListText.textContent = listBase(); }, ms || 3000);
 }
@@ -658,7 +777,7 @@ async function joinRoomByCode() {
 }
 
 function enterList() {
-  show(UI.cardList, true);
+  /* 还没连上，先留在连接页；连上后再切主界面 */
   UI.tagRole.textContent = APP.role === "host" ? "房主" : "加入者";
   UI.txtListText.textContent = "等待对方加入…";
   renderPlaylist();
@@ -762,7 +881,13 @@ function onMqttMessage(topic, payload) {
       break;
     }
     case "chat":
-      if (typeof m.text === "string" && m.text) addChat(m.text.slice(0, 200), false);
+      if (typeof m.text === "string" && m.text) {
+        addChat(m.text.slice(0, 200), false);
+        /* 抽屉没打开（或没停在聊天页）时，用轻提示提醒一下 */
+        if (!UI.sheet.classList.contains("on") || UI.tabChat.classList.contains("hidden")) {
+          toast("对方：" + m.text.slice(0, 60));
+        }
+      }
       break;
   }
 }
@@ -851,6 +976,7 @@ function bindCtlChannel(dc) {
     setConn("已直连成功（不经过服务器）", "ok");
     UI.txtListText.textContent = "已连接，可以添加歌曲了";
     show(UI.tipFallback, false);
+    enterMain();
     sendAllMyTracks();
   };
   dc.onclose = () => {
@@ -866,6 +992,7 @@ function reconnectPeer() {
   APP.reconnecting = true;
   APP.paired = false;
   setConn("连接断了，正在自动重连…", "warn blink");
+  setPill("重连中…", "warn blink");
 
   APP.closingPeer = true;
   clearInterval(APP.offerTimer);
@@ -1165,7 +1292,6 @@ function stopCurrentAudio() {
   UI.seek.value = 0;
   UI.btnPlay.textContent = "▶";
   renderLyrics();
-  show(UI.cardPlayer, false);
 }
 
 function applyPlOp(m) {
@@ -1258,6 +1384,7 @@ function mergeRemoteTracks(items) {
 }
 
 function renderPlaylist() {
+  syncListCount();
   const box = UI.playlist;
   if (!APP.tracks.length) {
     box.innerHTML = '<div class="plEmpty">还没有歌，点上面按钮添加</div>';
@@ -1379,7 +1506,7 @@ function loadTrackAudio(t) {
   audio.load();
   APP.remoteBase = null;
   APP.pendApply = null;
-  show(UI.cardPlayer, true);
+  enterMain();
   UI.songName.textContent = t.name;
   UI.seek.value = 0;
   UI.tCur.textContent = "0:00";
@@ -1445,9 +1572,9 @@ function selectTrack(id, startPlay) {
   const t = findTrack(id);
   if (!t) return;
   if (!t.url) {
-    UI.txtListText.textContent = t.state === "recv"
+    hint(t.state === "recv"
       ? "这首歌还在接收中，等进度到 100% 再点"
-      : "这首歌还没传到你手机上，先别急（可以让对方用微信把歌发给你，再用「添加歌曲」加进来）";
+      : "这首歌还没传到你手机上，先别急（可以让对方用微信把歌发给你，再用「添加歌曲」加进来）");
     return;
   }
   loadTrackAudio(t);
@@ -1464,7 +1591,7 @@ function stepTrack(dir) {
   if (j >= APP.tracks.length) j = APP.tracks.length - 1;
   const t = APP.tracks[j];
   if (!t.url) {
-    UI.txtListText.textContent = "下一首还没传过来";
+    hint("下一首还没传过来");
     return;
   }
   selectTrack(t.id, true);
@@ -1653,7 +1780,19 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) setTimeout(maybeResume, 400);
 });
 
-$("#btnAddSongs").onclick = () => { rememberPlayState(); picker.click(); };
+const pickSongs = () => { rememberPlayState(); picker.click(); };
+$("#btnAddSongs").onclick = pickSongs;
+$("#btnAddSongsMain").onclick = pickSongs;
+
+/* 播放列表 / 聊天 抽屉 */
+UI.btnOpenList.onclick = () => openSheet("list");
+$("#sheetClose").onclick = closeSheet;
+UI.mask.onclick = closeSheet;
+UI.tabBtnList.onclick = () => switchTab("list");
+UI.tabBtnChat.onclick = () => {
+  switchTab("chat");
+  setTimeout(() => { try { UI.chatInput.focus(); } catch (e) {} }, 260);
+};
 picker.onchange = () => {
   const files = picker.files ? Array.from(picker.files) : [];
   if (files.length) addFiles(files);
@@ -1703,7 +1842,7 @@ UI.vol.oninput = () => { audio.volume = Number(UI.vol.value) / 100; };
 /* 歌词文件选择 */
 const lrcPicker = document.createElement("input");
 lrcPicker.type = "file";
-lrcPicker.accept = ".lrc,text/plain";
+lrcPicker.accept = "";  /* 不限制类型：iPhone 的「文件」App 会把 .lrc 当成未知格式，限了反而选不到 */
 lrcPicker.style.display = "none";
 document.body.appendChild(lrcPicker);
 
@@ -1767,6 +1906,19 @@ if ("mediaSession" in navigator) {
     }
   });
 }
+
+/* iPhone：用 Safari 打开后「添加到主屏幕」才会全屏；这里给个一次性提示 */
+(function () {
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone = navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  if (!isIOS || standalone) return;
+  setTimeout(() => {
+    toast("iPhone：点底部「分享」→「添加到主屏幕」，以后就能全屏打开", 6000);
+  }, 1500);
+})();
 
 /* 注册离线缓存（PWA 必须以 http/https 打开才会生效） */
 if ("serviceWorker" in navigator && /^http/.test(location.protocol)) {
