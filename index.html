@@ -4709,6 +4709,7 @@ function loadTrackAudio(t, silent) {
   APP.curId = t.id;
   audio.src = t.url;
   audio.load();
+  audio.playbackRate = 1;   // 换歌时清掉上一次同步留下的调速
   APP.remoteBase = null;
   APP.pendApply = null;
   if (!silent) enterMain();
@@ -5068,8 +5069,12 @@ function applyPeerState(m, force) {
       const by = m.by || "";
       if (by < APP.lastBy) return;
       if (by === APP.lastBy) {
-        if (APP.remoteBase && m.playing && !audio.paused) {
+        /* 对方只是每 5 秒补发一次同一个状态：小于 1.5 秒的偏差不要动，
+           否则本地每 5 秒就被拽一下，听感就是忽快忽慢带跳。 */
+        if (Math.abs(target - audio.currentTime) > 1.5) {
+          try { audio.currentTime = target; } catch (e) {}
           APP.remoteBase = { pos: target, ts: Date.now(), playing: true };
+          audio.playbackRate = 1;
         }
         return;
       }
@@ -5116,7 +5121,8 @@ function applyPeerState(m, force) {
     }
 
     if (audio.duration) target = Math.min(target, audio.duration);
-    if (Math.abs(audio.currentTime - target) > 0.08) audio.currentTime = target;
+    // 只在偏差比较明显时才跳，避免几十毫秒的小误差被反复「拽」出听感上的跳动
+    if (Math.abs(audio.currentTime - target) > 0.35) audio.currentTime = target;
     if (m.playing) {
       playSafe();
     } else {
@@ -5130,11 +5136,16 @@ function applyPeerState(m, force) {
   }
 }
 
-/* 漂移校正：每 0.5 秒对齐一次基准位置 */
+/* 漂移校正：每 0.5 秒看一眼偏差。原则是「本地匀速优先」——
+   小偏差完全不管，中等偏差只做最多 1.5% 的轻微调速，只有明显脱轨且连续两次才硬跳。 */
+let _driftHits = 0;
 setInterval(() => {
   if (!audio.src) return;
   if (!APP.remoteBase || audio.paused) {
-    if (audio.paused) UI.lagVal.textContent = "暂停";
+    if (audio.paused) {
+      UI.lagVal.textContent = "暂停";
+      if (audio.playbackRate !== 1) audio.playbackRate = 1;  // 别把调速状态留到下次播放
+    }
     return;
   }
   if (APP.applyRemote) return;
@@ -5144,14 +5155,17 @@ setInterval(() => {
   const diff = target - audio.currentTime;
   UI.lagVal.textContent = (diff * 1000).toFixed(0) + "ms";
 
-  if (Math.abs(diff) > 0.35) {
-    audio.currentTime = target;
-    audio.playbackRate = 1;
-  } else if (Math.abs(diff) > 0.04) {
-    audio.playbackRate = clamp(1 + diff * 0.4, 0.97, 1.03);
-  } else {
-    audio.playbackRate = 1;
+  if (Math.abs(diff) > 1.5) {
+    if (++_driftHits >= 2) {          // 连续两次都差 1.5 秒以上，才认为是真的脱轨
+      _driftHits = 0;
+      audio.currentTime = target;
+      audio.playbackRate = 1;
+    }
+    return;
   }
+  _driftHits = 0;
+  if (Math.abs(diff) > 0.15) audio.playbackRate = clamp(1 + diff * 0.2, 0.985, 1.015);
+  else audio.playbackRate = 1;
 }, 500);
 
 /* 当前版本的提交者每 5 秒补发一次，压住长时间播放的累积漂移 */
