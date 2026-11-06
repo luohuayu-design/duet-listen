@@ -4496,7 +4496,7 @@ function stopCtlHeartbeat(p) {
 function retryPair(p) {
   if (!p || !APP.room || p.paired) return;
   p.tryCount = (p.tryCount || 0) + 1;
-  const base = Math.min(1200 * Math.pow(1.7, Math.min(p.tryCount - 1, 6)), 20000);
+  const base = Math.min(900 * Math.pow(1.6, Math.min(p.tryCount - 1, 6)), 12000);
   const wait = base + Math.random() * 800;
   p.retryWait = Math.round(wait);
   setConn("直连没通，正在第 " + p.tryCount + " 次重试（" + Math.round(wait / 1000) + " 秒后）…", "warn blink");
@@ -4737,21 +4737,29 @@ function sendTrackToPeer(t, p) {
 
   dc.binaryType = "arraybuffer";
   dc.onopen = async () => {
-    /* 分块改小一点（16KB），缓冲水位压低，网络差时更不容易丢包 */
-    const CH = 16 * 1024;
+    /* 分块 64KB、缓冲水位 512KB：局域网/热点下传歌明显更快；
+       进度不再每块都重绘整个歌单，按变化节流，避免大文件传输时界面卡。 */
+    const CH = 64 * 1024;
+    let lastPct = -1, lastDraw = 0;
     try {
       while (sent < total) {
         if (dc.readyState !== "open") { finish(false); return; }
-        if (dc.bufferedAmount > 256 * 1024) {
-          await sleep(25);
+        if (dc.bufferedAmount > 512 * 1024) {
+          await sleep(12);
           continue;
         }
         const buf = await t.blob.slice(sent, sent + CH).arrayBuffer();
         if (dc.readyState !== "open") { finish(false); return; }
         dc.send(buf);
         sent += buf.byteLength;
-        t.pct = Math.round((sent / total) * 100);
-        renderPlaylist();
+        const pct = Math.round((sent / total) * 100);
+        const now = Date.now();
+        if (pct !== lastPct && now - lastDraw > 150) {
+          t.pct = pct;
+          lastPct = pct;
+          lastDraw = now;
+          renderPlaylist();
+        }
       }
       // 关键：等缓冲真正清空，再发“结束标记”，否则 close() 会丢掉尾部字节
       let guard = 0;
@@ -5200,12 +5208,15 @@ function applyPlOp(m) {
       return;
     }
 
-    APP.tracks.push({
+    const added = {
       id: item.id, name: item.name, size: item.size || 0, dur: item.dur || 0,
       type: guessMime(item.name, item.type),
       blob: null, url: null, mine: false, owner: item.owner || m.from || "",
       state: "waiting", pct: 0, sending: false,
-    });
+    };
+    APP.tracks.push(added);
+    /* 自己「我的列表」里本来就有这个文件：直接用本地的，不用再等对方传 */
+    adoptLocal(added);
     APP.plVer = Math.max(APP.plVer, m.ver || 0);
     // 对方如果先发过这首歌的歌词，这里补上
     if (APP.lrcCache[item.id]) {
@@ -5297,7 +5308,7 @@ function ensureBuffer() {
   if (idx + 1 < list.length) need.push(list[idx + 1]);
   else if (APP.repeat === 1 && list.length > 1) need.push(list[0]);
   need.forEach((t) => {
-    if (!t || t.url) return;
+    if (!t || t.url || adoptLocal(t)) return;
     requestTrackFile(t.id, t.owner || "");
   });
 }
@@ -5944,6 +5955,14 @@ function selectTrack(id, startPlay) {
     return;
   }
   if (!t.url) {
+    if (adoptLocal(t)) {
+      /* 自己列表里就有同一个文件：直接播，不用等对方传 */
+      loadTrackAudio(t);
+      if (startPlay) { APP.wantPlaying = true; playSafe(); }
+      ensureBuffer();
+      setTimeout(onLocalAction, 40);
+      return;
+    }
     if (t.state === "recv" || t.state === "waiting") {
       APP.pendPlayId = id;   // 加载好之后自动开始播
       requestTrackFile(t.id, t.owner || "");
@@ -5964,6 +5983,22 @@ function selectTrack(id, startPlay) {
 /* ---------- 随机播放：两端用同一个种子洗牌，保证选中同一首 ---------- */
 function trackKey(t) {
   return (t.name || "") + "|" + (t.size || 0);
+}
+/* 本地「我的列表」里已经有同一个文件时直接借用，不用再等对方传一遍 */
+function adoptLocal(t) {
+  if (!t || t.url) return !!t;
+  const mine = APP.lib.find((x) => x.url && trackKey(x) === trackKey(t));
+  if (!mine) return false;
+  t.blob = mine.blob;
+  t.url = mine.url;
+  t.size = mine.size || t.size;
+  t.dur = t.dur || mine.dur || 0;
+  t.type = t.type || mine.type;
+  t.state = "local";
+  t.pct = 0;
+  t.sending = false;
+  if (!t.owner) t.owner = APP.me;
+  return true;
 }
 
 function shuffleOrder(list) {
@@ -6217,6 +6252,7 @@ function applyPeerState(m, force) {
 
   try {
     if (wantId && wantId !== APP.curId) {
+      if (t && !t.url) adoptLocal(t);
       if (!t || !t.url) {
         APP.pendingTarget = m; // 等这首歌传过来再切
         APP.pendTs = Date.now();
