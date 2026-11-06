@@ -327,30 +327,45 @@ class MqttWS {
   }
 
   connect() {
+    /* 两个中转站同时连，谁先握手成功就用谁；以前是一个一个等，最坏要干等 40 秒 */
     return new Promise((resolve, reject) => {
-      const attempt = () => {
-        if (this.idx >= this.brokers.length) {
-          reject(new Error("连不上中转服务器"));
-          return;
-        }
-        const url = this.brokers[this.idx++];
+      const socks = [];
+      let done = false;
+
+      const finish = (ws) => {
+        if (done) return;
+        done = true;
+        clearTimeout(deadline);
+        this.ws = ws;
+        this.connected = true;
+        socks.forEach((s) => { if (s !== ws) { try { s.close(); } catch (e) {} } });
+        this._afterConnect();
+        resolve();
+      };
+
+      const deadline = setTimeout(() => {
+        if (done) return;
+        done = true;
+        socks.forEach((s) => { try { s.close(); } catch (e) {} });
+        reject(new Error("连不上中转服务器"));
+      }, 9000);
+
+      this.brokers.forEach((url) => {
         let ws;
         try {
           ws = new WebSocket(url, "mqtt");
         } catch (e) {
-          attempt();
           return;
         }
+        socks.push(ws);
         ws.binaryType = "arraybuffer";
-        this.ws = ws;
         let settled = false;
 
         const timer = setTimeout(() => {
           if (settled) return;
           settled = true;
           try { ws.close(); } catch (e) {}
-          attempt();
-        }, 20000);
+        }, 8000);
 
         ws.onopen = () => {
           // CONNECT：MQTT 3.1.1 + 清除会话 + keepalive 60
@@ -360,38 +375,29 @@ class MqttWS {
         };
 
         ws.onmessage = (ev) => {
-          if (!settled) {
-            this._scan(new Uint8Array(ev.data), (type) => {
-              if (type === 2) {
-                settled = true;
-                clearTimeout(timer);
-                this.connected = true;
-                this._afterConnect();
-                resolve();
-              }
-            });
-          } else {
-            this._scan(new Uint8Array(ev.data), null);
-          }
+          this._scan(new Uint8Array(ev.data), (type) => {
+            if (type !== 2 || settled) return;
+            settled = true;
+            clearTimeout(timer);
+            finish(ws);
+          });
         };
 
         ws.onerror = () => {};
 
         ws.onclose = () => {
           clearTimeout(timer);
+          if (!done) return;                 // 还在等其他备选连上
+          if (this.ws !== ws) return;        // 备选连接被主动关掉
           const wasConnected = this.connected;
           this.connected = false;
           clearInterval(this._keep);
-          if (!settled) {
-            settled = true;
-            attempt();
-          } else if (wasConnected) {
+          if (wasConnected) {
             if (this.onLost) this.onLost();
             this._scheduleRetry();
           }
         };
-      };
-      attempt();
+      });
     });
   }
 
@@ -473,10 +479,22 @@ class MqttWS {
 const BROKERS = ["wss://broker-cn.emqx.io:8084/mqtt", "wss://broker.emqx.io:8084/mqtt"];
 const ICE = {
   iceServers: [
+    { urls: ["stun:stun.miwifi.com:3478", "stun:stun.chat.bilibili.com:3478"] },
     { urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] },
     { urls: ["stun:stun.qq.com:3478"] },
     { urls: ["stun:global.stun.twilio.com:3478"] },
+    /* 手机流量对手机流量时经常打不通 P2P，加个免费 TURN 中转兜底（连上后才会用到） */
+    {
+      urls: [
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:443",
+        "turn:openrelay.metered.ca:443?transport=tcp",
+      ],
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
+  iceCandidatePoolSize: 2,
 };
 const TOPIC_PREFIX = "duetlisten/v1/";
 
@@ -508,6 +526,8 @@ const APP = {
   pendApply: null,       // 音频还没就绪时暂存的 {pos, playing}
   lastStateApplyTs: 0,
   lastAnswer: null,
+  iceBuf: [],            // 远端描述还没设好时，先攒着 ICE 候选
+  tryCount: 0,           // 本次进房间已经重试了几次直连
   offerTimer: null,
   needSent: new Set(),   // 已经催过对方补传的歌曲 id
   peerTracks: [],        // 对方最近一次报上来的歌单
@@ -794,7 +814,7 @@ async function joinRoomChannel(room) {
   clearInterval(APP.helloTimer);
   APP.helloTimer = setInterval(() => {
     if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
-  }, 2500);
+  }, 1200);
 
   clearInterval(APP.pingTimer);
   APP.pingTimer = setInterval(() => {
@@ -832,7 +852,9 @@ function onMqttMessage(topic, payload) {
     }
     case "offer":
       if (APP.role === "guest") {
-        if (!APP.pc) {
+        const pc0 = APP.pc;
+        if (!pc0 || pc0.signalingState === "closed" || pc0.connectionState === "failed") {
+          if (pc0) teardownPeer();
           createPeer(false);
           acceptOffer(m);
         } else if (!APP.paired && APP.lastAnswer) {
@@ -843,11 +865,16 @@ function onMqttMessage(topic, payload) {
       break;
     case "answer":
       if (APP.pc && APP.pc.signalingState === "have-local-offer") {
-        APP.pc.setRemoteDescription(m.sdp).catch(() => {});
+        APP.pc.setRemoteDescription(m.sdp).then(flushIce).catch(() => {});
       }
       break;
     case "ice":
-      if (APP.pc && m.c) APP.pc.addIceCandidate(m.c).catch(() => {});
+      if (!APP.pc || !m.c) break;
+      if (APP.pc.remoteDescription && APP.pc.remoteDescription.type) {
+        APP.pc.addIceCandidate(m.c).catch(() => {});
+      } else {
+        APP.iceBuf.push(m.c);   /* 对方的 SDP 还没到，先攒着，设好远端描述后补上 */
+      }
       break;
     case "ping":
       publish({ k: "pong", from: APP.me, seq: m.seq, t1: m.t1, t2: Date.now(), t3: Date.now() });
@@ -918,10 +945,9 @@ function createPeer(initiator) {
     const st = pc.connectionState;
     if (st === "connected") {
       setConn("已直连成功（不经过服务器）", "ok");
-    } else if (st === "failed") {
+    } else if (st === "failed" || st === "closed") {
       if (APP.paired) { reconnectPeer(); return; }
-      setConn("直连失败，请看歌单下方说明", "err");
-      show(UI.tipFallback, true);
+      retryPair();
     }
   };
 
@@ -952,10 +978,17 @@ function createPeer(initiator) {
   }
 }
 
+function flushIce() {
+  const pc = APP.pc;
+  const buf = APP.iceBuf.splice(0);
+  if (!pc) return;
+  buf.forEach((c) => { try { pc.addIceCandidate(c).catch(() => {}); } catch (e) {} });
+}
+
 function acceptOffer(m) {
   setConn("正在建立直连…", "warn blink");
   APP.pc.setRemoteDescription(m.sdp)
-    .then(() => APP.pc.createAnswer())
+    .then(() => { flushIce(); return APP.pc.createAnswer(); })
     .then((a) => APP.pc.setLocalDescription(a))
     .then(() => {
       if (!APP.pc.localDescription) return;
@@ -965,12 +998,45 @@ function acceptOffer(m) {
     .catch(() => {});
 }
 
+/* 拆掉当前连接，但不触发自动重连 */
+function teardownPeer() {
+  APP.closingPeer = true;
+  clearInterval(APP.offerTimer);
+  try { if (APP.ctl) APP.ctl.close(); } catch (e) {}
+  try { if (APP.pc) APP.pc.close(); } catch (e) {}
+  APP.ctl = null;
+  APP.pc = null;
+  APP.offerTimer = null;
+  APP.lastAnswer = null;
+  APP.iceBuf = [];
+  setTimeout(() => { APP.closingPeer = false; }, 400);
+}
+
+/* 直连失败（手机流量对流量很常见）：拆掉重来，最多试 4 次 */
+function retryPair() {
+  if (!APP.room || APP.paired) return;
+  if (APP.tryCount >= 4) {
+    setConn("直连一直没通，可能当前网络限制 P2P", "err");
+    show(UI.tipFallback, true);
+    return;
+  }
+  APP.tryCount++;
+  setConn("直连没通，正在重试（第 " + APP.tryCount + " 次）…", "warn blink");
+  teardownPeer();
+  setTimeout(() => {
+    if (!APP.room || APP.paired || APP.pc) return;
+    if (APP.role === "host") createPeer(true);
+    else publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+  }, 900);
+}
+
 function bindCtlChannel(dc) {
   APP.ctl = dc;
   dc.onopen = () => {
     APP.paired = true;
     APP.reconnecting = false;
     APP.closingPeer = false;
+    APP.tryCount = 0;
     clearInterval(APP.helloTimer);
     clearInterval(APP.offerTimer);
     setConn("已直连成功（不经过服务器）", "ok");
@@ -991,24 +1057,17 @@ function reconnectPeer() {
   if (!APP.room || APP.reconnecting) return;
   APP.reconnecting = true;
   APP.paired = false;
+  APP.tryCount = 0;
   setConn("连接断了，正在自动重连…", "warn blink");
   setPill("重连中…", "warn blink");
 
-  APP.closingPeer = true;
-  clearInterval(APP.offerTimer);
-  try { if (APP.ctl) APP.ctl.close(); } catch (e) {}
-  try { if (APP.pc) APP.pc.close(); } catch (e) {}
-  APP.ctl = null;
-  APP.pc = null;
-  APP.offerTimer = null;
-  APP.lastAnswer = null;
-  setTimeout(() => { APP.closingPeer = false; }, 500);
+  teardownPeer();
 
-  // 靠 MQTT 每 2.5 秒喊一声，让对方知道我们还在
+  // 靠 MQTT 每 1.2 秒喊一声，让对方知道我们还在
   clearInterval(APP.helloTimer);
   APP.helloTimer = setInterval(() => {
     if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
-  }, 2500);
+  }, 1200);
 
   // 房主主动重新发 offer，房员等 offer 来了再应答
   if (APP.role === "host") {
