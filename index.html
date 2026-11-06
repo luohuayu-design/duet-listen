@@ -254,7 +254,7 @@
       <p><b>5. 控制</b>：两边权力完全对等，谁都能播放、暂停、拖动、切歌。</p>
       <p><b>6. 歌词</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，两边都会滚动显示。</p>
       <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息对方立刻能看到。</p>
-      <p><b>8. 记住进度</b>：歌单和播放模式存在本机，下次打开还是上次那首歌和位置。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 直连已建立 / 重试第几次」。实在卡住就点右上角 ↻ 或连接页的「重新连接」。</p>
+      <p><b>8. 两个歌单</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、对方传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，两台设备按添加顺序显示同一份歌单；对方没有这首歌会自动传过去。开始播放要手动点播放键，没加载完会等加载完自动开播。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 直连已建立 / 重试第几次」。实在卡住就点右上角 ↻ 或连接页的「重新连接」。</p>
       <p><b>9. 限制</b>：音量各自独立；聊天记录不保存；收藏和「最近播放」只在自己这边生效。</p>
     </details>
   </section>
@@ -268,12 +268,12 @@
   <section class="sheet" id="sheetList">
     <div class="sheetHandle"></div>
     <div class="sheetHead">
-      <div class="sheetTitle">播放列表 <span class="tag" id="tagRole"></span></div>
+      <div class="sheetTitle">歌单 <span class="tag" id="tagRole"></span></div>
       <button class="topBtn" id="closeList">收起</button>
     </div>
     <div class="sheetBody">
       <div class="row">
-        <button class="btn primary" id="btnAddSongs">添加歌曲（可多选）</button>
+        <button class="btn primary" id="btnAddSongs">添加歌曲到我的列表（可多选）</button>
         <button class="btn" id="btnScan" style="flex:0 0 134px;font-size:14px">扫描本地歌曲</button>
       </div>
       <div class="row" style="margin-top:8px">
@@ -281,13 +281,14 @@
         <button class="topBtn" id="btnReorder" style="flex:none">排序</button>
       </div>
       <div class="row" style="margin-top:8px">
-        <button class="chip on" data-tab="all">全部</button>
+        <button class="chip on" data-tab="all">一起听</button>
+        <button class="chip" data-tab="lib">我的歌曲</button>
         <button class="chip" data-tab="fav">★ 收藏</button>
         <button class="chip" data-tab="recent">最近</button>
         <span class="tag" id="plFilterCount" style="margin-left:auto"></span>
       </div>
       <div class="playlist" id="playlist"></div>
-      <div class="status" id="txtList"><span class="dot warn blink"></span><span id="txtListText">等待对方加入…</span></div>
+      <div class="status" id="txtList"><span class="dot warn blink"></span><span id="txtListText">一起听歌单是空的，去「我的歌曲」点 ＋ 添加</span></div>
       <div class="tip hidden" id="tipFallback">
         点对点直连失败时，歌曲没法自动传送。解决办法：让对方用 <b>微信/QQ</b> 把歌发过来，
         你在自己这边用「添加歌曲」加进去，然后两边点<b>同一首歌</b>，同步依然有效（播放/暂停/进度仍会跟随）。
@@ -2942,7 +2943,8 @@ const APP = {
   applyRemote: false,
   applyTimer: null,
   remoteBase: null,      // {pos, ts, playing} 漂移校正基准
-  tracks: [],            // {id,name,size,dur,blob,url,mine,state,pct,sending}
+  lib: [],               // 我的列表（长期保存：自己加过、收到过的歌都在这里）
+  tracks: [],            // 一起听歌单（每次进房间从空开始，两端同步，删歌只影响本歌单）
   alias: {},             // 对方的歌曲 id -> 我本地的同一首歌 id
   curId: "",
   stateVer: 0,
@@ -3161,11 +3163,11 @@ function dropTrackRec(id) {
 }
 /* 只存顺序（很便宜，排序/删除时用） */
 function saveOrder() {
-  dbDo("meta", "readwrite", (st) => st.put({ k: "order", ids: APP.tracks.map((t) => t.id) })).catch(() => {});
+  dbDo("meta", "readwrite", (st) => st.put({ k: "order", ids: APP.lib.map((t) => t.id) })).catch(() => {});
 }
 
 function listBase() {
-  return APP.tracks.length + " 首" + (APP.paired ? " · 已连接" : " · 等待对方");
+  return APP.tracks.length + " 首在一起听" + (APP.paired ? " · 已连接" : " · 等待对方");
 }
 /* 临时提示：抽屉里的小字一起变，同时右上角弹一个轻提示，几秒后恢复常态文字 */
 function hint(text, ms) {
@@ -3209,28 +3211,39 @@ async function restorePlaylist() {
     });
 
     if (order && order.length) {
-      order.forEach((id) => { if (byId[id]) APP.tracks.push(byId[id]); });
+      order.forEach((id) => { if (byId[id]) APP.lib.push(byId[id]); });
       Object.keys(byId).forEach((id) => {
-        if (!APP.tracks.some((t) => t.id === id)) APP.tracks.push(byId[id]);
+        if (!APP.lib.some((t) => t.id === id)) APP.lib.push(byId[id]);
       });
     } else {
-      recs.forEach((r) => { if (byId[r.id]) APP.tracks.push(byId[r.id]); });
+      recs.forEach((r) => { if (byId[r.id]) APP.lib.push(byId[r.id]); });
     }
 
     renderPlaylist();
-    if (APP.tracks.length) UI.txtListText.textContent = APP.tracks.length + " 首（已恢复上次的歌单）";
+    if (APP.lib.length) UI.txtListText.textContent = APP.lib.length + " 首在我的列表里";
     restoreProgress();
-    // 让已经连上的对方也知道这份歌单
-    if (APP.mqs.length) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
-    if (APP.paired) sendAllMyTracks();
   } catch (e) {}
 }
 
 /* ===================== 房间连接 ===================== */
+/* 新的一次一起听：一起听歌单从空开始（「我的列表」原样保留） */
+function resetSessionQueue() {
+  APP.tracks = [];
+  APP.plVer = 0;
+  APP.plBy = "";
+  APP.alias = {};
+  APP.pendingTarget = null;
+  APP.pendPlayId = "";
+  stopCurrentAudio();
+  renderPlaylist();
+  syncListCount();
+}
+
 async function createRoom() {
   if (APP.room) return;
   APP.role = "host";
   APP.room = randCode();
+  resetSessionQueue();
   $("#btnCreate").disabled = true;
   closeLobbyClient();
   stopLobbyAd();
@@ -3260,6 +3273,7 @@ async function joinRoomByCode() {
   }
   APP.role = "guest";
   APP.room = code;
+  resetSessionQueue();
   $("#btnJoin").disabled = true;
   closeLobbyClient();
   stopLobbyAd();
@@ -3301,7 +3315,7 @@ async function joinRoomChannel(room) {
       } else {
         setPill("直连已建立", "ok");
       }
-      publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+      publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
     };
     mq.onLost = () => {
       if (!mqAnyConnected()) {
@@ -3330,10 +3344,10 @@ async function joinRoomChannel(room) {
     await sleep(300);
   }
 
-  publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+  publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
   clearInterval(APP.helloTimer);
   APP.helloTimer = setInterval(() => {
-    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
   }, 1500);
 
   clearInterval(APP.pingTimer);
@@ -3375,10 +3389,6 @@ function publishRaw(topic, payload) {
   APP.mqs.forEach((mq) => mq.publish(topic, payload));
 }
 
-function myTrackInfo() {
-  return APP.tracks.map((t) => ({ id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type }));
-}
-
 /* ===================== 消息分发 ===================== */
 function onMqttMessage(topic, payload) {
   let m = null;
@@ -3393,11 +3403,6 @@ function onMqttMessage(topic, payload) {
 
   switch (m.k) {
     case "hello": {
-      // 对方来之前我加的歌曲，先按歌单同步给他（文件等直连后再传）
-      if (Array.isArray(m.tracks)) {
-        APP.peerTracks = m.tracks;
-        mergeRemoteTracks(m.tracks);
-      }
       if (APP.paired) {
         if (m.renew && APP.role === "host") tryRestartIce();
         break;
@@ -3683,7 +3688,7 @@ function tryRestartIce() {
         .catch(() => {});
     } else {
       // 房员自己没有协商主动权，喊房主重来一次
-      publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo(), renew: true });
+      publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
     }
     return true;
   } catch (e) { return false; }
@@ -3752,7 +3757,7 @@ function retryPair() {
     if (!APP.room || APP.paired || APP.pc) return;
     mqKick();
     if (APP.role === "host") createPeer(true);
-    else publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo(), renew: true });
+    else publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
   }, wait);
 }
 
@@ -3780,9 +3785,9 @@ function bindCtlChannel(dc) {
     show(UI.rowRetryConn, false);
     enterMain();
     publishMode();
-    /* 连上的这一刻再报一次完整歌单：对方如果是在配对前才入房，
-       可能一条 hello 都没收到，歌名就永远补不上了 */
-    publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+    /* 连上的这一刻把「一起听歌单」重报一遍：中间断线时对方加的歌也能补上 */
+    publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
+    syncQueueToPeer();
     sendAllMyTracks();
   };
   dc.onclose = () => {
@@ -3807,7 +3812,7 @@ function reconnectPeer() {
   // 靠 MQTT 每 1.5 秒喊一声，让对方知道我们还在
   clearInterval(APP.helloTimer);
   APP.helloTimer = setInterval(() => {
-    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+    if (!APP.paired) publish({ k: "hello", from: APP.me, role: APP.role, tracks: [] });
   }, 1500);
 
   // 房主主动重新发 offer，房员等 offer 来了再应答
@@ -3841,7 +3846,7 @@ function netWake() {
   }
   APP.tryCount = 0;
   if (APP.role === "host") createPeer(true);
-  else publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo(), renew: true });
+  else publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
 }
 
 /* 手动重连：卡住的时候点一下 */
@@ -3863,11 +3868,25 @@ function forceReconnect() {
       if (APP.room && !APP.paired && !APP.pc) createPeer(true);
     }, 150);
   } else {
-    publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo(), renew: true });
+    publish({ k: "hello", from: APP.me, role: APP.role, tracks: [], renew: true });
   }
 }
 
-/* 把本机添加的歌发给对方（对方添加的不回传，避免白传一遍） */
+/* 重连/配对成功时，把当前一起听歌单逐首重报一次（对方已有的会自动跳过） */
+function syncQueueToPeer() {
+  if (!APP.mqs.length || !APP.tracks.length) return;
+  APP.plVer++;
+  APP.plBy = APP.me;
+  const ver = APP.plVer;
+  APP.tracks.forEach((t) => {
+    publish({
+      k: "pl_op", from: APP.me, ver, by: APP.plBy, op: "add",
+      item: { id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type },
+    });
+  });
+}
+
+/* 把一起听歌单里我上传的歌发给对方（歌单为空就什么都不传） */
 function sendAllMyTracks() {
   APP.tracks.forEach((t) => {
     if (!t.blob || !t.mine) return;
@@ -4015,7 +4034,7 @@ function receiveTrackChannel(dc, trackId) {
       t = {
         id: trackId, name: "对方传来的歌曲", size: declaredSize || received, dur: 0,
         type: "", blob: null, url: null, mine: false,
-        state: "waiting", pct: 0, sending: false,
+        state: "waiting", pct: 0, sending: false, synthetic: true,
       };
       APP.tracks.push(t);
     }
@@ -4037,6 +4056,7 @@ function receiveTrackChannel(dc, trackId) {
       t.state = "local";
       t.pct = 0;
       renderPlaylist();
+      if (APP.pendPlayId === t.id) { APP.pendPlayId = ""; selectTrack(t.id, true); }
       return;
     }
 
@@ -4051,6 +4071,8 @@ function receiveTrackChannel(dc, trackId) {
     t.pct = 0;
     // 对方先发过歌词的话，文件到了就能用
     if (!t.lrc && APP.lrcCache[trackId]) t.lrc = parseLrc(APP.lrcCache[trackId]);
+    // 收到的歌也存进「我的列表」，下次不用再传
+    if (!APP.lib.some((x) => x.id === t.id)) APP.lib.push(t);
     saveTrack(t);
     saveOrder();
     renderPlaylist();
@@ -4073,6 +4095,13 @@ function receiveTrackChannel(dc, trackId) {
         applyPeerState(p, true); // 强制应用：这条指令之前因为没文件被压后了
         return;
       }
+    }
+
+    // 用户提前点了这首歌：文件一到位就自动开播
+    if (APP.pendPlayId === t.id) {
+      APP.pendPlayId = "";
+      selectTrack(t.id, true);
+      return;
     }
     if (APP.curId === t.id && !audio.src) loadTrackAudio(t);
   };
@@ -4097,7 +4126,8 @@ function receiveTrackChannel(dc, trackId) {
 }
 
 /* ===================== 歌单：添加 / 排序 ===================== */
-function findTrack(id) { return APP.tracks.find((t) => t.id === id); }
+function findInQueue(id) { return APP.tracks.find((t) => t.id === id); }
+function findTrack(id) { return APP.tracks.find((t) => t.id === id) || APP.lib.find((t) => t.id === id); }
 function localId(id) { return APP.alias[id] || id; }
 
 function loadDuration(url) {
@@ -4114,6 +4144,7 @@ function loadDuration(url) {
 }
 
 async function addFiles(files) {
+  let added = 0;
   for (const f of Array.from(files)) {
     if (!isAudioName(f.name) && !(f.type && /audio/i.test(f.type))) continue;
     const id = newId();
@@ -4124,14 +4155,28 @@ async function addFiles(files) {
       type: guessMime(f.name, f.type),
       blob: f, url, mine: true, owner: APP.me, state: "local", pct: 0, sending: false,
     };
-    APP.tracks.push(track);
+    APP.lib.push(track);
     saveTrack(track);
     saveOrder();
-    opAdd(track);
-    queueTrackSend(track);
+    added++;
   }
   renderPlaylist();
-  UI.txtListText.textContent = APP.tracks.length + " 首";
+  UI.txtListText.textContent = APP.lib.length + " 首在我的列表里" +
+    (added ? "；切到「我的歌曲」点 ＋ 就能加进一起听" : "");
+}
+
+/* 从「我的列表」加进「一起听歌单」：按点击的先后排到末尾，两端顺序一致 */
+function addToQueue(id) {
+  const t = APP.lib.find((x) => x.id === id) || findTrack(id);
+  if (!t) return;
+  if (findInQueue(t.id)) { toast("「" + t.name + "」已经在一起听歌单里了"); return; }
+  APP.tracks.push(t);
+  renderPlaylist();
+  syncListCount();
+  toast("已加入一起听：「" + t.name + "」");
+  opAdd(t);
+  // 自己上传的歌要传给对方；对方本来就有这首歌的话，接收端会自动跳过、不重复保存
+  if (t.mine && t.blob) queueTrackSend(t);
 }
 
 /* ===== 扫描本地歌曲：选文件夹 → 列出结果 → 勾选后加入（有全选） ===== */
@@ -4245,7 +4290,6 @@ function moveTrack(id, dir) {
   const [t] = APP.tracks.splice(i, 1);
   APP.tracks.splice(j, 0, t);
   renderPlaylist();
-  saveOrder();
 
   if (!APP.mqs.length) return;
   APP.plVer++;
@@ -4255,20 +4299,18 @@ function moveTrack(id, dir) {
   setTimeout(() => publish(msg), 400);
 }
 
-/* 从歌单删除（本地 + 通知对方） */
+/* 从一起听歌单移除（只影响本次歌单，歌还在「我的列表」里） */
 function deleteTrack(id) {
   const i = APP.tracks.findIndex((t) => t.id === id);
   if (i < 0) return;
   const t = APP.tracks[i];
-  if (!confirm("把「" + t.name + "」从歌单删除？（两台设备上都会删掉）")) return;
+  if (!confirm("把「" + t.name + "」从一起听歌单移除？（两台设备上都会移除，歌仍留在我的列表里）")) return;
 
   APP.tracks.splice(i, 1);
+  if (APP.pendPlayId === id) APP.pendPlayId = "";
   if (APP.curId === id) stopCurrentAudio();
-  if (t.url) { try { URL.revokeObjectURL(t.url); } catch (e) {} }
-  for (const k in APP.alias) { if (APP.alias[k] === id) delete APP.alias[k]; }
-  dropTrackRec(id);
-  saveOrder();
   renderPlaylist();
+  syncListCount();
 
   if (!APP.mqs.length) return;
   APP.plVer++;
@@ -4298,18 +4340,38 @@ function stopCurrentAudio() {
 function applyPlOp(m) {
   if (m.op === "add" && m.item) {
     const item = m.item;
-    // 同一首歌可能我自己也有（名字+大小一致），就只建立映射，不重复添加
-    let exist = findTrack(item.id);
-    if (!exist) {
-      exist = APP.tracks.find((t) => t.name === item.name && Math.abs((t.size || 0) - (item.size || 0)) < 1024);
+    const lid = localId(item.id);
+    const existing = findInQueue(lid) || findInQueue(item.id);
+    if (existing) {
+      /* 文件通道有时比歌单消息先到，会先用一个临时名字占位；这里补回真名 */
+      if (existing.synthetic) {
+        existing.synthetic = false;
+        existing.name = item.name;
+        if (item.size) existing.size = item.size;
+        if (item.dur) existing.dur = item.dur;
+        if (item.type) existing.type = item.type;
+        renderPlaylist();
+        if (APP.curId === existing.id) UI.songName.textContent = existing.name;
+      }
+      return;  // 这首歌已经在歌单里了
     }
-    if (exist) {
-      if (exist.id !== item.id) APP.alias[item.id] = exist.id;
-      if (!exist.dur && item.dur) exist.dur = item.dur;
-      if (!exist.type && item.type) exist.type = item.type;
+
+    // 我本地列表里本来就有这首歌（同 id，或名字+大小一致）：直接加进来，不用再传一遍
+    const myLib = APP.lib.find((t) => t.id === item.id) ||
+      APP.lib.find((t) => t.name === item.name && Math.abs((t.size || 0) - (item.size || 0)) < 1024);
+    if (myLib) {
+      if (myLib.id !== item.id) APP.alias[item.id] = myLib.id;
+      if (!myLib.dur && item.dur) myLib.dur = item.dur;
+      if (!myLib.type && item.type) myLib.type = item.type;
+      if (APP.lrcCache[item.id]) myLib.lrc = parseLrc(APP.lrcCache[item.id]);
+      APP.tracks.push(myLib);
+      APP.plVer = Math.max(APP.plVer, m.ver || 0);
       renderPlaylist();
+      syncListCount();
+      hint("对方把「" + item.name + "」加进了一起听");
       return;
     }
+
     APP.tracks.push({
       id: item.id, name: item.name, size: item.size || 0, dur: item.dur || 0,
       type: guessMime(item.name, item.type),
@@ -4319,10 +4381,12 @@ function applyPlOp(m) {
     APP.plVer = Math.max(APP.plVer, m.ver || 0);
     // 对方如果先发过这首歌的歌词，这里补上
     if (APP.lrcCache[item.id]) {
-      const nt = findTrack(item.id);
+      const nt = findInQueue(item.id);
       if (nt) nt.lrc = parseLrc(APP.lrcCache[item.id]);
     }
     renderPlaylist();
+    syncListCount();
+    hint("对方把「" + item.name + "」加进了一起听，正在接收…");
     requestTrackFile(item.id);
     return;
   }
@@ -4342,8 +4406,8 @@ function applyPlOp(m) {
     });
     APP.tracks.forEach((t) => { if (map[t.id]) next.push(t); });
     APP.tracks = next;
-    saveOrder();
     renderPlaylist();
+    syncListCount();
     return;
   }
 
@@ -4359,7 +4423,7 @@ function applyPlOp(m) {
     const [t] = APP.tracks.splice(i, 1);
     APP.tracks.splice(clamp(m.to, 0, APP.tracks.length), 0, t);
     renderPlaylist();
-    saveOrder();
+    syncListCount();
     return;
   }
 
@@ -4375,12 +4439,9 @@ function applyPlOp(m) {
     const t = APP.tracks[i];
     APP.tracks.splice(i, 1);
     if (APP.curId === id) stopCurrentAudio();
-    if (t.url) { try { URL.revokeObjectURL(t.url); } catch (e) {} }
-    for (const k in APP.alias) { if (APP.alias[k] === id) delete APP.alias[k]; }
-    dropTrackRec(id);
-    saveOrder();
     renderPlaylist();
-    hint("对方把「" + t.name + "」从歌单删掉了");
+    syncListCount();
+    hint("对方把「" + t.name + "」移出了一起听（歌还在各自的列表里）");
   }
 }
 
@@ -4396,13 +4457,7 @@ function requestTrackFile(id) {
   }, 5000);
 }
 
-/* 对方握手时带过来的歌曲列表（含对方新增、我还没收到的） */
-function mergeRemoteTracks(items) {
-  items.forEach((item) => {
-    if (!item || !item.id) return;
-    applyPlOp({ op: "add", ver: 0, by: "", item });
-  });
-}
+/* 对方握手时不再整份歌单导入：一起听歌单只由双方手动添加 */
 
 /* ---------- 歌单：搜索 / 收藏 / 最近 / 排序 ---------- */
 function recentKeys() {
@@ -4444,15 +4499,56 @@ function visibleTracks() {
   return list;
 }
 
+function visibleLib() {
+  let list = APP.lib.slice();
+  const q = String(APP.plQuery || "").trim().toLowerCase();
+  if (q) list = list.filter((t) => String(t.name || "").toLowerCase().indexOf(q) >= 0);
+  return list;
+}
+
 function renderPlaylist() {
   syncListCount();
   const box = UI.playlist;
+
+  /* 「我的歌曲」= 长期保存的本地列表，「一起听」= 本次房间的歌单 */
+  if (APP.plTab === "lib") {
+    const list = visibleLib();
+    if (UI.plFilterCount) UI.plFilterCount.textContent = APP.plQuery ? "匹配 " + list.length + " 首" : "";
+    if (!APP.lib.length) {
+      box.innerHTML = '<div class="plEmpty">我的列表还是空的，点上面「添加歌曲 / 扫描本地歌曲」</div>';
+      return;
+    }
+    if (!list.length) {
+      box.innerHTML = '<div class="plEmpty">没有符合条件的歌</div>';
+      return;
+    }
+    box.innerHTML = list.map((t, i) => {
+      const inQ = !!findInQueue(t.id);
+      const meta = [];
+      if (t.dur) meta.push(fmtTime(t.dur));
+      if (t.lrc && t.lrc.length) meta.push("有歌词");
+      if (t.state === "sending") meta.push("发送中 " + (t.pct || 0) + "%");
+      if (!t.mine) meta.push("对方给的");
+      if (inQ) meta.push("已在一起听");
+      return '<div class="plItem' + (inQ ? " cur" : "") + '" data-id="' + t.id + '">' +
+        '<div class="plIdx">' + (i + 1) + "</div>" +
+        '<div class="plMain" data-act="qadd">' +
+          '<div class="plName">' + esc(t.name) + "</div>" +
+          '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
+        "</div>" +
+        '<button class="miniBtn' + (inQ ? " fav on" : "") + '" data-act="qadd" title="加入一起听">' +
+          (inQ ? "✓" : "＋") + "</button>" +
+        "</div>";
+    }).join("");
+    return;
+  }
+
   const list = visibleTracks();
   if (UI.plFilterCount) {
     UI.plFilterCount.textContent = (APP.plTab === "all" && !APP.plQuery) ? "" : "显示 " + list.length + " 首";
   }
   if (!APP.tracks.length) {
-    box.innerHTML = '<div class="plEmpty">还没有歌，点上面按钮添加</div>';
+    box.innerHTML = '<div class="plEmpty">一起听歌单还是空的<br>切到「我的歌曲」点 ＋ 加进来</div>';
     return;
   }
   if (!list.length) {
@@ -4753,6 +4849,8 @@ function saveProgress() {
 }
 
 function restoreProgress() {
+  /* 一起听歌单每次都是空的，没有“上次那首”可恢复，进度仍然会存着 */
+  if (!APP.tracks.length) return;
   let rec = null;
   try { rec = JSON.parse(localStorage.getItem("duet_pos_v1") || "null"); } catch (e) {}
   if (!rec || !rec.key) return;
@@ -4880,9 +4978,12 @@ function selectTrack(id, startPlay) {
     return;
   }
   if (!t.url) {
-    hint(t.state === "recv"
-      ? "这首歌还在接收中，等进度到 100% 再点"
-      : "这首歌还没传到你手机上，先别急（可以让对方用微信把歌发给你，再用「添加歌曲」加进来）");
+    if (t.state === "recv" || t.state === "waiting") {
+      APP.pendPlayId = id;   // 加载好之后自动开始播
+      hint("「" + t.name + "」还在加载，进度到 100% 会自己开始播放");
+    } else {
+      hint("这首歌还没传到你设备上，先别急（可以让对方用微信把歌发给你，再用「添加歌曲」加进来）");
+    }
     return;
   }
   loadTrackAudio(t);
@@ -5512,6 +5613,8 @@ UI.playlist.addEventListener("click", (e) => {
   else if (act === "down") moveTrack(id, 1);
   else if (act === "del") deleteTrack(id);
   else if (act === "fav") toggleFav(id);
+  else if (act === "qadd") addToQueue(id);
+  else if (APP.plTab === "lib") addToQueue(id);   // 「我的歌曲」里点行 = 加入一起听
   else if (APP.reorder) return;   // 排序模式下点行不播放
   else selectTrack(id, true);
 });
