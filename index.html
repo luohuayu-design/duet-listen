@@ -3551,6 +3551,7 @@ function createPeer(initiator) {
       setConn("已直连成功（不经过服务器）", "ok");
       setPill("直连已建立", "ok");
       show(UI.tipFallback, false);
+      pumpSendQueue();
     } else if (st === "disconnected") {
       setPill("直连不稳，正在恢复", "warn blink");
       if (APP.paired) {
@@ -3779,6 +3780,9 @@ function bindCtlChannel(dc) {
     show(UI.rowRetryConn, false);
     enterMain();
     publishMode();
+    /* 连上的这一刻再报一次完整歌单：对方如果是在配对前才入房，
+       可能一条 hello 都没收到，歌名就永远补不上了 */
+    publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
     sendAllMyTracks();
   };
   dc.onclose = () => {
@@ -3870,6 +3874,9 @@ function sendAllMyTracks() {
     if (t.owner && t.owner !== APP.me) return;
     queueTrackSend(t);
   });
+  /* 进房前就排在队列里的歌不会被 queueTrackSend 重复入队，
+     所以这里必须主动踢一脚，否则队列会一直躺着不传 */
+  pumpSendQueue();
 }
 
 /* 传歌排队：一次只传一首，不并发，保证速度 */
