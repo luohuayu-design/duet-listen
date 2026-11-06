@@ -2707,6 +2707,7 @@ class MqttWS {
     this.onOnline = null;
     this._keep = null;
     this._retryTimer = null;
+    this._connecting = null;
   }
 
   static encRL(n) {
@@ -2729,8 +2730,9 @@ class MqttWS {
     clearTimeout(this._retryTimer);
     this._retryTimer = null;
     if (this.connected) return Promise.resolve();
+    if (this._connecting) return this._connecting;
     /* 两个中转站同时连，谁先握手成功就用谁；以前是一个一个等，最坏要干等 40 秒 */
-    return new Promise((resolve, reject) => {
+    const p = new Promise((resolve, reject) => {
       const socks = [];
       let done = false;
 
@@ -2750,7 +2752,7 @@ class MqttWS {
         done = true;
         socks.forEach((s) => { try { s.close(); } catch (e) {} });
         reject(new Error("连不上中转服务器"));
-      }, 9000);
+      }, 24000);
 
       this.brokers.forEach((url) => {
         let ws;
@@ -2767,7 +2769,7 @@ class MqttWS {
           if (settled) return;
           settled = true;
           try { ws.close(); } catch (e) {}
-        }, 8000);
+        }, 20000);
 
         ws.onopen = () => {
           // CONNECT：MQTT 3.1.1 + 清除会话 + keepalive 60
@@ -2801,6 +2803,9 @@ class MqttWS {
         };
       });
     });
+    this._connecting = p;
+    p.then(() => { this._connecting = null; }, () => { this._connecting = null; });
+    return p;
   }
 
   _scan(u8, ackCb) {
@@ -2883,7 +2888,6 @@ const BROKERS = [
   "wss://broker-cn.emqx.io:8084/mqtt",
   "wss://broker.emqx.io:8084/mqtt",
   "wss://broker.hivemq.com:8884/mqtt",
-  "wss://test.mosquitto.org:8081",
 ];
 const ICE = {
   iceServers: [
@@ -2924,7 +2928,9 @@ const APP = {
   me: "u" + Math.random().toString(36).slice(2, 8),
   room: "",
   role: "",              // host | guest
-  mq: null,
+  mqs: [],               // 每个中转站一条连接，同时挂着，哪条通用哪条（两端总会落在同一个站）
+  seenMid: new Set(),    // 同一条消息从多个中转站重复到达时只处理一次
+  midSeq: 0,
   topic: "",
   pc: null,
   ctl: null,             // 主数据通道（只用来判断直连是否成功）
@@ -3215,7 +3221,7 @@ async function restorePlaylist() {
     if (APP.tracks.length) UI.txtListText.textContent = APP.tracks.length + " 首（已恢复上次的歌单）";
     restoreProgress();
     // 让已经连上的对方也知道这份歌单
-    if (APP.mq) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
+    if (APP.mqs.length) publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
     if (APP.paired) sendAllMyTracks();
   } catch (e) {}
 }
@@ -3280,38 +3286,49 @@ function enterList() {
 
 async function joinRoomChannel(room) {
   APP.topic = TOPIC_PREFIX + room;
-  APP.mq = new MqttWS(BROKERS, APP.me, onMqttMessage);
+  APP.seenMid = new Set();
+  closeMqs();
 
-  APP.mq.onOnline = () => {
-    if (!APP.paired) {
-      setPill("中转已连", "ok");
-      setConn("中转已连，等待对方…", "ok");
+  /* 每个中转站单独挂一条连接：电脑端常常只有其中一个能通，
+     两端都会在所有能通的站上收发，所以只要有一个公共站就能互相找到 */
+  BROKERS.forEach((url, i) => {
+    const mq = new MqttWS([url], APP.me + "b" + i, onMqttMessage);
+    mq.topic = APP.topic;
+    mq.onOnline = () => {
+      if (!APP.paired) {
+        setPill("中转已连", "ok");
+        setConn("中转已连，等待对方…", "ok");
+      } else {
+        setPill("直连已建立", "ok");
+      }
       publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
-    } else {
-      setPill("直连已建立", "ok");
-    }
-  };
-  APP.mq.onLost = () => {
-    setPill("中转断开，重连中", "warn blink");
-    setConn("中转连接断开，正在重连…", "warn blink");
-  };
+    };
+    mq.onLost = () => {
+      if (!mqAnyConnected()) {
+        setPill("中转断开，重连中", "warn blink");
+        setConn("中转连接断开，正在重连…", "warn blink");
+      }
+      mq.connect().catch(() => {});
+    };
+    APP.mqs.push(mq);
+    mq.connect().catch(() => {});
+  });
 
-  /* 中转连不上就无限重试（指数退避），不再让用户自己反复点按钮 */
+  /* 等到至少一条中转连上；全都不通就无限重试（指数退避） */
   let n = 0;
-  while (!APP.mq.connected) {
-    try {
-      await APP.mq.connect();
-    } catch (e) {
-      if (!APP.room || APP.room !== room) throw new Error("已取消");
+  let lastKick = Date.now();
+  while (!mqAnyConnected()) {
+    if (!APP.room || APP.room !== room) throw new Error("已取消");
+    if (Date.now() - lastKick > 8000) {
+      lastKick = Date.now();
       n++;
-      const wait = Math.min(1500 * Math.pow(1.6, Math.min(n - 1, 6)), 15000) + Math.random() * 500;
       setConn("中转服务器连不上，正在第 " + n + " 次重试…", "warn blink");
       setPill("中转重试第 " + n + " 次", "warn blink");
       show(UI.rowRetryConn, true);
-      await sleep(wait);
+      APP.mqs.forEach((m) => { if (!m.connected) m.connect().catch(() => {}); });
     }
+    await sleep(300);
   }
-  APP.mq.subscribe(APP.topic);
 
   publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo() });
   clearInterval(APP.helloTimer);
@@ -3327,9 +3344,35 @@ async function joinRoomChannel(room) {
   show(UI.rowRetryConn, true);
 }
 
+function mqAnyConnected() { return APP.mqs.some((m) => m.connected); }
+function mqKick() {
+  APP.mqs.forEach((m) => { if (!m.connected) m.connect().catch(() => {}); });
+}
+/* 换房间时把上一批中转连接全部关掉，避免越连越多 */
+function closeMqs() {
+  APP.mqs.forEach((m) => {
+    try {
+      clearInterval(m._keep);
+      clearTimeout(m._retryTimer);
+      if (m.ws) m.ws.close();
+    } catch (e) {}
+    m.connected = false;
+    m.onLost = null;
+  });
+  APP.mqs = [];
+}
+
+/* 同一条消息发到所有能通的中转站，并带去重 id */
 function publish(obj) {
-  if (!APP.mq) return;
-  APP.mq.publish(APP.topic, JSON.stringify(obj));
+  if (!APP.mqs.length) return;
+  const msg = Object.assign({}, obj);
+  if (!msg.mid) msg.mid = APP.me + "-" + (APP.midSeq++).toString(36);
+  const s = JSON.stringify(msg);
+  APP.mqs.forEach((mq) => mq.publish(APP.topic, s));
+}
+
+function publishRaw(topic, payload) {
+  APP.mqs.forEach((mq) => mq.publish(topic, payload));
 }
 
 function myTrackInfo() {
@@ -3338,8 +3381,15 @@ function myTrackInfo() {
 
 /* ===================== 消息分发 ===================== */
 function onMqttMessage(topic, payload) {
-  const m = APP.mq._decode(payload);
+  let m = null;
+  try { m = JSON.parse(new TextDecoder().decode(payload)); } catch (e) { return; }
   if (!m || m.from === APP.me) return;
+  /* 多个中转站会把同一条消息各送一次，只处理第一次 */
+  if (m.mid) {
+    if (APP.seenMid.has(m.mid)) return;
+    APP.seenMid.add(m.mid);
+    if (APP.seenMid.size > 400) APP.seenMid.delete(APP.seenMid.values().next().value);
+  }
 
   switch (m.k) {
     case "hello": {
@@ -3699,7 +3749,7 @@ function retryPair() {
   clearTimeout(APP.retryTimer);
   APP.retryTimer = setTimeout(() => {
     if (!APP.room || APP.paired || APP.pc) return;
-    if (APP.mq && !APP.mq.connected) APP.mq.connect().catch(() => {});
+    mqKick();
     if (APP.role === "host") createPeer(true);
     else publish({ k: "hello", from: APP.me, role: APP.role, tracks: myTrackInfo(), renew: true });
   }, wait);
@@ -3772,8 +3822,8 @@ function netWake() {
   if (now - APP.lastWakeTs < 1200) return;
   APP.lastWakeTs = now;
   APP.lastPong = now;                        // 先给一次机会，别刚回前台就误判
-  if (!APP.mq || !APP.mq.connected) {
-    if (APP.mq) APP.mq.connect().catch(() => {});
+  if (!mqAnyConnected()) {
+    mqKick();
   }
   if (APP.paired) {
     const pc = APP.pc;
@@ -3798,7 +3848,7 @@ function forceReconnect() {
   APP.paired = false;
   APP.tryCount = 0;
   stopCtlHeartbeat();
-  if (APP.mq && !APP.mq.connected) APP.mq.connect().catch(() => {});
+  if (!mqAnyConnected()) mqKick();
   teardownPeer();
   setConn("正在重新连接…", "warn blink");
   setPill("重连中…", "warn blink");
@@ -4154,7 +4204,7 @@ $("#scanAddBtn").onclick = async () => {
 };
 
 function opAdd(track) {
-  if (!APP.mq) return;
+  if (!APP.mqs.length) return;
   APP.plVer++;
   APP.plBy = APP.me;
   const msg = {
@@ -4174,7 +4224,7 @@ function moveTrack(id, dir) {
   renderPlaylist();
   saveOrder();
 
-  if (!APP.mq) return;
+  if (!APP.mqs.length) return;
   APP.plVer++;
   APP.plBy = APP.me;
   const msg = { k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "move", id, to: j };
@@ -4197,7 +4247,7 @@ function deleteTrack(id) {
   saveOrder();
   renderPlaylist();
 
-  if (!APP.mq) return;
+  if (!APP.mqs.length) return;
   APP.plVer++;
   APP.plBy = APP.me;
   const msg = { k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "del", id };
@@ -4313,7 +4363,7 @@ function applyPlOp(m) {
 
 /* 对方新增的歌 5 秒还没传过来，就催一次补传 */
 function requestTrackFile(id) {
-  if (!APP.mq) return;
+  if (!APP.mqs.length) return;
   setTimeout(() => {
     const t = findTrack(localId(id));
     if (!t || t.url) return;
@@ -4490,7 +4540,7 @@ UI.playlist.addEventListener("pointercancel", endDrag);
 
 /* 整份歌单顺序同步（一次发全量，比一条条 move 更稳） */
 function opSort() {
-  if (!APP.mq) return;
+  if (!APP.mqs.length) return;
   APP.plVer++;
   APP.plBy = APP.me;
   const msg = {
@@ -4934,7 +4984,7 @@ audio.onended = () => {
 
 /* ===================== 播放状态同步（双方对等） ===================== */
 function onLocalAction() {
-  if (!APP.mq) return;
+  if (!APP.mqs.length) return;
   APP.stateVer++;
   APP.lastBy = APP.me;
 
@@ -5231,12 +5281,13 @@ $("#closeQr").onclick = closeSheets;
 const LOBBY_TOPIC = TOPIC_PREFIX + "lobby";
 const LOBBY_TTL = 16000;
 
-const LOBBY = { rooms: {}, pruneTimer: null, adTimer: null };
+const LOBBY = { rooms: {}, pruneTimer: null, adTimer: null, mqs: [] };
 
 function onLobbyMsg(topic, payload) {
-  if (!APP.lobbyMq) return;
-  const m = APP.lobbyMq._decode(payload);
+  let m = null;
+  try { m = JSON.parse(new TextDecoder().decode(payload)); } catch (e) { return; }
   if (!m || m.k !== "lobby" || !m.code) return;
+  if (m.from === APP.me) return;
   if (m.t === "bye") { delete LOBBY.rooms[m.code]; renderLobby(); return; }
   LOBBY.rooms[m.code] = {
     code: String(m.code).toUpperCase(),
@@ -5261,7 +5312,7 @@ function renderLobby() {
   const rooms = liveRooms();
   if (UI.lobbyCount) {
     UI.lobbyCount.textContent = rooms.length ? rooms.length + " 个在线"
-      : (APP.lobbyMq && APP.lobbyMq.connected ? "暂时没有" : "正在搜索…");
+      : (lobbyAnyConnected() ? "暂时没有" : "正在搜索…");
   }
   if (!rooms.length) {
     UI.lobbyList.innerHTML = '<div class="plEmpty">暂时没人在线，让朋友先点「创建房间」</div>';
@@ -5279,20 +5330,30 @@ function renderLobby() {
   }).join("");
 }
 
+function lobbyAnyConnected() { return LOBBY.mqs.some((m) => m.connected); }
+
 async function openLobby() {
   show(UI.lobbyBox, true);
   $("#btnLobby").disabled = true;
   renderLobby();
   clearInterval(LOBBY.pruneTimer);
   LOBBY.pruneTimer = setInterval(renderLobby, 2000);
-  if (APP.lobbyMq && APP.lobbyMq.connected) return;
+  if (lobbyAnyConnected()) return;
   if (UI.lobbyCount) UI.lobbyCount.textContent = "正在搜索…";
-  try {
-    const mq = new MqttWS(BROKERS, APP.me + "L", onLobbyMsg);
-    await mq.connect();
-    APP.lobbyMq = mq;
-    mq.subscribe(LOBBY_TOPIC);
-  } catch (e) {
+
+  /* 每个中转站各挂一条，只要有任意一条通就能看到房间列表 */
+  if (!LOBBY.mqs.length) {
+    BROKERS.forEach((url, i) => {
+      const mq = new MqttWS([url], APP.me + "L" + i, onLobbyMsg);
+      mq.topic = LOBBY_TOPIC;
+      mq.onLost = () => mq.connect().catch(() => {});
+      LOBBY.mqs.push(mq);
+      mq.connect().catch(() => {});
+    });
+  }
+  const t0 = Date.now();
+  while (!lobbyAnyConnected() && Date.now() - t0 < 22000) await sleep(300);
+  if (!lobbyAnyConnected()) {
     if (UI.lobbyCount) UI.lobbyCount.textContent = "连不上中转服务器";
     toast("连不上中转服务器，房间列表暂时打不开", 4000);
   }
@@ -5302,10 +5363,16 @@ async function openLobby() {
 function closeLobbyClient() {
   clearInterval(LOBBY.pruneTimer);
   LOBBY.pruneTimer = null;
-  if (APP.lobbyMq) {
-    try { if (APP.lobbyMq.ws) APP.lobbyMq.ws.close(); } catch (e) {}
-    APP.lobbyMq = null;
-  }
+  LOBBY.mqs.forEach((mq) => {
+    try {
+      clearInterval(mq._keep);
+      clearTimeout(mq._retryTimer);
+      if (mq.ws) mq.ws.close();
+    } catch (e) {}
+    mq.connected = false;
+    mq.onLost = null;
+  });
+  LOBBY.mqs = [];
   LOBBY.rooms = {};
   if (UI.lobbyBox) show(UI.lobbyBox, false);
   const b = $("#btnLobby");
@@ -5331,8 +5398,8 @@ function lobbyPayload(kind) {
 function startLobbyAd() {
   stopLobbyAd();
   const beat = () => {
-    if (!APP.room || !APP.mq) return;
-    try { APP.mq.publish(LOBBY_TOPIC, JSON.stringify(lobbyPayload("room"))); } catch (e) {}
+    if (!APP.room || !APP.mqs.length) return;
+    try { publishRaw(LOBBY_TOPIC, JSON.stringify(lobbyPayload("room"))); } catch (e) {}
   };
   beat();
   LOBBY.adTimer = setInterval(beat, 6000);
@@ -5344,8 +5411,8 @@ function stopLobbyAd() {
 }
 
 window.addEventListener("pagehide", () => {
-  if (APP.room && APP.mq && APP.role === "host") {
-    try { APP.mq.publish(LOBBY_TOPIC, JSON.stringify(lobbyPayload("bye"))); } catch (e) {}
+  if (APP.room && APP.mqs.length && APP.role === "host") {
+    try { publishRaw(LOBBY_TOPIC, JSON.stringify(lobbyPayload("bye"))); } catch (e) {}
   }
   stopLobbyAd();
 });
