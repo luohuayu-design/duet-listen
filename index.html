@@ -5094,13 +5094,9 @@ function applyPeerState(m, force) {
       const by = m.by || "";
       if (by < APP.lastBy) return;
       if (by === APP.lastBy) {
-        /* 对方只是每 5 秒补发一次同一个状态：小于 1.5 秒的偏差不要动，
-           否则本地每 5 秒就被拽一下，听感就是忽快忽慢带跳。 */
-        if (Math.abs(target - audio.currentTime) > 1.5) {
-          try { audio.currentTime = target; } catch (e) {}
-          APP.remoteBase = { pos: target, ts: Date.now(), playing: true };
-          audio.playbackRate = 1;
-        }
+        /* 对方每 5 秒补发一次同一个状态：只更新基准用于显示差距，
+           绝不拉拽本地进度。中间怎么播是各自的事，只在开播/停播时对齐。 */
+        APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
         return;
       }
     }
@@ -5161,39 +5157,20 @@ function applyPeerState(m, force) {
   }
 }
 
-/* 漂移校正：每 0.5 秒看一眼偏差。原则是「本地匀速优先」——
-   小偏差完全不管，中等偏差只做最多 1.5% 的轻微调速，只有明显脱轨且连续两次才硬跳。 */
-let _driftHits = 0;
+/* 差距只做显示，不再自动调速/跳位：
+   中间怎么播各管各的，只有「开播 / 停播 / 切歌」这三个动作会一次性对齐。
+   这样本地始终原速播放，不会再有被拉拽造成的断断续续。 */
 setInterval(() => {
-  if (!audio.src) return;
-  if (!APP.remoteBase || audio.paused) {
-    if (audio.paused) {
-      UI.lagVal.textContent = "暂停";
-      if (audio.playbackRate !== 1) audio.playbackRate = 1;  // 别把调速状态留到下次播放
-    }
-    return;
-  }
-  if (APP.applyRemote) return;
+  if (!audio.src) { UI.lagVal.textContent = "—"; return; }
+  if (audio.playbackRate !== 1) audio.playbackRate = 1;  // 正常永远是原速
+  if (audio.paused) { UI.lagVal.textContent = "暂停"; return; }
   const b = APP.remoteBase;
-  if (!b.playing) return;
-  const target = b.pos + (Date.now() - b.ts) / 1000;
-  const diff = target - audio.currentTime;
+  if (!b || !b.playing) { UI.lagVal.textContent = "本地"; return; }
+  const diff = (b.pos + (Date.now() - b.ts) / 1000) - audio.currentTime;
   UI.lagVal.textContent = (diff * 1000).toFixed(0) + "ms";
-
-  if (Math.abs(diff) > 1.5) {
-    if (++_driftHits >= 2) {          // 连续两次都差 1.5 秒以上，才认为是真的脱轨
-      _driftHits = 0;
-      audio.currentTime = target;
-      audio.playbackRate = 1;
-    }
-    return;
-  }
-  _driftHits = 0;
-  if (Math.abs(diff) > 0.15) audio.playbackRate = clamp(1 + diff * 0.2, 0.985, 1.015);
-  else audio.playbackRate = 1;
 }, 500);
 
-/* 当前版本的提交者每 5 秒补发一次，压住长时间播放的累积漂移 */
+/* 每 5 秒补发一次当前状态：只为让对方那边的「差距」数字保持新鲜，不再强制对齐进度 */
 setInterval(() => {
   if (!APP.paired || !audio.src || audio.paused) return;
   if (APP.lastBy !== APP.me) return;
