@@ -4328,6 +4328,7 @@ function stopCurrentAudio() {
   APP.curId = "";
   APP.remoteBase = null;
   APP.pendApply = null;
+  APP.wantPlaying = false;
   APP.lrcIdx = -1;
   UI.songName.textContent = "—";
   UI.tCur.textContent = "0:00";
@@ -4878,10 +4879,12 @@ function playSafe() {
     const name = (e && e.name) || "UnknownError";
     if (name === "AbortError") {
       /* 只是被 pause()/重新加载打断了，不是真的坏。
-         如果本机确实还要播，等一下自动再试一次（最多两次），不弹「播放失败」。 */
-      if (audio.paused && APP.curId && (APP._playRetry || 0) < 2) {
+         只有「本机现在还该播」才重试；对方刚按了暂停就绝不能自己又响起来。 */
+      if (APP.wantPlaying !== false && audio.paused && APP.curId && (APP._playRetry || 0) < 2) {
         APP._playRetry = (APP._playRetry || 0) + 1;
-        setTimeout(() => { if (audio.paused && APP.curId) playSafe(); }, 500);
+        setTimeout(() => {
+          if (APP.wantPlaying !== false && audio.paused && APP.curId) playSafe();
+        }, 500);
       }
       return;
     }
@@ -4987,7 +4990,7 @@ function selectTrack(id, startPlay) {
     return;
   }
   loadTrackAudio(t);
-  if (startPlay) playSafe();
+  if (startPlay) { APP.wantPlaying = true; playSafe(); }
   setTimeout(onLocalAction, 40);
 }
 
@@ -5179,9 +5182,8 @@ function onLocalAction() {
 function applyPeerState(m, force) {
   if (typeof m.ver !== "number") return;
 
-  /* 本机刚点过播放/暂停/切歌的 2 秒内，以本机为准。
-     否则对方每 5 秒补发的旧「暂停」状态会把刚发起的播放立刻打断（AbortError）。 */
-  if (!force && Date.now() - (APP.localIntentTs || 0) < 2000) return;
+  /* 双方权限完全对等：没有“本机刚点过就优先”的特权，谁后发谁生效。
+     靠 ver（Lamport 时钟）判断新旧，后发的那条一定能盖住前一条。 */
 
   const off = APP.offset || 0;
   const tsLocal = m.ts - off;
@@ -5239,12 +5241,14 @@ function applyPeerState(m, force) {
     if (audio.readyState < 1) {
       APP.pendApply = { pos: target, playing: m.playing };
       APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
+      APP.wantPlaying = !!m.playing;
       return;
     }
 
     if (audio.duration) target = Math.min(target, audio.duration);
     // 只在偏差比较明显时才跳，避免几十毫秒的小误差被反复「拽」出听感上的跳动
     if (Math.abs(audio.currentTime - target) > 0.35) audio.currentTime = target;
+    APP.wantPlaying = !!m.playing;
     if (m.playing) {
       playSafe();
     } else {
@@ -5324,7 +5328,7 @@ function maybeResume() {
       try { audio.currentTime = target; } catch (e) {}
     }
   }
-  if (audio.paused) playSafe();
+  if (audio.paused) { APP.wantPlaying = true; playSafe(); }
 }
 window.addEventListener("focus", () => setTimeout(maybeResume, 400));
 document.addEventListener("visibilitychange", () => {
@@ -5629,8 +5633,8 @@ UI.btnPlay.onclick = () => {
     hint(APP.tracks.length ? "歌单里的歌还没传到这台设备上，等一下再点" : "先添加一首歌再播放");
     return;
   }
-  if (audio.paused) playSafe();
-  else audio.pause();
+  if (audio.paused) { APP.wantPlaying = true; playSafe(); }
+  else { APP.wantPlaying = false; audio.pause(); }
   setTimeout(onLocalAction, 60);
 };
 
