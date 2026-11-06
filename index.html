@@ -4762,14 +4762,45 @@ function playSafe() {
   p.catch((e) => {
     const name = (e && e.name) || "UnknownError";
     if (name === "NotAllowedError") {
-      UI.txtListText.textContent = "手机不允许自动播放，请点一下播放键";
+      hint("浏览器拦住了自动播放，请再点一下播放键");
     } else if (name === "NotSupportedError") {
-      UI.txtListText.textContent = "这首歌手机解不了（格式不支持或文件没传完）";
+      hint("这首歌解不了（格式不支持或文件没传完）");
     } else {
-      UI.txtListText.textContent = "播放失败：" + name;
+      hint("播放失败：" + name);
     }
   });
 }
+
+/* 有些电脑上 audio 会卡在「显示正在播放，但 readyState 一直是 0、duration 读不到」，
+   表现就是进度条完全不动、也没有声音。这里定时自检，命中就重建 blob 地址自愈。 */
+let _stuckTicks = 0;
+function audioLoadingStuck() {
+  return !!audio.src && !audio.paused &&
+    (audio.readyState === 0 || !isFinite(audio.duration) || audio.duration <= 0);
+}
+function reloadStuckAudio() {
+  const t = findTrack(APP.curId);
+  if (!t || !t.blob) return false;
+  if ((t._heals || 0) >= 2) return false;   // 每首歌最多自愈两次，避免死循环
+  t._heals = (t._heals || 0) + 1;
+  const pos = audio.currentTime || 0;
+  try { if (t.url) URL.revokeObjectURL(t.url); } catch (e) {}
+  t.url = URL.createObjectURL(new Blob([t.blob]));
+  APP.pendApply = pos > 0 ? { pos: pos, playing: true } : null;
+  audio.src = t.url;
+  audio.load();
+  playSafe();
+  hint("音频加载卡住了，已自动重新加载「" + t.name + "」");
+  return true;
+}
+setInterval(() => {
+  if (!audioLoadingStuck()) { _stuckTicks = 0; return; }
+  if (++_stuckTicks < 3) return;            // 连续 6 秒都卡着才算真的卡住
+  _stuckTicks = 0;
+  if (!reloadStuckAudio()) {
+    hint("音频一直加载不出来：请检查电脑有没有可用的扬声器/音频输出设备，或刷新页面重试", 6000);
+  }
+}, 2000);
 
 audio.onerror = () => {
   if (!APP.curId) return; // 主动停歌时 clear src 也会触发，这里忽略
@@ -4789,8 +4820,8 @@ audio.onerror = () => {
     } catch (e) {}
   }
   const e = audio.error;
-  UI.txtListText.textContent = "「" + (t ? t.name : "这首歌") + "」打不开（错误码 " +
-    (e ? e.code : "?") + "）：格式可能不被支持，或文件不完整";
+  hint("「" + (t ? t.name : "这首歌") + "」打不开（错误码 " +
+    (e ? e.code : "?") + "）：格式可能不被支持，或文件不完整", 6000);
 };
 
 audio.onloadedmetadata = () => {
@@ -5168,8 +5199,13 @@ document.addEventListener("visibilitychange", () => {
 /* ---------- 网络变化 / 回到前台：立刻检查并救连接 ---------- */
 window.addEventListener("online", () => { toast("网络已恢复，正在检查连接…"); netWake(); });
 window.addEventListener("offline", () => { setPill("手机没网了", "err"); setConn("网络已断开，恢复后会自动重连", "err"); });
-window.addEventListener("focus", () => netWake());
-document.addEventListener("visibilitychange", () => { if (!document.hidden) netWake(); });
+window.addEventListener("focus", () => { netWake(); if (audioLoadingStuck()) reloadStuckAudio(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  netWake();
+  // 页面在后台待过一阵后，音频可能被挂起成「假播放」，回到前台立刻救一次
+  if (audioLoadingStuck()) reloadStuckAudio();
+});
 if (navigator.connection && navigator.connection.addEventListener) {
   navigator.connection.addEventListener("change", () => netWake());
 }
@@ -5449,7 +5485,8 @@ UI.playlist.addEventListener("click", (e) => {
 UI.btnPlay.onclick = () => {
   if (!audio.src) {
     const first = APP.tracks.find((t) => t.url);
-    if (first) selectTrack(first.id, true);
+    if (first) { selectTrack(first.id, true); return; }
+    hint(APP.tracks.length ? "歌单里的歌还没传到这台设备上，等一下再点" : "先添加一首歌再播放");
     return;
   }
   if (audio.paused) playSafe();
