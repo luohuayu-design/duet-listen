@@ -4761,6 +4761,15 @@ function playSafe() {
   if (!p || !p.catch) return;
   p.catch((e) => {
     const name = (e && e.name) || "UnknownError";
+    if (name === "AbortError") {
+      /* 只是被 pause()/重新加载打断了，不是真的坏。
+         如果本机确实还要播，等一下自动再试一次（最多两次），不弹「播放失败」。 */
+      if (audio.paused && APP.curId && (APP._playRetry || 0) < 2) {
+        APP._playRetry = (APP._playRetry || 0) + 1;
+        setTimeout(() => { if (audio.paused && APP.curId) playSafe(); }, 500);
+      }
+      return;
+    }
     if (name === "NotAllowedError") {
       hint("浏览器拦住了自动播放，请再点一下播放键");
     } else if (name === "NotSupportedError") {
@@ -4839,6 +4848,9 @@ audio.onloadedmetadata = () => {
 
 /* 选择/切换歌曲（用户主动） */
 function selectTrack(id, startPlay) {
+  // 本机用户主动选歌：记下意图，2 秒内压过对方补发的旧状态
+  APP.localIntentTs = Date.now();
+  APP._playRetry = 0;
   const t = findTrack(id);
   if (!t) return;
   if (!t.url) {
@@ -5040,6 +5052,10 @@ function onLocalAction() {
 function applyPeerState(m, force) {
   if (typeof m.ver !== "number") return;
 
+  /* 本机刚点过播放/暂停/切歌的 2 秒内，以本机为准。
+     否则对方每 5 秒补发的旧「暂停」状态会把刚发起的播放立刻打断（AbortError）。 */
+  if (!force && Date.now() - (APP.localIntentTs || 0) < 2000) return;
+
   const off = APP.offset || 0;
   const tsLocal = m.ts - off;
   const elapsed = m.playing ? Math.max(0, (Date.now() - tsLocal) / 1000) : 0;
@@ -5060,7 +5076,9 @@ function applyPeerState(m, force) {
     }
   }
 
-  APP.stateVer = m.ver;
+  /* ver 是各自设备累加的，不能直接拿来比大小，否则谁的数字大谁就永远压死对方。
+     这里按 Lamport 时钟处理：收到对方的版本就「只升不降」，自己再动作时在更高的基数上加一。 */
+  APP.stateVer = Math.max(APP.stateVer || 0, m.ver);
   APP.lastBy = m.by || "";
   APP.lastStateApplyTs = Date.now();
   APP.applyRemote = true;
@@ -5483,6 +5501,9 @@ UI.playlist.addEventListener("click", (e) => {
 });
 
 UI.btnPlay.onclick = () => {
+  // 本机用户主动按播放/暂停：记下意图
+  APP.localIntentTs = Date.now();
+  APP._playRetry = 0;
   if (!audio.src) {
     const first = APP.tracks.find((t) => t.url);
     if (first) { selectTrack(first.id, true); return; }
@@ -5511,7 +5532,7 @@ loadMode();
 renderShuffleBtn();
 renderRepeatBtn();
 
-UI.seek.oninput = () => {
+UI.seek.oninput = () => { APP.localIntentTs = Date.now();
   if (!audio.src || !audio.duration) return;
   audio.currentTime = (Number(UI.seek.value) / 1000) * audio.duration;
   UI.tCur.textContent = fmtTime(audio.currentTime);
