@@ -102,7 +102,8 @@
 
   .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
   .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
-  .plItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .plItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px;
+          content-visibility:auto;contain-intrinsic-size:auto 58px}
   .plItem.cur{border-color:var(--accent);background:rgba(91,140,255,.12)}
   .plIdx{width:22px;text-align:center;color:var(--sub);font-size:12px;flex:none}
   .plIdx.grip{color:var(--accent);font-size:16px;cursor:grab;touch-action:none}
@@ -3710,12 +3711,22 @@ function dbDo(store, mode, fn) {
 }
 
 /* 存一首歌（只在文件真的变了时调用，避免反复写大文件） */
+let _quotaWarnAt = 0;
 function saveTrack(t) {
   if (!t || !t.id || !t.blob) return;
   dbDo("tracks", "readwrite", (st) => st.put({
     id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
     blob: t.blob, mine: !!t.mine, owner: t.owner || "", lrc: t.lrc || null, fav: !!t.fav, ts: Date.now(),
-  })).catch(() => {});
+  })).catch((e) => {
+    /* 存储写满：明确告诉用户这首歌没存住，别让它在重启后无声消失 */
+    const quota = e && (e.name === "QuotaExceededError" || /quota|exceed|full/i.test(String(e.message || e)));
+    const now = Date.now();
+    if (now - _quotaWarnAt < 20000) return;
+    _quotaWarnAt = now;
+    hint(quota
+      ? "手机存储空间不够了：新加的歌没能保存，关掉 App 后会消失。先删掉一些不听的歌再试"
+      : "这首歌没能保存到本地，关掉 App 后可能消失", 6000);
+  });
 }
 function dropTrackRec(id) {
   dbDo("tracks", "readwrite", (st) => st.delete(id)).catch(() => {});
@@ -4205,7 +4216,12 @@ function onMqttMessage(topic, payload) {
     case "lrc": {
       if (!m.id || !m.text) break;
       APP.lrcCache[m.id] = m.text;
-      const lt = findTrack(localId(m.id));
+      let lt = findTrack(localId(m.id));
+      /* 两边这首歌 id 不一样（各自本地导入的同一个文件）：按名字+大小认领 */
+      if (!lt && m.name) {
+        const k = String(m.name) + "|" + (Number(m.size) || 0);
+        lt = APP.tracks.find((x) => trackKey(x) === k) || APP.lib.find((x) => trackKey(x) === k);
+      }
       if (lt) {
         lt.lrc = parseLrc(m.text);
         if (lt.id === APP.curId) renderLyrics();
@@ -4542,6 +4558,7 @@ function bindCtlChannel(p, dc) {
     publishProfile(true);
     publish(helloMsg());
     syncQueueToPeer();
+    sendLrcToPeer(p);
     /* 新进来的人要马上知道当前放到哪首歌，好把这首歌下下来对齐 */
     sendStateNow(p);
     ensureBuffer();
@@ -5656,6 +5673,29 @@ function parseLrc(text) {
   return out.slice(0, 2000);
 }
 
+/* 把已解析的歌词还原成 .lrc 文本，用来补给后来进房间的人 */
+function lrcStamp(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec - m * 60;
+  return String(m).padStart(2, "0") + ":" + s.toFixed(2).padStart(5, "0");
+}
+function lrcTextOf(t) {
+  if (!t || !Array.isArray(t.lrc) || !t.lrc.length) return "";
+  return t.lrc.map((l) => "[" + lrcStamp(l.t) + "]" + (l.text || "")).join("\n");
+}
+/* 刚连上时把歌单里已有的歌词单独发给对方（新加歌词时也会实时同步） */
+function sendLrcToPeer(p) {
+  if (!p || !p.paired) return;
+  APP.tracks.forEach((t) => {
+    const text = lrcTextOf(t);
+    if (!text) return;
+    publish({
+      k: "lrc", from: APP.me, to: p.id, id: t.id,
+      name: t.name, size: t.size || 0, text,
+    });
+  });
+}
+
 function renderLyrics() {
   const t = findTrack(APP.curId);
   const lines = t && Array.isArray(t.lrc) && t.lrc.length ? t.lrc : null;
@@ -5699,7 +5739,7 @@ function applyLrcText(text) {
   saveTrack(t);
   renderLyrics();
   renderPlaylist();
-  publish({ k: "lrc", from: APP.me, id: t.id, text });
+  publish({ k: "lrc", from: APP.me, id: t.id, name: t.name, size: t.size || 0, text });
   hint("歌词已加上（" + lines.length + " 行），对方也会看到");
 }
 
