@@ -102,6 +102,9 @@
 
   .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
   .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
+  .biBox{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+  .biTitle{font-size:12.5px;color:var(--sub);margin-bottom:8px}
+  .biItem{background:rgba(91,140,255,.1);border-color:rgba(91,140,255,.35)}
   .plItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px;
           content-visibility:auto;contain-intrinsic-size:auto 58px}
   .plItem.cur{border-color:var(--accent);background:rgba(91,140,255,.12)}
@@ -5008,6 +5011,65 @@ function addToQueue(id) {
   ensureBuffer();
 }
 
+/* ===== 内置歌曲：随网页/App 一起打包的几首示例歌，点了才去取，取到就当成自己导入的歌 ===== */
+const BUILTIN = [
+  { id: "bi1", name: "越来越不懂 - 蔡健雅.mp3", src: "audio/b1.mp3" },
+  { id: "bi2", name: "许嵩-一见如故.mp3", src: "audio/b2.mp3" },
+  { id: "bi3", name: "许嵩-出雨林记.mp3", src: "audio/b3.mp3" },
+];
+const biBusy = Object.create(null);
+
+function biPretty(name) { return String(name || "").replace(/\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i, ""); }
+
+function builtinBlockHtml() {
+  return '<div class="biBox"><div class="biTitle">也可以先试试这几首内置歌曲，不用导入</div>' +
+    BUILTIN.map((b) =>
+      '<div class="plItem biItem" data-id="' + b.id + '" data-act="biadd">' +
+      '<div class="plIdx">♫</div>' +
+      '<div class="plMain"><div class="plName">' + esc(biPretty(b.name)) + "</div>" +
+      '<div class="plMeta">内置 · 点 ＋ 加入一起听，对方会自动收到</div></div>' +
+      '<button class="miniBtn fav on" data-act="biadd" title="加入一起听">＋</button></div>'
+    ).join("") + "</div>";
+}
+
+async function addBuiltin(id) {
+  const b = BUILTIN.find((x) => x.id === id);
+  if (!b) return;
+  /* 之前取过的话直接用本地的，不再重复下载 */
+  let t = APP.lib.find((x) => x.id === b.id && x.url) || APP.lib.find((x) => x.id === b.id);
+  if (!t) {
+    if (biBusy[id]) return;
+    biBusy[id] = true;
+    toast("正在取「" + biPretty(b.name) + "」…");
+    try {
+      const resp = await fetch(b.src);
+      const ct = (resp.headers.get("content-type") || "").toLowerCase();
+      if (!resp.ok || /text\/html/.test(ct)) throw new Error("no-file");
+      const blob = await resp.blob();
+      if (!blob || blob.size < 1024) throw new Error("empty");
+      t = {
+        id: b.id, name: b.name, size: blob.size, dur: 0,
+        type: guessMime(b.name, blob.type),
+        blob, url: URL.createObjectURL(blob),
+        mine: true, owner: APP.me, state: "local", pct: 0, sending: false,
+      };
+      APP.lib.push(t);
+      saveTrack(t);
+      saveOrder();
+      loadDuration(t.url).then((d) => {
+        if (d && Math.abs((t.dur || 0) - d) > 0.5) { t.dur = d; saveTrack(t); renderPlaylist(); }
+      });
+      renderPlaylist();
+    } catch (e) {
+      hint("这首内置歌取不到。网页版要联网才能取；桌面那份单独的 html 没带音频文件，用网页版或 App 就行", 7000);
+      return;
+    } finally {
+      biBusy[id] = false;
+    }
+  }
+  addToQueue(t.id);
+}
+
 /* ===== 扫描本地歌曲：选文件夹 → 列出结果 → 勾选后加入（有全选） ===== */
 const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|webm|wma|ape|mka|amr|mp4)$/i;
 function isAudioName(n) { return AUDIO_EXT.test(String(n || "")); }
@@ -5533,7 +5595,7 @@ function renderPlaylist() {
     UI.plFilterCount.textContent = (APP.plTab === "duet" && !APP.plQuery) ? "" : "显示 " + list.length + " 首";
   }
   if (!APP.tracks.length) {
-    box.innerHTML = '<div class="plEmpty">一起听歌单还是空的<br>切到「我的歌曲」点 ＋ 加进来</div>';
+    box.innerHTML = '<div class="plEmpty">一起听歌单还是空的<br>切到「我的歌曲」点 ＋ 加进来</div>' + builtinBlockHtml();
     return;
   }
   if (!list.length) {
@@ -6794,6 +6856,7 @@ UI.playlist.addEventListener("click", (e) => {
     return;
   }
 
+  if (act === "biadd") { addBuiltin(id); return; }
   if (act === "up") moveTrack(id, -1);
   else if (act === "down") moveTrack(id, 1);
   else if (act === "del") deleteTrack(id);
