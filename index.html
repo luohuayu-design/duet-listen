@@ -468,10 +468,11 @@
   <section class="sheet" id="sheetSound">
     <div class="sheetHandle"></div>
     <div class="sheetHead">
-      <div class="sheetTitle">声音与通话</div>
+      <div class="sheetTitle">设置</div>
       <button class="topBtn" id="closeSound">收起</button>
     </div>
     <div class="sheetBody">
+      <div class="label" style="margin:0 0 8px">声音与通话</div>
       <div class="soundRow">
         <div>
           <div class="soundName">接管系统音频焦点</div>
@@ -492,6 +493,17 @@
         <button class="chip" data-v="ignore">不处理</button>
       </div>
       <p class="plsTip" style="margin-top:18px">系统音频焦点只有安卓 App 能接管，网页版不显示这块设置。改完立即生效，不用重启。</p>
+      <div class="hidden" id="storeBox">
+        <div class="label" style="margin-top:20px">手机存储</div>
+        <div class="soundRow">
+          <div>
+            <div class="soundName">App 内音频副本</div>
+            <div class="soundDesc" id="storeDesc">—</div>
+          </div>
+          <button class="topBtn" id="btnFree" style="flex:none">释放</button>
+        </div>
+        <p class="plsTip" style="margin-top:10px">释放后歌名保留，点歌时重新选一次文件就能听。手机里原来的音乐文件不会被删。</p>
+      </div>
     </div>
   </section>
 
@@ -3716,10 +3728,15 @@ function dbDo(store, mode, fn) {
 /* 存一首歌（只在文件真的变了时调用，避免反复写大文件） */
 let _quotaWarnAt = 0;
 function saveTrack(t) {
-  if (!t || !t.id || !t.blob) return;
+  if (!t || !t.id) return;
+  /* 引用模式（安卓）只存文件位置不存音频；被释放过的歌只存歌名，等用户重新选文件 */
+  const ref = t.ref || null;
+  const keepBlob = ref ? null : (t.blob || null);
+  if (!keepBlob && !ref && !t.missing) return;
   dbDo("tracks", "readwrite", (st) => st.put({
     id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
-    blob: t.blob, mine: !!t.mine, owner: t.owner || "", lrc: t.lrc || null, fav: !!t.fav, ts: Date.now(),
+    blob: keepBlob, ref: ref, missing: !!t.missing,
+    mine: !!t.mine, owner: t.owner || "", lrc: t.lrc || null, fav: !!t.fav, ts: Date.now(),
   })).catch((e) => {
     /* 存储写满：明确告诉用户这首歌没存住，别让它在重启后无声消失 */
     const quota = e && (e.name === "QuotaExceededError" || /quota|exceed|full/i.test(String(e.message || e)));
@@ -3772,16 +3789,18 @@ async function restorePlaylist() {
 
     const byId = {};
     recs.forEach((r) => {
-      if (!r || !r.id || !r.blob) return;
-      byId[r.id] = {
-        id: r.id, name: r.name || "未命名歌曲", size: r.size || r.blob.size, dur: r.dur || 0,
-        type: r.type || "", blob: r.blob, url: URL.createObjectURL(r.blob),
+      if (!r || !r.id) return;
+      const t = {
+        id: r.id, name: r.name || "未命名歌曲", size: r.size || (r.blob ? r.blob.size : 0), dur: r.dur || 0,
+        type: r.type || "", blob: r.blob || null, ref: r.ref || null, missing: !!r.missing,
         // 本机添加过的歌记在自己名下（否则重连后不会自动补传）
         mine: !!r.mine, owner: r.mine ? APP.me : (r.owner || ""),
         state: "local", pct: 0, sending: false,
         lrc: Array.isArray(r.lrc) && r.lrc.length ? r.lrc : null,
         fav: !!r.fav,
       };
+      if (t.blob) t.url = URL.createObjectURL(t.blob);
+      byId[r.id] = t;
     });
 
     if (order && order.length) {
@@ -4673,7 +4692,8 @@ function syncQueueToPeer() {
 
 /* 传歌排队：一次只传一首，不并发，保证速度；别人没连上就先跳过，等重连再补 */
 function queueTrackSend(t, pid) {
-  if (!t || !t.blob || !pid) return;
+  if (!t || !pid) return;
+  if (!t.blob && !t.ref) return;
   const p = APP.peers[pid];
   if (!p) return;
   if (!t.sentTo) t.sentTo = {};
@@ -4686,10 +4706,21 @@ function queueTrackSend(t, pid) {
 function pumpSendQueue() {
   if (APP.sending) return;
   while (APP.sendQueue.length) {
-    const job = APP.sendQueue.shift();
+    const job = APP.sendQueue[0];
     const p = APP.peers[job.pid];
-    if (!p || !p.pc || p.pc.connectionState !== "connected") continue;
-    if (!job.t.blob) continue;
+    if (!p || !p.pc || p.pc.connectionState !== "connected") { APP.sendQueue.shift(); continue; }
+    if (!job.t.blob && !job.t.ref) { APP.sendQueue.shift(); continue; }
+    /* 引用模式：传歌前现场把音频读出来，读完再发 */
+    if (!job.t.blob) {
+      APP.sending = true;
+      ensureUrl(job.t).then((u) => {
+        APP.sending = false;
+        if (!u) APP.sendQueue.shift();
+        pumpSendQueue();
+      });
+      return;
+    }
+    APP.sendQueue.shift();
     APP.sending = true;
     sendTrackToPeer(job.t, p);
     return;
@@ -4943,8 +4974,177 @@ function loadDuration(url) {
   });
 }
 
+/* ===== 安卓引用模式：只记手机里文件的位置，不再把音频复制一份进 App ===== */
+const FREF = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.FileRef) || null;
+let _pickBusy = false;
+
+function b64ToBytes(s) {
+  const bin = atob(s);
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+
+/* 通过原生插件把手机里的文件按块读成 Blob：只在内存里，不写 IDB */
+function refRead(uri) {
+  return new Promise((resolve, reject) => {
+    const job = "j" + Date.now() + "_" + Math.random().toString(36).slice(2);
+    const parts = [];
+    const hs = [];
+    let done = false;
+    const clean = () => { hs.forEach((h) => { try { h.remove(); } catch (e) {} }); };
+    const finish = (blob, err) => {
+      if (done) return;
+      done = true;
+      clean();
+      if (blob) resolve(blob); else reject(err || new Error("读取失败"));
+    };
+    Promise.all([
+      FREF.addListener("refChunk", (d) => {
+        if (!d || d.job !== job || !d.data) return;
+        parts[Number(d.seq) || 0] = b64ToBytes(d.data);
+      }),
+      FREF.addListener("refDone", (d) => {
+        if (!d || d.job !== job) return;
+        if (!d.ok) { finish(null, new Error(d.error || "读取失败")); return; }
+        finish(new Blob(parts.filter((x) => x), { type: d.mime || "" }));
+      }),
+    ]).then((arr) => {
+      hs.push(...arr);
+      FREF.read({ uri: uri, job: job }).catch((e) => finish(null, e));
+    }).catch((e) => finish(null, e));
+  });
+}
+
+/* 播放/传歌前确保这首歌有可用的 blob + url；引用歌就是在这里现场读出来的 */
+async function ensureUrl(t) {
+  if (!t) return null;
+  if (t.url) return t.url;
+  if (t.blob) { t.url = URL.createObjectURL(t.blob); return t.url; }
+  if (t.ref && FREF) {
+    try {
+      const blob = await refRead(t.ref.uri);
+      if (blob && blob.size > 1024) {
+        t.blob = blob;
+        if (!t.size) t.size = blob.size;
+        t.url = URL.createObjectURL(blob);
+        t.missing = false;
+        return t.url;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+async function pickRefs() {
+  if (!FREF || _pickBusy) return false;
+  _pickBusy = true;
+  try {
+    const res = await FREF.pick({ multiple: true });
+    const files = (res && res.files) || [];
+    if (files.length) addRefFiles(files);
+    return files.length > 0;
+  } catch (e) {
+    hint("选歌失败：" + ((e && e.message) || "再试一次"), 5000);
+    return false;
+  } finally {
+    _pickBusy = false;
+  }
+}
+
+/* 引用导入：App 里只存歌名/大小/时长/位置，音频留在手机原处 */
+function addRefFiles(list) {
+  let added = 0, dup = 0, linked = 0, bad = 0;
+  const seen = Object.create(null);
+  (list || []).forEach((f) => {
+    const name = f && f.name ? String(f.name) : "";
+    const size = Number(f && f.size) || 0;
+    if (!name || !size || !f.uri) { bad++; return; }
+    const key = name + "|" + size;
+    if (seen[key]) { dup++; return; }
+    seen[key] = 1;
+    /* 之前释放过副本的歌：选到同一个文件就把位置接回去，不新建一条 */
+    const old = APP.lib.find((t) => (t.name || "") === name && Math.abs((t.size || 0) - size) < 1024);
+    if (old) {
+      if (old.blob || old.ref) { dup++; return; }
+      old.ref = { uri: f.uri, mime: f.mime || "" };
+      old.missing = false;
+      old.size = size;
+      if (Number(f.dur)) old.dur = Number(f.dur);
+      if (f.mime) old.type = f.mime;
+      saveTrack(old);
+      linked++;
+      return;
+    }
+    const track = {
+      id: newId(), name: name, size: size, dur: Number(f.dur) || 0,
+      type: f.mime || guessMime(name, ""),
+      ref: { uri: f.uri, mime: f.mime || "" },
+      mine: true, owner: APP.me, state: "local", pct: 0, sending: false,
+    };
+    APP.lib.push(track);
+    saveTrack(track);
+    added++;
+  });
+  saveOrder();
+  renderPlaylist();
+  const bits = [];
+  if (added) bits.push("新加 " + added + " 首");
+  if (linked) bits.push("接回 " + linked + " 首");
+  if (dup) bits.push("重复跳过 " + dup + " 首");
+  if (bad) bits.push("不支持 " + bad + " 首");
+  UI.txtListText.textContent = (bits.length ? bits.join("，") : "没选到歌") + "；音频留在手机里，App 不再存副本";
+  hint("已引用 " + (added + linked) + " 首歌，App 里不会再存第二份", 4000);
+}
+
+/* App 里还压着多少自己导入的音频副本 */
+function copiesInfo() {
+  let n = 0, bytes = 0;
+  APP.lib.forEach((t) => {
+    if (!t.mine || t.id === APP.curId) return;
+    if (t.blob || t.url) { n++; bytes += (t.blob && t.blob.size) || t.size || 0; }
+  });
+  return { n: n, bytes: bytes };
+}
+
+/* 释放 App 内的音频副本：歌名留着，之后点歌时重新选一次文件 */
+async function freeLocalCopies() {
+  if (!FREF) return;
+  const own = APP.lib.filter((t) => t.mine && (t.blob || t.url));
+  if (!own.length) { hint("App 里已经没有音频副本了", 4000); return; }
+  const bytes = own.reduce((s, t) => s + ((t.blob && t.blob.size) || t.size || 0), 0);
+  const cur = own.some((t) => t.id === APP.curId);
+  if (!confirm("释放 App 里的 " + own.length + " 份音频副本？大约能腾出 " + fmtSize(bytes) +
+    "。歌名会保留，之后点歌时重新选一次文件就能听；手机上原来的音乐文件不会被删" +
+    (cur ? "（正在播放的那首会留着）" : "") + "。")) return;
+  let freed = 0, gone = 0;
+  own.forEach((t) => {
+    if (t.id === APP.curId) return;
+    if (/^bi[123]$/.test(t.id)) {
+      /* 内置歌：清掉记录，下次在空歌单里还能重新取 */
+      const i = APP.lib.indexOf(t);
+      if (i >= 0) APP.lib.splice(i, 1);
+      APP.tracks = APP.tracks.filter((x) => x.id !== t.id);
+      dropTrackRec(t.id);
+      gone++;
+      return;
+    }
+    if (t.url) { try { URL.revokeObjectURL(t.url); } catch (e) {} }
+    t.url = null;
+    t.blob = null;
+    if (!t.ref) t.missing = true;
+    saveTrack(t);
+    freed++;
+  });
+  saveOrder();
+  renderPlaylist();
+  syncListCount();
+  const c = copiesInfo();
+  hint("已释放 " + (freed + gone) + " 份副本" + (c.n ? "，" + fmtSize(c.bytes) + " 还留着" : ""), 5000);
+}
+
 async function addFiles(files) {
-  let added = 0, dup = 0, bad = 0;
+  let added = 0, dup = 0, bad = 0, linked = 0;
   const seen = Object.create(null);
   const durJobs = [];
   for (const f of Array.from(files)) {
@@ -4953,7 +5153,16 @@ async function addFiles(files) {
     const key = (f.name || "") + "|" + (f.size || 0);
     if (seen[key]) { dup++; continue; }
     seen[key] = 1;
-    if (APP.lib.some((t) => (t.name || "") === (f.name || "") && Math.abs((t.size || 0) - (f.size || 0)) < 1024)) { dup++; continue; }
+    const old = APP.lib.find((t) => (t.name || "") === (f.name || "") && Math.abs((t.size || 0) - (f.size || 0)) < 1024);
+    if (old) {
+      /* 之前释放过副本：这次选到同一个文件，把音频接回去 */
+      if (!old.blob && !old.ref) {
+        old.blob = f; old.url = URL.createObjectURL(f); old.missing = false;
+        saveTrack(old);
+        linked++;
+      } else { dup++; }
+      continue;
+    }
     const id = newId();
     const url = URL.createObjectURL(f);
     const track = {
@@ -4969,6 +5178,7 @@ async function addFiles(files) {
   saveOrder();
   renderPlaylist();
   UI.txtListText.textContent = APP.lib.length + " 首在我的列表里" +
+    (linked ? "（接回 " + linked + " 首释放过的歌）" : "") +
     (added ? (APP.mode === "solo" ? "" : "；切到「我的歌曲」点 ＋ 就能加进一起听") : "");
   /* 时长放后台按顺序慢慢读：一次导入几百首也不会卡在读取元数据上 */
   (async () => {
@@ -4981,7 +5191,7 @@ async function addFiles(files) {
       }
     }
   })();
-  return { added, dup, bad };
+  return { added, dup, bad, linked };
 }
 
 /* 从「我的列表」加进「一起听歌单」：按点击的先后排到末尾，两端顺序一致 */
@@ -4989,12 +5199,17 @@ function addToQueue(id) {
   const t = APP.lib.find((x) => x.id === id) || findTrack(id);
   if (!t) return;
   if (findInQueue(t.id)) { toast("「" + t.name + "」已经在一起听歌单里了"); return; }
+  /* 文件已释放、又没接回位置：先让用户重新选一次，别加进去播不响 */
+  if (!t.blob && !t.url && !t.ref) {
+    hint("「" + t.name + "」的音频副本已经释放，点歌时会让你重新选一次文件", 5000);
+    return;
+  }
   /* 同一首文件（名字+大小一样）可能之前以另一个 id 进过歌单：接上别名，不再占第二个位置 */
   const twin = APP.tracks.find((x) => trackKey(x) === trackKey(t));
   if (twin) {
     APP.alias[t.id] = twin.id;
-    if (!twin.url && t.url) {
-      twin.blob = t.blob; twin.url = t.url; twin.size = t.size;
+    if (!twin.url && (t.url || t.ref)) {
+      twin.blob = t.blob; twin.url = t.url; twin.ref = t.ref; twin.size = t.size;
       twin.mine = t.mine; twin.owner = t.owner || twin.owner; twin.state = "local";
       saveTrack(twin);
     }
@@ -5387,7 +5602,7 @@ function ensureBuffer() {
   if (idx + 1 < list.length) need.push(list[idx + 1]);
   else if (APP.repeat === 1 && list.length > 1) need.push(list[0]);
   need.forEach((t) => {
-    if (!t || t.url || adoptLocal(t)) return;
+    if (!t || t.url || t.ref || adoptLocal(t)) return;
     requestTrackFile(t.id, t.owner || "");
   });
 }
@@ -5575,6 +5790,7 @@ function renderPlaylist() {
       if (t.dur) meta.push(fmtTime(t.dur));
       if (t.lrc && t.lrc.length) meta.push("有歌词");
       if (t.state === "sending") meta.push("发送中 " + (t.pct || 0) + "%");
+      if (t.missing) meta.push("文件已释放 · 点一下重选");
       if (!t.mine) meta.push("对方给的");
       if (inQ) meta.push("已在一起听");
       return '<div class="plItem' + (inQ ? " cur" : "") + '" data-id="' + t.id + '">' +
@@ -5608,6 +5824,8 @@ function renderPlaylist() {
     if (t.lrc && t.lrc.length) meta.push("有歌词");
     if (t.state === "sending") meta.push("发送中 " + (t.pct || 0) + "%");
     else if (t.state === "recv") meta.push("接收中 " + (t.pct || 0) + "%");
+    else if (t.ref) meta.push("在本机，播放时读取");
+    else if (t.missing) meta.push("文件已释放");
     else if (!t.url) meta.push("等待对方传输");
     if (APP.reorder) meta.push("按住 ☰ 上下拖动");
 
@@ -6046,7 +6264,7 @@ audio.onloadedmetadata = () => {
 };
 
 /* 选择/切换歌曲（用户主动） */
-function selectTrack(id, startPlay) {
+async function selectTrack(id, startPlay) {
   // 本机用户主动选歌：记下意图，2 秒内压过对方补发的旧状态
   APP.localIntentTs = Date.now();
   APP._playRetry = 0;
@@ -6056,13 +6274,25 @@ function selectTrack(id, startPlay) {
     hint(unsupportedHint(t), 8000);
     return;
   }
+  /* 引用模式的歌：第一次播放现场从手机里读出来，会多等 1-2 秒 */
+  if (!t.url && t.ref) {
+    hint("正在读取「" + t.name + "」…", 2500);
+    await ensureUrl(t);
+  }
   if (!t.url) {
     if (adoptLocal(t)) {
+      if (!t.url) await ensureUrl(t);
+      if (!t.url) { hint("这首歌没能从手机里读出来，重新选一次文件再试", 5000); return; }
       /* 自己列表里就有同一个文件：直接播，不用等对方传 */
       loadTrackAudio(t);
       if (startPlay) { APP.wantPlaying = true; playSafe(); }
       ensureBuffer();
       setTimeout(onLocalAction, 40);
+      return;
+    }
+    if (t.missing) {
+      hint("「" + t.name + "」的音频副本已经释放，重新选一次这个文件就能听", 6000);
+      pickRefs();
       return;
     }
     if (t.state === "recv" || t.state === "waiting") {
@@ -6089,10 +6319,11 @@ function trackKey(t) {
 /* 本地「我的列表」里已经有同一个文件时直接借用，不用再等对方传一遍 */
 function adoptLocal(t) {
   if (!t || t.url) return !!t;
-  const mine = APP.lib.find((x) => x.url && trackKey(x) === trackKey(t));
+  /* 本机列表里同名同大小的歌：有音频就直接用，只有引用位置就接过来按需读 */
+  const mine = APP.lib.find((x) => (x.url || x.ref) && trackKey(x) === trackKey(t));
   if (!mine) return false;
-  t.blob = mine.blob;
-  t.url = mine.url;
+  if (mine.url) { t.blob = mine.blob; t.url = mine.url; }
+  else { t.ref = mine.ref; t.missing = false; }
   t.size = mine.size || t.size;
   t.dur = t.dur || mine.dur || 0;
   t.type = t.type || mine.type;
@@ -6550,7 +6781,12 @@ if (navigator.connection && navigator.connection.addEventListener) {
 $("#btnRetryConn").onclick = forceReconnect;
 $("#btnReconnectTop").onclick = forceReconnect;
 
-const pickSongs = () => { rememberPlayState(); picker.click(); };
+const pickSongs = () => {
+  rememberPlayState();
+  /* 安卓：走系统文件选择器，只记文件位置，不再复制一份进 App */
+  if (FREF) { pickRefs().then((ok) => { if (ok) maybeResume(); }); return; }
+  picker.click();
+};
 $("#btnAddSongs").onclick = pickSongs;
 $("#btnAddSongsMain").onclick = pickSongs;
 
@@ -7054,7 +7290,25 @@ function renderSound() {
   if (UI.sndOn) UI.sndOn.checked = !!SND.on;
   mark(UI.sndCall, SND.call);
   mark(UI.sndNotice, SND.notice);
+  renderStore();
 }
+
+/* 「手机存储」只在安卓 App 里出现：显示 App 还压着多少音频副本 */
+function renderStore() {
+  const box = $("#storeBox");
+  if (!box || !FREF) return;
+  box.classList.remove("hidden");
+  const c = copiesInfo();
+  const d = $("#storeDesc");
+  if (d) {
+    d.textContent = c.n
+      ? "还存着 " + c.n + " 首（约 " + fmtSize(c.bytes) + "），点「释放」腾空间"
+      : "没有副本：歌曲只在手机原处占一份";
+  }
+  const b = $("#btnFree");
+  if (b) b.style.display = c.n ? "" : "none";
+}
+if ($("#btnFree")) $("#btnFree").onclick = () => { freeLocalCopies().then(renderStore); };
 if (UI.btnSound) {
   if (AF) {
     UI.btnSound.classList.remove("hidden");
