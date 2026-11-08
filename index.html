@@ -9044,6 +9044,18 @@ function wifiSkipHint(text) {
   APP.wifiHintTs = now;
   hint(text, 4000);
 }
+/* 网络类型变化：从流量切回 Wi-Fi 时，自动补传/继续排队 */
+(function watchNetChange() {
+  try {
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!c || !c.addEventListener) return;
+    c.addEventListener("change", () => {
+      if (wifiBlocked()) return;
+      try { ensureBuffer(); } catch (e) {}
+      try { pumpSendQueue(); } catch (e) {}
+    });
+  } catch (e) {}
+})();
 function afRequest() {
   if (!AF || !SND.on) return;
   try { const r = AF.request(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
