@@ -6519,7 +6519,8 @@ function paintTrackPct(t) {
 
 /* 长歌单分批渲染：首屏只画 plLimit 行，底部按钮 / 滚到底再往上加 */
 function pageSlice(list) {
-  const lim = Math.max(30, APP.plLimit || 120);
+  /* 排序模式要能看到全部歌曲才能拖动，不做分批 */
+  const lim = APP.reorder ? list.length : Math.max(30, APP.plLimit || 120);
   return { shown: list.slice(0, lim), rest: Math.max(0, list.length - lim) };
 }
 function moreHtml(rest) {
