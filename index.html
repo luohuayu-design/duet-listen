@@ -125,6 +125,9 @@
   .nextUp .nuLabel{flex:none;padding:1px 6px;border-radius:6px;background:var(--card2);color:var(--sub);font-size:11px}
   .nextUp b{font-weight:600;color:var(--fg);overflow:hidden;text-overflow:ellipsis;max-width:58%}
   .nextUp .nuState{flex:none;font-size:11px;color:var(--warn)}
+  .peerStat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--warn);margin:0 0 8px;
+            min-height:16px;overflow:hidden;white-space:nowrap}
+  .peerStat .psDot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none;animation:blink 1s infinite}
 
   .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
   .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
@@ -272,6 +275,22 @@
   .chatLine{display:flex;align-items:flex-end;gap:6px;max-width:100%}
   .chatLine.me{justify-content:flex-end}
   .chatAva{width:26px;height:26px;border-radius:50%;object-fit:cover;background:#2a2c3a;flex:none}
+
+  /* ===== 浅色主题 ===== */
+  body.light{
+    --bg:#f3f5fa; --card:#ffffff; --card2:#eef0f7; --line:#dde1ec;
+    --fg:#191b24; --sub:#616779; --accent:#3f6fe0; --accent2:#6f56dd;
+    --ok:#12994a; --warn:#b26a00; --err:#d63b3b;
+    background:radial-gradient(1200px 600px at 50% -10%, #e8edfa 0%, var(--bg) 55%) no-repeat, var(--bg);
+  }
+  body.light .progress,body.light input[type=range]::-webkit-slider-runnable-track,
+  body.light .plCover,body.light .avatar,body.light .avatarBig,body.light .chatAva{background:#d7dcea}
+  body.light .switch i,body.light .sheetHandle{background:#c3c9d8}
+  body.light .toast{background:rgba(255,255,255,.98);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+  body.light .mask{background:rgba(10,12,20,.35)}
+  body.light .sheet{box-shadow:0 -12px 40px rgba(0,0,0,.22)}
+  body.light .chip.on,body.light .lyrLine.active{color:#1b1d26}
+  body.light .modeIcon{background:rgba(63,111,224,.12)}
 </style>
 </head>
 <body>
@@ -384,6 +403,9 @@
     </div>
     <div class="nextUp hidden" id="nextUp">
       <span class="nuLabel">下一首</span><b id="nextUpName">—</b><span class="nuState" id="nextUpState"></span>
+    </div>
+    <div class="peerStat hidden" id="peerStat">
+      <span class="psDot"></span><span id="peerStatText">—</span>
     </div>
     <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
     <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
@@ -555,6 +577,12 @@
         <button class="chip" data-v="ignore">不处理</button>
       </div>
       <p class="plsTip" style="margin-top:18px">只有安卓 App 能接管系统音频焦点。改完立即生效，正在播放的歌也会按新的规则处理。</p>
+      </div>
+      <div class="label" style="margin-top:20px">外观</div>
+      <div class="sndChips" id="themeChips">
+        <button class="chip" data-v="dark">深色</button>
+        <button class="chip" data-v="light">浅色</button>
+        <button class="chip" data-v="auto">跟随系统</button>
       </div>
       <div class="hidden" id="bgBox">
         <div class="label" style="margin-top:20px">后台运行</div>
@@ -3237,6 +3265,8 @@ const APP = {
   hostId: "",            // 当前房主 id（房主退出会自动转让给别人）
   needTimers: {},        // 催对方补传文件的重试定时器
   partials: {},          // 传了一半的歌：id -> {parts, received, ts}，断线后从断点续传
+  peerStat: {},          // 对方播放状态：peerId -> {st, trk, ts}，用来提示「缓冲中 / 卡住了」
+  statAt: 0,             // 上一次上报播放状态的时间（节流用）
   paired: false,         // 至少有一个人直连成功（多人房间里是「派生值」）
   offset: null,          // 对方时钟 - 我的时钟（毫秒）
   bestRtt: Infinity,
@@ -3302,6 +3332,9 @@ const UI = {
   sheetSound: $("#sheetSound"),
   btnSettings: $("#btnSettings"),
   btnResume: $("#btnResume"),
+  peerStat: $("#peerStat"),
+  peerStatText: $("#peerStatText"),
+  themeChips: $("#themeChips"),
   bgBox: $("#bgBox"),
   bgDesc: $("#bgDesc"),
   btnBg: $("#btnBg"),
@@ -3446,6 +3479,7 @@ function dropRoom() {
   });
   APP.peers = {};
   APP.pfById = {};
+  APP.peerStat = {};
   APP.sendQueue = [];
   APP.sending = false;
   APP.needTimers = {};
@@ -4321,6 +4355,12 @@ function onMqttMessage(topic, payload) {
       break;
     case "state":
       if (audio) applyPeerState(m);
+      break;
+    /* 对方每 3 秒报一次播放状态：用来区分「正在缓冲」和「卡住了」 */
+    case "stat":
+      if (m.from !== APP.me) {
+        APP.peerStat[m.from] = { st: m.st || "idle", trk: m.trk || "", ts: Date.now() };
+      }
       break;
     case "pl_op":
       applyPlOp(m);
@@ -7671,6 +7711,69 @@ setInterval(() => {
   UI.lagVal.textContent = (diff * 1000).toFixed(0) + "ms";
 }, 500);
 
+/* 每 3 秒把自己的播放状态报给对方：用来区分「正在缓冲」和「真的卡住了」 */
+setInterval(() => { pingStat(); }, 3000);
+setInterval(renderPeerStat, 1000);
+
+function peerSt() {
+  if (!audio.src) return "idle";
+  if (audio.paused) return "paused";
+  if (audio.readyState < 3) return "buffering";
+  return "playing";
+}
+
+function pingStat() {
+  if (!APP.mqs.length || !APP.paired) return;
+  if (Date.now() - (APP.statAt || 0) < 1200) return;
+  APP.statAt = Date.now();
+  try {
+    publish({ k: "stat", from: APP.me, st: peerSt(), trk: APP.curId, ts: Date.now() });
+  } catch (e) {}
+}
+
+/* 把对方的播放状态显示出来：正常时不打扰，只提示缓冲/卡住/不同步 */
+function renderPeerStat() {
+  const box = UI.peerStat, txt = UI.peerStatText;
+  if (!box || !txt) return;
+  const ids = Object.keys(APP.peers).filter((id) => APP.peers[id] && !APP.peers[id].closing);
+  if (!ids.length) { box.classList.add("hidden"); return; }
+  const now = Date.now();
+  const stuck = ids.find((id) => {
+    const s = APP.peerStat[id];
+    return s && now - s.ts > 12000;
+  });
+  const buffering = ids.find((id) => {
+    const s = APP.peerStat[id];
+    return s && s.st === "buffering";
+  });
+  const other = ids.find((id) => {
+    const s = APP.peerStat[id];
+    return s && s.trk && APP.curId && localId(s.trk) !== APP.curId;
+  });
+  const paused = ids.find((id) => {
+    const s = APP.peerStat[id];
+    return s && s.st === "paused" && !audio.paused;
+  });
+  let msg = "";
+  if (stuck) {
+    const s = APP.peerStat[stuck];
+    msg = "对方 " + Math.max(1, Math.round((now - s.ts) / 1000)) + " 秒没响应，可能卡住了";
+  } else if (buffering) {
+    msg = "对方正在缓冲…";
+  } else if (other) {
+    msg = "对方还在准备另一首，正在同步";
+  } else if (paused) {
+    msg = "对方停下了，可能在缓冲";
+  }
+  if (!msg) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  txt.textContent = msg;
+}
+
+["waiting", "playing", "pause", "canplay"].forEach((ev) => {
+  audio.addEventListener(ev, () => { pingStat(); });
+});
+
 /* 每 5 秒补发一次当前状态：只为让对方那边的「差距」数字保持新鲜，不再强制对齐进度 */
 setInterval(() => {
   if (!APP.paired || !audio.src || audio.paused) return;
@@ -8399,9 +8502,40 @@ if ($("#btnFree")) $("#btnFree").onclick = () => { freeLocalCopies().then(render
 if ($("#btnCheck")) $("#btnCheck").onclick = checkRefs;
 if ($("#btnCleanRecv")) $("#btnCleanRecv").onclick = cleanRecvCache;
 if (UI.btnResume) UI.btnResume.onclick = () => { resumeLast(); };
+/* ===== 外观主题 ===== */
+const THEME = {
+  key: "duet.theme",
+  get() { try { return localStorage.getItem(this.key) || "dark"; } catch (e) { return "dark"; } },
+  isLight(v) {
+    const m = v || this.get();
+    return m === "light" || (m === "auto" && !!(window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches));
+  },
+  apply(v) {
+    const mode = v || this.get();
+    const light = this.isLight(mode);
+    document.body.classList.toggle("light", light);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", light ? "#f3f5fa" : "#12131a");
+    if (UI.themeChips) {
+      UI.themeChips.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.v === mode));
+    }
+  },
+  set(v) { try { localStorage.setItem(this.key, v); } catch (e) {} this.apply(v); },
+};
+THEME.apply();
+if (UI.themeChips) {
+  UI.themeChips.querySelectorAll(".chip").forEach((c) => { c.onclick = () => THEME.set(c.dataset.v); });
+}
+if (window.matchMedia) {
+  const mq = matchMedia("(prefers-color-scheme: light)");
+  const onSys = () => { if (THEME.get() === "auto") THEME.apply("auto"); };
+  if (mq.addEventListener) mq.addEventListener("change", onSys);
+  else if (mq.addListener) mq.addListener(onSys);
+}
+
 const BG = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Bg) || null;
 if (UI.btnSettings) {
-  UI.btnSettings.onclick = () => { renderSound(); if (BG) refreshBg(); openSheet("sound"); };
+  UI.btnSettings.onclick = () => { THEME.apply(); renderSound(); if (BG) refreshBg(); openSheet("sound"); };
   if (!AF) {
     const native = $("#sndNative");
     if (native) native.classList.add("hidden");
