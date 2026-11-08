@@ -3024,6 +3024,9 @@ class MqttWS {
     this._keep = null;
     this._retryTimer = null;
     this._connecting = null;
+    this.lastRx = 0;        // 最后一次收到任何字节（含 PINGRESP）的时间：用来识别「假在线」
+    this._wd = null;        // 假死看门狗
+    this._pid1 = 0;         // QoS1 的消息编号
   }
 
   static encRL(n) {
@@ -3058,6 +3061,7 @@ class MqttWS {
         clearTimeout(deadline);
         this.ws = ws;
         this.connected = true;
+        this.lastRx = Date.now();
         socks.forEach((s) => { if (s !== ws) { try { s.close(); } catch (e) {} } });
         this._afterConnect();
         resolve();
@@ -3095,6 +3099,7 @@ class MqttWS {
         };
 
         ws.onmessage = (ev) => {
+          this.lastRx = Date.now();
           this._scan(new Uint8Array(ev.data), (type) => {
             if (type !== 2 || settled) return;
             settled = true;
@@ -3112,6 +3117,7 @@ class MqttWS {
           const wasConnected = this.connected;
           this.connected = false;
           clearInterval(this._keep);
+          clearInterval(this._wd);
           if (wasConnected) {
             if (this.onLost) this.onLost();
             this._scheduleRetry();
@@ -3157,14 +3163,35 @@ class MqttWS {
     this._doSubscribe();
     const pending = this.queue;
     this.queue = [];
-    pending.forEach(([t, p]) => this.publish(t, p));
+    pending.forEach(([t, p, q]) => this.publish(t, p, q));
+    this.lastRx = Date.now();
     clearInterval(this._keep);
     this._keep = setInterval(() => {
       if (this.connected) {
         try { this.ws.send(MqttWS.mk(12, 0, [])); } catch (e) {}
       }
     }, 30000);
+    /* 假死看门狗：换 WiFi/4G 后旧连接常常「看着是开的、其实早断了」，
+       浏览器不会马上报 close。55 秒内一个字节都没收到（正常时 30 秒一次 PINGRESP）
+       就主动掐掉重连，而不是一直干等。 */
+    clearInterval(this._wd);
+    this._wd = setInterval(() => {
+      if (!this.connected) return;
+      if (Date.now() - (this.lastRx || 0) > 55000) {
+        try { this.ws.close(); } catch (e) {}
+        return;
+      }
+      if (this.ws && this.ws.readyState !== 1) {
+        try { this.ws.close(); } catch (e) {}
+      }
+    }, 10000);
     if (this.onOnline) { try { this.onOnline(); } catch (e) {} }
+  }
+
+  /* 这条中转现在「真的活着」：已连接、socket 开着、最近 55 秒内收到过数据 */
+  alive() {
+    return !!(this.connected && this.ws && this.ws.readyState === 1 &&
+      Date.now() - (this.lastRx || 0) < 55000);
   }
 
   _doSubscribe() {
@@ -3179,15 +3206,23 @@ class MqttWS {
     this._doSubscribe();
   }
 
-  publish(topic, payload) {
+  publish(topic, payload, qos) {
+    const q = qos === 1 ? 1 : 0;
     if (!this.connected) {
-      if (this.queue.length < 50) this.queue.push([topic, payload]);
+      if (this.queue.length < 50) this.queue.push([topic, payload, q]);
       return;
     }
     const tb = new TextEncoder().encode(topic);
     const p = typeof payload === "string" ? new TextEncoder().encode(payload) : payload;
-    const body = [(tb.length >> 8) & 255, tb.length & 255, ...tb, ...p];
-    try { this.ws.send(MqttWS.mk(3, 0, body)); } catch (e) {}
+    const body = [(tb.length >> 8) & 255, tb.length & 255, ...tb];
+    /* QoS1：PUBLISH 头里要多带 2 字节消息号，服务器会回 PUBACK；
+       信令用 QoS1，公共中转偶尔丢包也不会把 offer/ice 丢掉 */
+    if (q === 1) {
+      this._pid1 = ((this._pid1 || 0) + 1) & 0xffff || 1;
+      body.push((this._pid1 >> 8) & 255, this._pid1 & 255);
+    }
+    body.push(...p);
+    try { this.ws.send(MqttWS.mk(3, q === 1 ? 2 : 0, body)); } catch (e) {}
   }
 
   _scheduleRetry() {
@@ -3205,13 +3240,18 @@ const BROKERS = [
   "wss://broker.emqx.io:8084/mqtt",
   "wss://broker.hivemq.com:8884/mqtt",
 ];
-const ICE = {
+/* 首轮只带 3 组常用 STUN：候选少、收集快，正常网络秒连。
+   免费 TURN 经常排队/挂掉，放到「连续失败后」的重试里再启用，避免拖慢正常建连。 */
+const ICE_STUN = {
   iceServers: [
     { urls: ["stun:stun.miwifi.com:3478", "stun:stun.chat.bilibili.com:3478"] },
     { urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] },
     { urls: ["stun:stun.qq.com:3478", "stun:stun.aliyun.com:3478"] },
-    { urls: ["stun:global.stun.twilio.com:3478", "stun:stun.nextcloud.com:443"] },
-    { urls: ["stun:stun.sipnet.net:3478", "stun:stun.voipbuster.com:3478"] },
+  ],
+  iceCandidatePoolSize: 4,
+};
+const ICE_TURN = {
+  iceServers: ICE_STUN.iceServers.concat([
     /* 手机流量对手机流量时经常打不通 P2P，加免费 TURN 中转兜底
        （443 + TLS 的 turns 最不容易被网络限制拦下） */
     {
@@ -3234,7 +3274,7 @@ const ICE = {
       username: "openrelayproject",
       credential: "openrelayproject",
     },
-  ],
+  ]),
   iceCandidatePoolSize: 4,
 };
 const TOPIC_PREFIX = "duetlisten/v1/";
@@ -4180,15 +4220,28 @@ async function joinRoomChannel(room) {
   show(UI.rowRetryConn, true);
 }
 
-function mqAnyConnected() { return APP.mqs.some((m) => m.connected); }
+function mqAnyConnected() { return APP.mqs.some((m) => m.alive()); }
 function mqKick() {
   APP.mqs.forEach((m) => { if (!m.connected) m.connect().catch(() => {}); });
+}
+/* 换网 / 回前台：把「看着还连着、其实已经假死」的中转直接掐掉重连 */
+function mqRevive() {
+  APP.mqs.forEach((m) => {
+    if (m.connected && !m.alive()) {
+      m.connected = false;
+      try { m.ws.close(); } catch (e) {}
+      m.connect().catch(() => {});
+    } else if (!m.connected) {
+      m.connect().catch(() => {});
+    }
+  });
 }
 /* 换房间时把上一批中转连接全部关掉，避免越连越多 */
 function closeMqs() {
   APP.mqs.forEach((m) => {
     try {
       clearInterval(m._keep);
+      clearInterval(m._wd);
       clearTimeout(m._retryTimer);
       if (m.ws) m.ws.close();
     } catch (e) {}
@@ -4198,13 +4251,20 @@ function closeMqs() {
   APP.mqs = [];
 }
 
-/* 同一条消息发到所有能通的中转站，并带去重 id */
-function publish(obj) {
+/* 心跳/播放状态这类「丢了下一轮还会再发」的消息，只走一个中转站；
+   其余消息（信令、聊天、歌单、歌词…）仍然多站冗余，并用 QoS1，公共中转偶尔丢包也不会断连。 */
+const TELEMETRY_KINDS = { ping: 1, stat: 1 };
+function publish(obj, opt) {
   if (!APP.mqs.length) return;
   const msg = Object.assign({}, obj);
   if (!msg.mid) msg.mid = APP.me + "-" + (APP.midSeq++).toString(36);
   const s = JSON.stringify(msg);
-  APP.mqs.forEach((mq) => mq.publish(APP.topic, s));
+  if (!(opt && opt.sig) && TELEMETRY_KINDS[msg.k]) {
+    const mq = APP.mqs.find((m) => m.alive()) || APP.mqs.find((m) => m.connected) || APP.mqs[0];
+    if (mq) mq.publish(APP.topic, s, 0);
+    return;
+  }
+  APP.mqs.forEach((mq) => mq.publish(APP.topic, s, 1));
 }
 
 function publishRaw(topic, payload) {
@@ -4451,7 +4511,10 @@ function createPeer(p, initiator) {
   p.closing = false;
   p.paired = false;
 
-  const pc = new RTCPeerConnection(ICE);
+  /* 连续失败两次以上，或之前已经靠 TURN 才连上过，就用带中转的配置；
+     否则先用纯 STUN 快速尝试。 */
+  if ((p.tryCount || 0) >= 2) p.needTurn = true;
+  const pc = new RTCPeerConnection(p.needTurn ? ICE_TURN : ICE_STUN);
   p.pc = pc;
   p.myCands = [];
 
@@ -4678,6 +4741,11 @@ function stopCtlHeartbeat(p) {
 function retryPair(p) {
   if (!p || !APP.room || p.paired) return;
   p.tryCount = (p.tryCount || 0) + 1;
+  if (p.tryCount === 2) {
+    /* 两次都连不上，下一轮改用带 TURN 的配置（免费中转很慢，只在兜底时才用） */
+    p.needTurn = true;
+    hint("直连没通，改用中转服务器再试…");
+  }
   const base = Math.min(900 * Math.pow(1.6, Math.min(p.tryCount - 1, 6)), 12000);
   const wait = base + Math.random() * 800;
   p.retryWait = Math.round(wait);
@@ -4783,9 +4851,16 @@ function netWake() {
   const now = Date.now();
   if (now - APP.lastWakeTs < 1200) return;
   APP.lastWakeTs = now;
-  if (!mqAnyConnected()) mqKick();
+  mqRevive();
   peerList().forEach((p) => {
     p.lastPong = now;                        // 先给一次机会，别刚回前台就误判
+    /* 立刻敲门：不等 3 秒一轮的心跳，直接让对方回一个 pong；真断了 2 秒后就重连 */
+    try {
+      if (p.ctl && p.ctl.readyState === "open") {
+        p.hbSeq = (p.hbSeq || 0) + 1;
+        p.ctl.send(JSON.stringify({ t: "hb", s: p.hbSeq }));
+      }
+    } catch (e) {}
     if (p.paired) {
       if (p.pc && p.pc.connectionState !== "connected") {
         if (!tryRestartIce(p)) reconnectPeer(p);
@@ -4807,7 +4882,7 @@ function netWake() {
 function forceReconnect() {
   if (!APP.room) { toast("先创建房间，或输入房间号加入"); return; }
   APP.lastWakeTs = Date.now();
-  if (!mqAnyConnected()) mqKick();
+  mqRevive();
   setConn("正在重新连接…", "warn blink");
   setPill("重连中…", "warn blink");
   show(UI.rowRetryConn, true);
@@ -4875,6 +4950,24 @@ function onTrackSent() {
   APP.sending = false;
   // 让接收端把缓冲和入库做完，再传下一首
   setTimeout(() => { if (!APP.sending) pumpSendQueue(); }, 700);
+}
+
+/* 等 DataChannel 缓冲降到 low 以下再继续发：事件驱动，比每 12ms 轮询更省 CPU、也更顺 */
+function waitDcDrain(dc, low) {
+  return new Promise((res) => {
+    let done = false;
+    const fin = () => {
+      if (done) return;
+      done = true;
+      try { dc.removeEventListener("bufferedamountlow", fin); } catch (e) {}
+      res();
+    };
+    try {
+      dc.bufferedAmountLowThreshold = low;
+      dc.addEventListener("bufferedamountlow", fin);
+    } catch (e) { fin(); return; }
+    setTimeout(fin, 2500);                    // 连接异常时别把发送循环卡死
+  });
 }
 
 function sendTrackToPeer(t, p) {
@@ -4960,15 +5053,15 @@ function sendTrackToPeer(t, p) {
       t.pct = Math.round((sent / total) * 100);
       renderPlaylist();
     }
-    /* 分块 64KB、缓冲水位 512KB：局域网/热点下传歌明显更快；
-       进度不再每块都重绘整个歌单，按变化节流，避免大文件传输时界面卡。 */
-    const CH = 64 * 1024;
+    /* 分块 128KB、缓冲水位 1MB + 事件驱动：大文件时少切主线程，传得也更快 */
+    const CH = 128 * 1024;
+    const HI = 1024 * 1024, LO = 256 * 1024;
     let lastPct = -1, lastDraw = 0;
     try {
       while (sent < total) {
         if (dc.readyState !== "open") { finish(false); return; }
-        if (dc.bufferedAmount > 512 * 1024) {
-          await sleep(12);
+        if (dc.bufferedAmount > HI) {
+          await waitDcDrain(dc, LO);
           continue;
         }
         const buf = await t.blob.slice(sent, sent + CH).arrayBuffer();
@@ -4977,11 +5070,11 @@ function sendTrackToPeer(t, p) {
         sent += buf.byteLength;
         const pct = Math.round((sent / total) * 100);
         const now = Date.now();
-        if (pct !== lastPct && now - lastDraw > 150) {
+        if (pct !== lastPct && now - lastDraw > 250) {
           t.pct = pct;
           lastPct = pct;
           lastDraw = now;
-          renderPlaylist();
+          if (!paintTrackPct(t)) renderPlaylist();
         }
       }
       // 关键：等缓冲真正清空，再发“结束标记”，否则 close() 会丢掉尾部字节
@@ -5012,14 +5105,21 @@ function receiveTrackChannel(dc, trackId, p) {
   const chunks = part.parts;
   let received = part.received;
   let finished = false;
+  let lastPct = -1, lastDraw = 0;
 
   const mark = () => {
     const t = findTrack(localId(trackId));
     if (!t) return null;
     const total = t.size || received;
+    const pct = total ? Math.round((received / total) * 100) : 0;
     t.state = "recv";
-    t.pct = total ? Math.round((received / total) * 100) : 0;
-    renderPlaylist();
+    t.pct = pct;
+    /* 每 128KB 一块就整表重绘会让界面发卡，这里只改这一行，并按时间节流 */
+    const now = Date.now();
+    if (pct === lastPct && now - lastDraw < 300) return t;
+    lastPct = pct;
+    lastDraw = now;
+    if (!paintTrackPct(t)) renderPlaylist();
     return t;
   };
   mark();
@@ -5936,6 +6036,17 @@ function applyPlOp(m) {
 }
 
 /* 预缓冲：手上有「当前这首 + 下一首」就够了，其余等轮到了再下 */
+/* 提前给下一首建好播放器并读头信息：切歌时解码器已经就绪，少一段空白等待 */
+const WARM = { el: null, url: "" };
+function warmTrack(t) {
+  if (!t || !t.url || WARM.url === t.url) return;
+  WARM.url = t.url;
+  if (!WARM.el) {
+    try { WARM.el = new Audio(); WARM.el.preload = "metadata"; WARM.el.muted = true; } catch (e) { return; }
+  }
+  try { WARM.el.src = t.url; WARM.el.load(); } catch (e) {}
+}
+
 function ensureBuffer() {
   if (!APP.room || !APP.mqs.length) return;
   /* 还没人开始放歌时先不下载，等收到「当前放到哪首」再按需拉 */
@@ -5962,8 +6073,8 @@ function ensureBuffer() {
     if (!t || t.url || t.ref || adoptLocal(t)) return;
     requestTrackFile(t.id, t.owner || "");
   });
-  /* 下一首的封面和歌词也顺手备好，切过去就能直接显示 */
-  if (nx) { queueCover(nx, true); autoLyric(nx, true); }
+  /* 下一首的封面、歌词、解码器也顺手备好，切过去就能直接显示 */
+  if (nx) { queueCover(nx, true); autoLyric(nx, true); warmTrack(nx); }
   renderNextUp();
 }
 
@@ -6246,6 +6357,28 @@ function renderPlaylist() {
   }).join("");
   scheduleCovers(list);
   renderNextUp();
+}
+
+/* 传歌过程中只改这一行的进度文字；整表重绘在长歌单上会明显掉帧 */
+function paintTrackPct(t) {
+  if (!t || !UI.playlist) return false;
+  const row = UI.playlist.querySelector('.plItem[data-id="' + String(t.id).replace(/"/g, "") + '"]');
+  if (!row) return false;
+  const meta = row.querySelector(".plMeta");
+  if (!meta) return false;
+  const label = t.state === "sending" ? "发送中 " : t.state === "recv" ? "接收中 " : "";
+  if (!label) return false;
+  const want = label + (t.pct || 0) + "%";
+  const parts = meta.textContent.split(" · ");
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].indexOf("发送中 ") === 0 || parts[i].indexOf("接收中 ") === 0) {
+      if (parts[i] === want) return true;
+      parts[i] = want;
+      meta.textContent = parts.join(" · ");
+      return true;
+    }
+  }
+  return false;
 }
 
 function toggleFav(id) {
@@ -7787,6 +7920,7 @@ setInterval(() => {
 /* 进度条 / 时间显示 */
 setInterval(() => {
   if (!audio.src) return;
+  if (document.hidden) return;       /* 后台不刷新界面：省电，回前台也不会掉帧 */
   UI.tCur.textContent = fmtTime(audio.currentTime);
   UI.tDur.textContent = fmtTime(audio.duration);
   UI.btnPlay.textContent = audio.paused ? "▶" : "❚❚";
