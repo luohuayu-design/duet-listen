@@ -167,6 +167,12 @@
   .upTip.on{display:flex}
   .upTip button{flex:none;border:none;border-radius:9px;padding:6px 10px;font-size:12px;
                 background:rgba(255,255,255,.22);color:#fff;cursor:pointer;font-family:inherit}
+  .updStatus{margin-top:10px;font-size:12px;line-height:1.6;color:var(--sub)}
+  .updVer{font-size:15px;font-weight:700;margin-bottom:8px}
+  .updNotes{margin:0;padding-left:18px;color:var(--sub);font-size:13px;line-height:1.8}
+  .updProg{height:8px;border-radius:8px;background:var(--card2);overflow:hidden;margin-top:12px}
+  .updProg > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));
+               transition:width .2s}
   .biBox{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
   .biTitle{font-size:12.5px;color:var(--sub);margin-bottom:8px}
   .biItem{background:rgba(91,140,255,.1);border-color:rgba(91,140,255,.35)}
@@ -792,7 +798,39 @@
         </div>
         <button class="topBtn" id="btnDiag" style="flex:none">查看</button>
       </div>
+      <div class="label" style="margin-top:20px">应用更新</div>
+      <div class="soundRow">
+        <div>
+          <div class="soundName">自动检查更新</div>
+          <div class="soundDesc" id="updDesc">连校园网时向本机服务器检查新版 APK</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="updAuto" /><i></i></label>
+      </div>
+      <div class="label" style="margin-top:14px">本机服务器地址</div>
+      <div class="row">
+        <input type="text" id="updUrl" class="profName" placeholder="http://10.198.98.86:8080" autocomplete="off" />
+        <button class="topBtn" id="btnUpdCheck" style="flex:none">检查</button>
+      </div>
+      <div class="updStatus" id="updStatus">只在连上校园网、能连到本机服务器时才会去问；连不上不影响听歌。</div>
       <div class="verLine" id="verLine">一起听</div>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetUpdate">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">发现新版本</div>
+      <button class="topBtn" id="updLater">稍后</button>
+    </div>
+    <div class="sheetBody">
+      <div class="updVer" id="updVer">—</div>
+      <ul class="updNotes" id="updNotes"></ul>
+      <div class="updProg hidden" id="updProg"><i id="updProgBar"></i></div>
+      <div class="updStatus" id="updSheetStatus"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="updNow">立即更新</button>
+      </div>
+      <p class="plsTip" style="margin-top:10px">更新包从本机服务器下载，装完会自动保留歌单和设置。安卓第一次更新会要求允许「安装未知应用」。</p>
     </div>
   </section>
 
@@ -3551,7 +3589,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.4.0";
+const APP_VER = "1.5.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3601,6 +3639,18 @@ const UI = {
   sheetChoose: $("#sheetChoose"),
   sheetQr: $("#sheetQr"),
   sheetSound: $("#sheetSound"),
+  sheetUpdate: $("#sheetUpdate"),
+  updUrl: $("#updUrl"),
+  updAuto: $("#updAuto"),
+  updDesc: $("#updDesc"),
+  updStatus: $("#updStatus"),
+  updVer: $("#updVer"),
+  updNotes: $("#updNotes"),
+  updSheetStatus: $("#updSheetStatus"),
+  updProg: $("#updProg"),
+  updProgBar: $("#updProgBar"),
+  updNow: $("#updNow"),
+  updLater: $("#updLater"),
   sheetDiag: $("#sheetDiag"),
   diagLog: $("#diagLog"),
   btnDiag: $("#btnDiag"),
@@ -4117,6 +4167,7 @@ function openSheet(which) {
     : which === "qr" ? UI.sheetQr
     : which === "profile" ? UI.sheetProfile
     : which === "sound" ? UI.sheetSound
+    : which === "update" ? UI.sheetUpdate
     : which === "diag" ? UI.sheetDiag
     : which === "choose" ? UI.sheetChoose
     : UI.sheetList;
@@ -4140,6 +4191,7 @@ function closeSheets() {
   if (UI.sheetChoose) UI.sheetChoose.classList.remove("on");
   if (UI.sheetQr) UI.sheetQr.classList.remove("on");
   if (UI.sheetSound) UI.sheetSound.classList.remove("on");
+  if (UI.sheetUpdate) UI.sheetUpdate.classList.remove("on");
   if (UI.sheetDiag) UI.sheetDiag.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
@@ -9382,8 +9434,6 @@ restorePlaylist().then(preloadCovers);
 applyModeChrome();
 /* 上次的房间 1.5 秒后自动回去（用户主动离开过就不会） */
 setTimeout(tryAutoRejoin, 1500);
-/* 网页版：3 秒后对比线上版本号，有新版就提示刷新 */
-setTimeout(checkUpdate, 3000);
 
 /* ===================== 锁屏 / 通知栏控制（浏览器用 Web MediaSession；App 里有原生控制，避免重复） ===================== */
 if ("mediaSession" in navigator && !MCTL) {
@@ -9800,9 +9850,147 @@ if ("serviceWorker" in navigator && /^http/.test(location.protocol)) {
   });
 }
 
+/* ===== 自动更新 =====
+   App：连校园网时问本机服务器 /api/duet-version，有新版就下载新 APK 并拉起系统安装器。
+   网页：向 GitHub Pages 查 index.html 里的 APP_VER，有新版就提示刷新。
+   连不上服务器不算错误，静默跳过，绝不影响听歌。 */
+const UPD_URL_KEY = "duet_update_url_v1";
+const UPD_AUTO_KEY = "duet_update_auto_v1";
+const UPD_DEFAULT_BASE = "http://10.198.98.86:8080";
+APP.updBase = UPD_DEFAULT_BASE;
+APP.updAuto = true;
+APP.updBusy = false;
+APP.updLastCheck = 0;
+APP.updInfo = null;
+try {
+  const u = localStorage.getItem(UPD_URL_KEY);
+  if (u) APP.updBase = u;
+  if (localStorage.getItem(UPD_AUTO_KEY) === "0") APP.updAuto = false;
+} catch (e) {}
+
+function isNativeApp() {
+  try { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
+  catch (e) { return false; }
+}
+function updPlugin() {
+  try { return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Update) || null; }
+  catch (e) { return null; }
+}
+function normUpdBase(v) {
+  let s = String(v || "").trim();
+  if (!s) return "";
+  if (!/^https?:\/\//i.test(s)) s = "http://" + s;
+  return s.replace(/\/+$/, "");
+}
+function saveUpdCfg() {
+  APP.updBase = normUpdBase(UI.updUrl ? UI.updUrl.value : APP.updBase) || UPD_DEFAULT_BASE;
+  APP.updAuto = !!(UI.updAuto && UI.updAuto.checked);
+  if (UI.updUrl) UI.updUrl.value = APP.updBase;
+  try {
+    localStorage.setItem(UPD_URL_KEY, APP.updBase);
+    localStorage.setItem(UPD_AUTO_KEY, APP.updAuto ? "1" : "0");
+  } catch (e) {}
+}
+function setUpdStatus(msg) {
+  if (UI.updStatus) UI.updStatus.textContent = msg;
+  if (UI.updSheetStatus) UI.updSheetStatus.textContent = msg;
+}
+function renderUpdSettings() {
+  if (UI.updUrl) UI.updUrl.value = APP.updBase;
+  if (UI.updAuto) UI.updAuto.checked = APP.updAuto;
+  if (UI.updDesc) UI.updDesc.textContent = isNativeApp()
+    ? "连校园网时向本机服务器检查新版 APK"
+    : "网页版会向 GitHub Pages 自动检查新版本";
+}
+function showUpdateSheet(r) {
+  APP.updInfo = r;
+  if (UI.updVer) UI.updVer.textContent = "v" + (r.latestVersion || "?") + "（当前 v" + (r.currentVersion || APP_VER) + "）";
+  if (UI.updNotes) {
+    UI.updNotes.innerHTML = "";
+    const notes = (r.notes && r.notes.length) ? r.notes : ["修复已知问题，建议更新"];
+    notes.forEach((n) => {
+      const li = document.createElement("li");
+      li.textContent = String(n);
+      UI.updNotes.appendChild(li);
+    });
+  }
+  if (UI.updProg) UI.updProg.classList.add("hidden");
+  if (UI.updProgBar) UI.updProgBar.style.width = "0";
+  setUpdStatus("更新包大小 " + (r.size ? (r.size / 1048576).toFixed(1) + "MB" : "未知") + "，从本机服务器下载");
+  openSheet("update");
+}
+async function checkNativeUpdate(manual) {
+  const plugin = updPlugin();
+  if (!plugin) {
+    if (manual) setUpdStatus("当前不是安卓 App；网页版请用 GitHub Pages 自动更新");
+    return false;
+  }
+  const base = normUpdBase(UI.updUrl ? UI.updUrl.value : APP.updBase);
+  if (!base) { if (manual) setUpdStatus("请先填写本机服务器地址"); return false; }
+  if (APP.updBusy) return false;
+  APP.updBusy = true;
+  if (manual) setUpdStatus("正在连接 " + base + " …");
+  try {
+    const r = await plugin.check({ base: base, timeout: 4000 });
+    APP.updLastCheck = Date.now();
+    if (!r || !r.ok) {
+      if (manual) setUpdStatus("连不上本机服务器：" + ((r && r.message) || "校园网不可达"));
+      return false;
+    }
+    if (!r.hasUpdate) {
+      if (manual) setUpdStatus("已是最新版本 v" + (r.currentVersion || APP_VER));
+      return false;
+    }
+    showUpdateSheet(r);
+    setUpdStatus("发现新版本 v" + r.latestVersion);
+    return true;
+  } catch (e) {
+    if (manual) setUpdStatus("检查失败：" + ((e && e.message) || e));
+    return false;
+  } finally {
+    APP.updBusy = false;
+  }
+}
+function resolveApkUrl(apk) {
+  if (!apk) return "";
+  if (/^https?:\/\//i.test(apk)) return apk;
+  const base = normUpdBase(UI.updUrl ? UI.updUrl.value : APP.updBase);
+  return base + (apk.charAt(0) === "/" ? "" : "/") + apk;
+}
+async function startNativeUpdate() {
+  const plugin = updPlugin(), r = APP.updInfo;
+  if (!plugin || !r || APP.updBusy) return;
+  const url = resolveApkUrl(r.apk);
+  if (!url) { setUpdStatus("服务器没有提供更新包地址"); return; }
+  APP.updBusy = true;
+  if (UI.updNow) UI.updNow.disabled = true;
+  if (UI.updProg) UI.updProg.classList.remove("hidden");
+  setUpdStatus("正在下载更新包 0%");
+  let listener = null;
+  try {
+    if (plugin.addListener) {
+      listener = await plugin.addListener("updateProgress", (p) => {
+        const pct = Math.max(0, Math.min(100, Number((p && p.percent) || 0)));
+        if (UI.updProgBar) UI.updProgBar.style.width = pct + "%";
+        setUpdStatus("正在下载更新包 " + pct + "%");
+      });
+    }
+    const d = await plugin.download({ url: url, size: r.size || 0, sha256: r.sha256 || "" });
+    if (d && d.status === "needPermission") setUpdStatus("请允许「安装未知应用」，然后回来再点一次「立即更新」");
+    else if (d && d.ok) setUpdStatus("下载完成，正在打开系统安装器…");
+    else setUpdStatus("更新失败：" + ((d && d.message) || "未知错误"));
+  } catch (e) {
+    setUpdStatus("更新失败：" + ((e && e.message) || e));
+  } finally {
+    APP.updBusy = false;
+    if (UI.updNow) UI.updNow.disabled = false;
+    if (listener) { try { listener.remove(); } catch (e) {} }
+  }
+}
+
 /* ===== 网页版更新提示 =====
    本地 HTML 的版本号比线上小，说明服务器已经换了新版本，提示用户刷新一次。
-   安卓 App 打包的是同一份文件，不走这条路。 */
+   安卓 App 走上面的本机服务器更新。 */
 function cmpVer(a, b) {
   const pa = String(a).split(".").map(Number);
   const pb = String(b).split(".").map(Number);
@@ -9812,19 +10000,32 @@ function cmpVer(a, b) {
   }
   return 0;
 }
-async function checkUpdate() {
-  const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  if (native) return;
-  if (!/^http/.test(location.protocol)) return;
+async function checkUpdate(force) {
+  const native = isNativeApp();
+  if (native) {
+    if (!force && !APP.updAuto) return false;
+    return checkNativeUpdate(!!force);
+  }
+  if (!/^http/.test(location.protocol)) return false;
   try {
     const url = (location.pathname || "/index.html") + "?v=" + Date.now();
     const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) return;
+    APP.updLastCheck = Date.now();
+    if (!r.ok) throw new Error("HTTP " + r.status);
     const html = await r.text();
     const m = html.match(/const APP_VER = "([0-9.]+)"/);
-    if (!m) return;
-    if (cmpVer(m[1], APP_VER) > 0) showUpdateTip(m[1]);
-  } catch (e) {}
+    if (!m) return false;
+    if (cmpVer(m[1], APP_VER) > 0) {
+      showUpdateTip(m[1]);
+      if (force) setUpdStatus("网页版有新版本 v" + m[1] + "，点顶部提示刷新");
+      return true;
+    }
+    if (force) setUpdStatus("网页版已是最新版本 v" + APP_VER);
+    return false;
+  } catch (e) {
+    if (force) setUpdStatus("检查失败：" + ((e && e.message) || e));
+    return false;
+  }
 }
 function showUpdateTip(ver) {
   if (!UI.upTip) return;
@@ -9835,6 +10036,28 @@ function showUpdateTip(ver) {
   if (b1) b1.onclick = () => { try { location.reload(); } catch (e) {} };
   if (b2) b2.onclick = () => UI.upTip.classList.remove("on");
 }
+
+/* 更新设置与检查时机：启动 3 秒后、回到前台（1 小时节流）、每 6 小时、设置里手动 */
+renderUpdSettings();
+if (UI.updAuto) UI.updAuto.onchange = () => {
+  saveUpdCfg();
+  if (APP.updAuto) checkUpdate(true);
+};
+if (UI.updUrl) {
+  UI.updUrl.onchange = saveUpdCfg;
+  UI.updUrl.onblur = saveUpdCfg;
+}
+if ($("#btnUpdCheck")) $("#btnUpdCheck").onclick = () => { saveUpdCfg(); checkUpdate(true); };
+if (UI.updNow) UI.updNow.onclick = startNativeUpdate;
+if (UI.updLater) UI.updLater.onclick = closeSheets;
+
+setTimeout(() => checkUpdate(false), 3000);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (Date.now() - APP.updLastCheck < 60 * 60 * 1000) return;
+  checkUpdate(false);
+});
+setInterval(() => { if (!document.hidden) checkUpdate(false); }, 6 * 60 * 60 * 1000);
 
 /* 首屏检查 */
 if (!window.RTCPeerConnection) {
