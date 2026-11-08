@@ -128,6 +128,8 @@
   .peerStat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--warn);margin:0 0 8px;
             min-height:16px;overflow:hidden;white-space:nowrap}
   .peerStat .psDot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none;animation:blink 1s infinite}
+  .verLine{margin-top:24px;padding-top:14px;border-top:1px solid var(--line);text-align:center;
+           font-size:11.5px;color:var(--sub);letter-spacing:.4px}
 
   .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
   .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
@@ -624,6 +626,7 @@
         </div>
         <p class="plsTip" style="margin-top:10px">只清理已不在「一起听歌单」里的接收歌曲；下次对方再加进歌单会重新传。</p>
       </div>
+      <div class="verLine" id="verLine">一起听</div>
     </div>
   </section>
 
@@ -3354,6 +3357,9 @@ const APP = {
 const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
+/* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
+const APP_VER = "1.0.0";
+window.APP_VER = APP_VER;
 const UI = {
   dotConn: $("#dotConn"),
   txtConn: $("#txtConn"),
@@ -3427,7 +3433,10 @@ const UI = {
   lyrics: $("#lyrics"),
   chatList: $("#chatList"),
   chatInput: $("#chatInput"),
+  verLine: $("#verLine"),
 };
+
+if (UI.verLine) UI.verLine.textContent = "一起听 v" + APP_VER;
 
 function setConn(text, state) {
   UI.txtConn.textContent = text;
