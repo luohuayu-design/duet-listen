@@ -131,6 +131,8 @@
   .peerStat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--warn);margin:0 0 8px;
             min-height:16px;overflow:hidden;white-space:nowrap}
   .peerStat .psDot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none;animation:blink 1s infinite}
+  .peerStat.info{color:var(--sub)}
+  .peerStat.info .psDot{background:var(--accent);animation:none}
   .offlineTip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#ffd08a;margin:0 0 8px;
               padding:8px 10px;border-radius:10px;background:rgba(255,180,60,.1);
               border:1px solid rgba(255,180,60,.3)}
@@ -247,6 +249,51 @@
   .lrcTools{display:flex;align-items:center;gap:6px;margin-top:6px}
   .lrcTools .lrcOff{font-size:12px;color:var(--sub);flex:1}
   .lrcTools .chip{padding:5px 9px;font-size:12px}
+  .speedRow{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .speedRow .chip{flex:1 1 auto;padding:6px 0;font-size:12px;justify-content:center}
+  /* ===== 全屏播放页 ===== */
+  .stage{position:fixed;inset:0;z-index:45;display:flex;flex-direction:column;
+         padding:calc(14px + env(safe-area-inset-top)) 18px calc(16px + env(safe-area-inset-bottom));
+         background:linear-gradient(160deg,var(--stageA,#232a45),var(--stageB,#0f1016) 70%);
+         color:#fff;overflow:hidden}
+  .stage:before{content:"";position:absolute;inset:-20%;z-index:0;background-image:var(--stageImg,none);
+                background-size:cover;background-position:center;
+                filter:blur(64px) saturate(1.25) brightness(.5);opacity:.55;pointer-events:none}
+  .stage > *{position:relative;z-index:1}
+  .stageHead{display:flex;justify-content:space-between;align-items:center;flex:none}
+  .stageBtn{background:rgba(255,255,255,.13);border:none;color:#fff;border-radius:999px;padding:8px 14px;
+            font-size:13px;font-family:inherit;cursor:pointer}
+  .stageBtn:active{transform:scale(.96)}
+  .stageCoverBox{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:16px 0}
+  .stageCover{width:min(72vw,320px);aspect-ratio:1/1;border-radius:22px;object-fit:cover;
+              box-shadow:0 24px 60px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;
+              font-size:64px;color:rgba(255,255,255,.55);background:rgba(255,255,255,.08)}
+  .stageName{font-size:20px;font-weight:700;text-align:center;margin-top:10px;white-space:nowrap;
+             overflow:hidden;text-overflow:ellipsis;flex:none}
+  .stageArtist{font-size:12.5px;color:rgba(255,255,255,.65);text-align:center;margin-top:4px;min-height:16px;flex:none}
+  .stageLyr{font-size:16px;line-height:1.5;text-align:center;margin:14px 6px 0;min-height:24px;
+            color:rgba(255,255,255,.92);text-shadow:0 1px 8px rgba(0,0,0,.4);white-space:nowrap;
+            overflow:hidden;text-overflow:ellipsis;flex:none}
+  .stagePeer{font-size:12px;color:rgba(255,255,255,.55);text-align:center;margin-top:6px;
+             min-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+  .stageSeek{margin-top:14px;flex:none}
+  .stageSeek input[type=range]{width:100%;margin:0}
+  .stageTimes{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
+  .stageCtrl{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:14px;flex:none}
+  .stageCtrl .btnSkip{background:rgba(255,255,255,.12);border-color:transparent;color:#fff}
+  .stageCtrl .btnPlay{width:70px;height:70px}
+  .stageSpeedRow{display:flex;justify-content:center;gap:6px;margin-top:14px;flex-wrap:wrap;flex:none}
+  .stageSpeedRow .chip{color:rgba(255,255,255,.72);background:rgba(255,255,255,.1);border-color:transparent}
+  .stageSpeedRow .chip.on{color:#fff;background:rgba(255,255,255,.26)}
+  .stageTip{font-size:11.5px;color:rgba(255,255,255,.42);text-align:center;margin-top:10px;flex:none}
+  body.light .stage{color:var(--fg)}
+  body.light .stage:before{opacity:.35}
+  body.light .stageBtn{background:rgba(0,0,0,.08);color:var(--fg)}
+  body.light .stageCover{background:#d7dcea}
+  body.light .stageArtist,body.light .stagePeer,body.light .stageTimes{color:var(--sub)}
+  body.light .stageSpeedRow .chip{color:var(--sub);background:rgba(0,0,0,.06)}
+  body.light .stageSpeedRow .chip.on{color:#fff;background:var(--accent)}
+  body.light .stageTip{color:var(--sub)}
   .qrBox{display:flex;justify-content:center;align-items:center;padding:10px;min-height:120px}
   .qrBox svg{max-width:230px;max-height:230px}
   .lobbyList{display:flex;flex-direction:column;gap:8px;margin-top:10px}
@@ -440,7 +487,7 @@
       <div class="whoPeers" id="whoPeers"></div>
     </div>
     <div class="heroRow">
-      <button class="coverBox" id="coverBox" title="点封面换一张图">
+      <button class="coverBox" id="coverBox" title="点封面进入全屏播放页">
         <img class="coverImg hidden" id="coverImg" alt="" />
         <span class="coverPh" id="coverPh">♪</span>
       </button>
@@ -468,7 +515,16 @@
     <div class="modeRow">
       <button class="chip" id="btnShuffle" title="随机播放：和对方同步">🔀 顺序</button>
       <button class="chip" id="btnRepeat" title="循环模式：顺序 → 列表循环 → 单曲循环">🔁 顺序</button>
+      <button class="chip" id="btnSpeed" title="倍速播放：和对方同步">1.0×</button>
       <div class="syncInfo duetOnly" style="flex:1;justify-content:flex-end"><span>偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span></div>
+    </div>
+    <div class="speedRow hidden" id="speedChips">
+      <button class="chip" data-speed="0.5">0.5×</button>
+      <button class="chip" data-speed="0.75">0.75×</button>
+      <button class="chip" data-speed="1">1×</button>
+      <button class="chip" data-speed="1.25">1.25×</button>
+      <button class="chip" data-speed="1.5">1.5×</button>
+      <button class="chip" data-speed="2">2×</button>
     </div>
     <div class="volRow">
       <span>音量</span>
@@ -496,8 +552,8 @@
       <p><b>2. 房间号 / 大厅</b>：房主创建后得到 6 位房间号，也可以用「复制邀请链接」「二维码」邀请；不想输号就点「看看有哪些房间」，有人在线就会出现在列表里，点「加入」直接进。人满了（3 人）房间就不再出现在列表里，第 4 个人会被直接拒。</p>
       <p><b>3. 单机听歌</b>：分「全部音乐 / 我的歌单 / ★ 收藏 / 最近」。全部音乐里点歌就播，并按当前列表自动连播；点行尾的 ＋ 把歌加进自建歌单；「我的歌单」里可以新建、重命名、删除、加歌、移出。</p>
       <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后房间里所有人同步。</p>
-      <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。安卓 App 还能在锁屏/通知栏控制播放，拔掉耳机会自动暂停。</p>
-      <p><b>6. 歌词与封面</b>：点「找歌词」自动联网匹配（能识别「歌手-歌名」「01.歌名」「【歌手】歌名」等文件名写法，并按音频时长挑版本）；歌单里可以点「给歌单里所有歌自动找歌词」一次批量匹配。只有纯文本歌词时会先展示、但不滚动。找不到可点「加歌词」手动选 .lrc 文件，大家都会滚动显示。歌词和声音对不上时，用下面的 −0.1s / +0.1s 微调（只影响自己这边，不会改动对方的播放）。播放时会自动联网匹配专辑封面，显示在播放器背景和歌单里；点封面可以手动换一张图。封面会存在本地，之后断网也能显示。</p>
+      <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。安卓 App 还能在锁屏/通知栏控制播放，拔掉耳机会自动暂停。播放页支持手势：<b>双击左侧/右侧切歌、上下滑调音量、长按封面 2× 试听</b>；右下角可以选 0.5–2× 倍速，<b>倍速会同步给房间里所有人</b>。点封面进入全屏播放页，背景颜色会跟着封面变。</p>
+      <p><b>6. 歌词与封面</b>：点「找歌词」自动联网匹配（能识别「歌手-歌名」「01.歌名」「【歌手】歌名」等文件名写法，并按音频时长挑版本）；歌单里可以点「给歌单里所有歌自动找歌词」一次批量匹配。只有纯文本歌词时会先展示、但不滚动。找不到可点「加歌词」手动选 .lrc 文件，大家都会滚动显示。歌词和声音对不上时，用下面的 −0.1s / +0.1s 微调（只影响自己这边，不会改动对方的播放）。播放时会自动联网匹配专辑封面，显示在播放器背景和歌单里；点封面进入全屏页，右上角「换封面」可以手动换一张图。封面会存在本地，之后断网也能显示。</p>
       <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息其他人立刻能看到，带头像。</p>
       <p><b>8. 歌单与传输</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、别人传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，所有人按添加顺序看到同一份歌单，并自动互相传文件。<b>中途进来的人只下「当前这首歌 + 下一首」</b>，下完自动对齐、开始播放，不会打断正在放的人；播放过程中会提前把下一首缓冲好。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 已连接 / 重试第几次」。实在卡住就点右上角 ↻。</p>
       <p><b>9. 房主</b>：房主可以先建房、先放歌，别人进来不影响他。房主退出后，<b>房间里来得最早的人自动接任房主</b>，房间照常继续。</p>
@@ -505,6 +561,40 @@
       <p><b>11. 限制</b>：音量各自独立；聊天记录不保存；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
     </details>
   </section>
+
+  <!-- 全屏播放页：点主界面封面打开 -->
+  <div class="stage hidden" id="stage">
+    <div class="stageHead">
+      <button class="stageBtn" id="stageClose">收起</button>
+      <button class="stageBtn" id="stageChangeCover">换封面</button>
+    </div>
+    <div class="stageCoverBox">
+      <img class="stageCover hidden" id="stageCover" alt="" />
+      <div class="stageCover" id="stagePh">♪</div>
+    </div>
+    <div class="stageName" id="stageName">—</div>
+    <div class="stageArtist" id="stageArtist"></div>
+    <div class="stageLyr" id="stageLyr"></div>
+    <div class="stagePeer" id="stagePeer"></div>
+    <div class="stageSeek">
+      <input type="range" id="stageSeek" min="0" max="1000" value="0" step="1" />
+      <div class="stageTimes"><span id="stageCur">0:00</span><span id="stageDur">0:00</span></div>
+    </div>
+    <div class="stageCtrl">
+      <button class="btnSkip" id="stagePrev">⏮</button>
+      <button class="btnPlay" id="stagePlay">▶</button>
+      <button class="btnSkip" id="stageNext">⏭</button>
+    </div>
+    <div class="stageSpeedRow" id="stageSpeedRow">
+      <button class="chip" data-speed="0.5">0.5×</button>
+      <button class="chip" data-speed="0.75">0.75×</button>
+      <button class="chip" data-speed="1">1×</button>
+      <button class="chip" data-speed="1.25">1.25×</button>
+      <button class="chip" data-speed="1.5">1.5×</button>
+      <button class="chip" data-speed="2">2×</button>
+    </div>
+    <div class="stageTip">双击左侧 / 右侧切歌 · 上下滑调音量 · 长按封面 2× 试听</div>
+  </div>
 
   <!-- 轻提示 -->
   <div class="toast" id="toast"></div>
@@ -3445,6 +3535,7 @@ const APP = {
   curSend: null,         // 当前正在传的 {t, pid}，用于歌单里的传输进度条
   sleepEnd: 0,           // 睡眠定时：到这个时间戳自动暂停
   sleepMin: 0,           // 当前选的定时分钟数（0 = 关）
+  speed: 1,              // 倍速播放（两端同步，持久化）
   hadPeer: false,        // 本房间曾经连上过人（用来判断「对方离线」）
   offlineSince: 0,       // 对方掉线的起始时间
   chatRecent: [],        // 最近两条聊天，显示在主界面聊天入口下方
@@ -3460,7 +3551,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.3.0";
+const APP_VER = "1.4.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3576,6 +3667,20 @@ const UI = {
   clockVal: $("#clockVal"),
   vol: $("#vol"),
   btnSleep: $("#btnSleep"),
+  btnSpeed: $("#btnSpeed"),
+  speedChips: $("#speedChips"),
+  stage: $("#stage"),
+  stageCover: $("#stageCover"),
+  stagePh: $("#stagePh"),
+  stageName: $("#stageName"),
+  stageArtist: $("#stageArtist"),
+  stageLyr: $("#stageLyr"),
+  stagePeer: $("#stagePeer"),
+  stageSeek: $("#stageSeek"),
+  stageCur: $("#stageCur"),
+  stageDur: $("#stageDur"),
+  stagePlay: $("#stagePlay"),
+  stageSpeedRow: $("#stageSpeedRow"),
   sndWifiOnly: $("#sndWifiOnly"),
   lyrics: $("#lyrics"),
   chatList: $("#chatList"),
@@ -4649,8 +4754,15 @@ function onMqttMessage(topic, payload) {
     /* 对方每 3 秒报一次播放状态：用来区分「正在缓冲」和「卡住了」 */
     case "stat":
       if (m.from !== APP.me) {
-        APP.peerStat[m.from] = { st: m.st || "idle", trk: m.trk || "", ts: Date.now() };
+        APP.peerStat[m.from] = {
+          st: m.st || "idle", trk: m.trk || "", ts: Date.now(),
+          pos: Number(m.pos) || 0, dur: Number(m.dur) || 0,
+        };
       }
+      break;
+    /* 对方切了倍速：跟随对方（本机长按试听不会被这条盖掉） */
+    case "speed":
+      if (m.from !== APP.me) setSpeed(m.v, true);
       break;
     case "pl_op":
       applyPlOp(m);
@@ -5052,6 +5164,7 @@ function sendStateNow(p) {
     k: "state", from: APP.me, ver: APP.stateVer, by: APP.lastBy || APP.me,
     to: (p && p.id) || undefined,
     trk: APP.curId, pos: audio.currentTime, playing: !audio.paused, ts: Date.now(),
+    spd: APP.speed,
   });
 }
 
@@ -6893,7 +7006,11 @@ function renderLyrics() {
 
 function updateLyric(force) {
   const t = findTrack(APP.curId);
-  if (!t || !Array.isArray(t.lrc) || !t.lrc.length || !UI.lyrics.children.length) return;
+  if (!t || !Array.isArray(t.lrc) || !t.lrc.length) {
+    if (UI.stageLyr) UI.stageLyr.textContent = "";
+    return;
+  }
+  if (!UI.lyrics.children.length) return;
   if (!audio.src) return;
   const cur = audio.currentTime - (APP.lrcOff || 0);
   let idx = -1;
@@ -6901,6 +7018,7 @@ function updateLyric(force) {
     if (t.lrc[i].t <= cur + 0.05) idx = i;
     else break;
   }
+  if (UI.stageLyr) UI.stageLyr.textContent = idx >= 0 ? t.lrc[idx].text : "";
   const rows = UI.lyrics.querySelectorAll(".lyrLine");
   if (idx !== APP.lrcIdx || force) {
     APP.lrcIdx = idx;
@@ -7422,6 +7540,7 @@ function applyCoverUI(t) {
   if (!t) return;
   updateRowCover(t);
   if (t.id !== APP.curId) return;
+  if (UI.stage && !UI.stage.classList.contains("hidden")) renderStage();
   const card = $("#cardPlayer"), bg = $("#coverBg"), img = $("#coverImg"), ph = $("#coverPh"), ar = $("#songArtist");
   if (t.coverUrl) {
     if (img) {
@@ -7460,6 +7579,189 @@ function applyCoverUI(t) {
       });
     } catch (e) {}
   }
+}
+
+/* ===================== 全屏播放页 ===================== */
+let _stageColorUrl = "";
+function openStage() {
+  const t = findTrack(APP.curId);
+  if (!UI.stage) return;
+  if (!t ) { hint("先选一首歌再打开全屏播放页", 3000); return; }
+  UI.stage.classList.remove("hidden");
+  renderStage();
+  applyStageColor(t.coverUrl || "");
+}
+function closeStage() {
+  if (UI.stage) UI.stage.classList.add("hidden");
+}
+function renderStage() {
+  if (!UI.stage || UI.stage.classList.contains("hidden")) return;
+  const t = findTrack(APP.curId);
+  if (!t) return;
+  if (UI.stageName) UI.stageName.textContent = biPretty(t.name) || "—";
+  if (UI.stageArtist) UI.stageArtist.textContent = t.coverArtist || "";
+  if (UI.stageCover) {
+    if (t.coverUrl) {
+      if (UI.stageCover.getAttribute("src") !== t.coverUrl) UI.stageCover.src = t.coverUrl;
+      UI.stageCover.classList.remove("hidden");
+      if (UI.stagePh) UI.stagePh.classList.add("hidden");
+    } else {
+      UI.stageCover.removeAttribute("src");
+      UI.stageCover.classList.add("hidden");
+      if (UI.stagePh) UI.stagePh.classList.remove("hidden");
+    }
+  }
+  if (t.coverUrl && t.coverUrl !== _stageColorUrl) applyStageColor(t.coverUrl);
+  const d = audio.duration || 0;
+  if (UI.stageSeek && document.activeElement !== UI.stageSeek) {
+    UI.stageSeek.value = d > 0 ? Math.round((audio.currentTime / d) * 1000) : 0;
+  }
+  if (UI.stageCur) UI.stageCur.textContent = fmtTime(audio.currentTime || 0);
+  if (UI.stageDur) UI.stageDur.textContent = fmtTime(d);
+  if (UI.stagePlay) UI.stagePlay.textContent = audio.paused ? "▶" : "❚❚";
+  if (UI.stagePeer) {
+    UI.stagePeer.textContent = (UI.peerStat && !UI.peerStat.classList.contains("hidden") && UI.peerStatText)
+      ? UI.peerStatText.textContent : "";
+  }
+  if (UI.stageLyr) {
+    if (!Array.isArray(t.lrc) || !t.lrc.length) {
+      UI.stageLyr.textContent = t.lrcText ? "（纯文本歌词，可在主界面查看）" : "";
+    } else {
+      const cur = audio.currentTime - (APP.lrcOff || 0);
+      let idx = -1;
+      for (let i = 0; i < t.lrc.length; i++) {
+        if (t.lrc[i].t <= cur + 0.05) idx = i; else break;
+      }
+      UI.stageLyr.textContent = idx >= 0 ? t.lrc[idx].text : "";
+    }
+  }
+  renderSpeed();
+}
+/* 从封面取一个主色，给全屏页做渐变背景；取不到就回退到默认深色 */
+function applyStageColor(url) {
+  const st = UI.stage;
+  if (!st) return;
+  _stageColorUrl = url || "";
+  if (!url) {
+    st.style.removeProperty("--stageA");
+    st.style.removeProperty("--stageB");
+    st.style.removeProperty("--stageImg");
+    return;
+  }
+  st.style.setProperty("--stageImg", 'url("' + url + '")');
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    try {
+      const cv = document.createElement("canvas");
+      cv.width = 24; cv.height = 24;
+      const ctx = cv.getContext("2d");
+      ctx.drawImage(img, 0, 0, 24, 24);
+      const data = ctx.getImageData(0, 0, 24, 24).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      let best = { r: 0, g: 0, b: 0, s: 0 };
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] < 128) continue;
+        const rr = data[i], gg = data[i + 1], bb = data[i + 2];
+        r += rr; g += gg; b += bb; n++;
+        const mx = Math.max(rr, gg, bb), mn = Math.min(rr, gg, bb);
+        const s = mx ? (mx - mn) / mx : 0;
+        if (s > best.s) best = { r: rr, g: gg, b: bb, s: s };
+      }
+      if (!n) return;
+      const avg = { r: r / n, g: g / n, b: b / n };
+      const pick = best.s > 0.25 ? best : avg;
+      const mix = (c, k) => Math.round(Math.min(255, Math.max(0, c * k)));
+      st.style.setProperty("--stageA", "rgb(" + mix(pick.r, 0.9) + "," + mix(pick.g, 0.9) + "," + mix(pick.b, 0.9) + ")");
+      st.style.setProperty("--stageB", "rgb(" + mix(avg.r, 0.3) + "," + mix(avg.g, 0.3) + "," + mix(avg.b, 0.3) + ")");
+    } catch (e) {
+      st.style.removeProperty("--stageA");
+      st.style.removeProperty("--stageB");
+    }
+  };
+  img.onerror = () => {
+    st.style.removeProperty("--stageA");
+    st.style.removeProperty("--stageB");
+  };
+  img.src = url;
+}
+
+/* ===================== 手势：双击切歌 / 上下滑音量 / 长按 2× 试听 ===================== */
+function bindPlayerGestures(el, isStage) {
+  if (!el) return;
+  let sx = 0, sy = 0, t0 = 0, moved = false, holdTimer = null, holding = false;
+  let volStart = 100, lastTap = 0, tapTimer = null;
+  const skip = (t) => {
+    if (!t || !t.closest) return false;
+    if (t.closest("input,textarea,select")) return true;
+    if (isStage && t.closest(".stageHead,.stageCtrl,.stageSpeedRow")) return true;
+    return false;
+  };
+  el.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1 || skip(e.target)) return;
+    const tc = e.touches[0];
+    sx = tc.clientX; sy = tc.clientY;
+    t0 = Date.now(); moved = false; holding = false;
+    volStart = Number((UI.vol && UI.vol.value) || 100);
+    clearTimeout(holdTimer);
+    const holdZone = isStage ? e.target.closest(".stageCoverBox") : e.target.closest("#coverBox");
+    if (holdZone) {
+      holdTimer = setTimeout(() => {
+        if (moved) return;
+        holding = true;
+        holdSpeed2x(true);
+        hint("2× 试听中，松手恢复", 1800);
+      }, 500);
+    }
+  }, { passive: true });
+  el.addEventListener("touchmove", (e) => {
+    if (holding || !e.touches.length) return;
+    const tc = e.touches[0];
+    const dx = tc.clientX - sx, dy = tc.clientY - sy;
+    if (!moved && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
+      moved = true;
+      clearTimeout(holdTimer);
+    }
+    if (!moved) return;
+    if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx) * 1.4) {
+      const h = Math.max(240, window.innerHeight || 600);   // 按屏幕高度算，小区域滑动也不会太灵敏
+      const next = Math.round(Math.max(0, Math.min(100, volStart - dy / h * 100)));
+      if (UI.vol && Number(UI.vol.value) !== next) {
+        UI.vol.value = next;
+        applyVol();
+      }
+      try { e.preventDefault(); } catch (err) {}
+    }
+  }, { passive: false });
+  el.addEventListener("touchend", (e) => {
+    clearTimeout(holdTimer);
+    const dt = Date.now() - t0;
+    APP._tapGuard = Date.now();
+    if (holding) { holding = false; holdSpeed2x(false); return; }
+    if (moved) {
+      if (UI.vol) hint("音量 " + Math.round(Number(UI.vol.value) || 0) + "%", 1200);
+      return;
+    }
+    if (dt > 280) return;
+    const tc = e.changedTouches && e.changedTouches[0];
+    const x = tc ? tc.clientX : sx;
+    const rect = el.getBoundingClientRect();
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      lastTap = 0;
+      clearTimeout(tapTimer);
+      const rel = (x - rect.left) / Math.max(1, rect.width);
+      if (rel < 0.35) stepTrack(-1);
+      else if (rel > 0.65) stepTrack(1);
+      return;
+    }
+    lastTap = now;
+    /* 主界面上轻点封面/歌名：延时打开全屏页（等一下看是不是双击） */
+    if (!isStage) {
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => openStage(), 290);
+    }
+  }, { passive: true });
 }
 
 function blobDataUrl(blob) {
@@ -7585,7 +7887,7 @@ function loadTrackAudio(t, silent) {
   try { if (!APP.duck) audio.volume = 0; } catch (e) {}  // 新歌从 0 开始，由 playing 事件淡入
   audio.src = t.url;
   audio.load();
-  audio.playbackRate = 1;   // 换歌时清掉上一次同步留下的调速
+  applySpeedToAudio();   // 换歌后仍保持当前倍速
   APP.remoteBase = null;
   APP.pendApply = null;
   if (!silent) enterMain();
@@ -8074,6 +8376,68 @@ audio.onended = () => {
   ensureBuffer();
 };
 
+/* ===================== 倍速播放（两端同步） ===================== */
+const SPEED_KEY = "duet_speed_v1";
+APP.speed = 1;
+APP.tempSpeed = null;       // 长按 2× 试听时的临时倍速（不持久、不广播）
+APP.speedBeforeHold = 1;
+try {
+  const sv = Number(JSON.parse(localStorage.getItem(SPEED_KEY) || "1"));
+  if (isFinite(sv) && sv >= 0.5 && sv <= 2) APP.speed = sv;
+} catch (e) {}
+
+function normSpeed(v) {
+  const n = Number(v);
+  if (!isFinite(n)) return 1;
+  return Math.min(2, Math.max(0.5, Math.round(n * 100) / 100));
+}
+function speedText(v) {
+  const n = normSpeed(v);
+  return (n === Math.round(n) ? n.toFixed(1) : String(n)) + "×";
+}
+function effectiveSpeed() {
+  return normSpeed(APP.tempSpeed != null ? APP.tempSpeed : APP.speed);
+}
+function applySpeedToAudio() {
+  try {
+    const target = effectiveSpeed();
+    if (audio.defaultPlaybackRate !== target) audio.defaultPlaybackRate = target;
+    if (audio.playbackRate !== target) audio.playbackRate = target;
+  } catch (e) {}
+}
+function renderSpeed() {
+  const txt = speedText(effectiveSpeed()) + (APP.tempSpeed != null ? " 试听" : "");
+  if (UI.btnSpeed) UI.btnSpeed.textContent = txt;
+  [UI.speedChips, UI.stageSpeedRow].forEach((box) => {
+    if (!box) return;
+    box.querySelectorAll("[data-speed]").forEach((b) => {
+      b.classList.toggle("on", Math.abs(Number(b.getAttribute("data-speed")) - APP.speed) < 0.001);
+    });
+  });
+}
+function setSpeed(v, silent) {
+  APP.speed = normSpeed(v);
+  APP.tempSpeed = null;
+  try { localStorage.setItem(SPEED_KEY, JSON.stringify(APP.speed)); } catch (e) {}
+  applySpeedToAudio();
+  renderSpeed();
+  if (!silent) publish({ k: "speed", from: APP.me, v: APP.speed, ts: Date.now() });
+}
+/* 长按试听：临时切到 2×，松手恢复原来的倍速 */
+function holdSpeed2x(on) {
+  if (on) {
+    if (APP.tempSpeed != null) return;
+    APP.speedBeforeHold = APP.speed;
+    APP.tempSpeed = 2;
+  } else {
+    if (APP.tempSpeed == null) return;
+    APP.tempSpeed = null;
+    APP.speed = APP.speedBeforeHold != null ? APP.speedBeforeHold : APP.speed;
+  }
+  applySpeedToAudio();
+  renderSpeed();
+}
+
 /* ===================== 播放状态同步（双方对等） ===================== */
 function onLocalAction() {
   if (!APP.mqs.length) return;
@@ -8083,6 +8447,7 @@ function onLocalAction() {
   const send = () => publish({
     k: "state", from: APP.me, ver: APP.stateVer, by: APP.me,
     trk: APP.curId, pos: audio.currentTime, playing: !audio.paused, ts: Date.now(),
+    spd: APP.speed,
   });
   send();
   setTimeout(send, 250);
@@ -8099,7 +8464,8 @@ function applyPeerState(m, force) {
 
   const off = APP.offset || 0;
   const tsLocal = m.ts - off;
-  const elapsed = m.playing ? Math.max(0, (Date.now() - tsLocal) / 1000) : 0;
+  const spd = normSpeed(m.spd || 1);
+  const elapsed = m.playing ? Math.max(0, (Date.now() - tsLocal) / 1000) * spd : 0;
   let target = (m.pos || 0) + elapsed;
   if (!isFinite(target) || target < 0) target = 0;
 
@@ -8182,7 +8548,7 @@ function applyPeerState(m, force) {
     } else {
       audio.pause();
     }
-    audio.playbackRate = 1;
+    audio.playbackRate = effectiveSpeed();
   } finally {
     if (keepBase) APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
     clearTimeout(APP.applyTimer);
@@ -8195,11 +8561,11 @@ function applyPeerState(m, force) {
    这样本地始终原速播放，不会再有被拉拽造成的断断续续。 */
 setInterval(() => {
   if (!audio.src) { UI.lagVal.textContent = "—"; return; }
-  if (audio.playbackRate !== 1) audio.playbackRate = 1;  // 正常永远是原速
+  applySpeedToAudio();  // 只跟随 APP.speed，不再无端改回原速
   if (audio.paused) { UI.lagVal.textContent = "暂停"; return; }
   const b = APP.remoteBase;
   if (!b || !b.playing) { UI.lagVal.textContent = "本地"; return; }
-  const diff = (b.pos + (Date.now() - b.ts) / 1000) - audio.currentTime;
+  const diff = (b.pos + (Date.now() - b.ts) / 1000 * effectiveSpeed()) - audio.currentTime;
   UI.lagVal.textContent = (diff * 1000).toFixed(0) + "ms";
 }, 500);
 
@@ -8220,7 +8586,10 @@ function pingStat() {
   if (Date.now() - (APP.statAt || 0) < 1200) return;
   APP.statAt = Date.now();
   try {
-    publish({ k: "stat", from: APP.me, st: peerSt(), trk: APP.curId, ts: Date.now() });
+    publish({
+      k: "stat", from: APP.me, st: peerSt(), trk: APP.curId, ts: Date.now(),
+      pos: audio.currentTime || 0, dur: audio.duration || 0,
+    });
   } catch (e) {}
 }
 
@@ -8258,6 +8627,23 @@ function renderPeerStat() {
   } else if (paused) {
     msg = "对方停下了，可能在缓冲";
   }
+  if (!msg) {
+    /* 没有异常时，显示对方正在听的进度（和主流播放器的「好友在听」一样） */
+    const who = ids.find((id) => {
+      const s = APP.peerStat[id];
+      return s && s.trk && s.dur > 0 && APP.curId && localId(s.trk) === APP.curId &&
+        (s.st === "playing" || s.st === "paused");
+    });
+    if (who) {
+      const s = APP.peerStat[who];
+      let pos = Number(s.pos) || 0;
+      if (s.st === "playing") pos += Math.max(0, (now - s.ts) / 1000) * effectiveSpeed();
+      pos = Math.max(0, Math.min(pos, s.dur));
+      msg = (s.st === "playing" ? "对方正在听 " : "对方停在 ") +
+        fmtTime(pos) + " / " + fmtTime(s.dur);
+    }
+  }
+  box.classList.toggle("info", !msg || msg.indexOf("对方正在听") === 0 || msg.indexOf("对方停在") === 0);
   if (!msg) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
   txt.textContent = msg;
@@ -8339,6 +8725,7 @@ setInterval(() => {
   publish({
     k: "state", from: APP.me, ver: APP.stateVer, by: APP.lastBy,
     trk: APP.curId, pos: audio.currentTime, playing: true, ts: Date.now(),
+    spd: APP.speed,
   });
 }, 5000);
 
@@ -8354,6 +8741,7 @@ setInterval(() => {
     UI.seek.value = d > 0 ? Math.round((audio.currentTime / d) * 1000) : 0;
   }
   updateLyric(false);
+  renderStage();
 }, 250);
 
 /* ===================== 交互绑定 ===================== */
@@ -8872,12 +9260,52 @@ document.querySelectorAll(".chip[data-tab]").forEach((el) => {
 });
 $("#btnLrcAuto").onclick = findLyricsOnline;
 $("#btnLrcAll").onclick = findLyricsAll;
+/* 点封面打开全屏播放页；换封面挪到全屏页右上角 */
 $("#coverBox").onclick = () => {
+  if (Date.now() - (APP._tapGuard || 0) < 400) return;   // 手势刚结束，别误触发
+  openStage();
+};
+$("#stageClose").onclick = closeStage;
+$("#stageChangeCover").onclick = () => {
   const t = findTrack(APP.curId);
   if (!t) { hint("先选一首歌再换封面", 3000); return; }
   $("#coverPicker").value = "";
   $("#coverPicker").click();
 };
+$("#stagePrev").onclick = () => stepTrack(-1);
+$("#stageNext").onclick = () => stepTrack(1);
+$("#stagePlay").onclick = () => $("#btnPlay").click();
+if (UI.stageSeek) {
+  UI.stageSeek.oninput = () => {
+    APP.localIntentTs = Date.now();
+    if (!audio.src || !audio.duration) return;
+    audio.currentTime = (Number(UI.stageSeek.value) / 1000) * audio.duration;
+    if (UI.stageCur) UI.stageCur.textContent = fmtTime(audio.currentTime);
+    updateLyric(true);
+  };
+  UI.stageSeek.onchange = () => { if (audio.src) onLocalAction(); };
+}
+/* 倍速：主界面弹出一排选项，全屏页常驻一排 */
+if (UI.btnSpeed) UI.btnSpeed.onclick = () => {
+  if (UI.speedChips) UI.speedChips.classList.toggle("hidden");
+};
+[UI.speedChips, UI.stageSpeedRow].forEach((box) => {
+  if (!box) return;
+  box.onclick = (e) => {
+    const b = e.target.closest("[data-speed]");
+    if (!b) return;
+    const v = Number(b.getAttribute("data-speed"));
+    if (Math.abs(v - APP.speed) < 0.001) { if (UI.speedChips) UI.speedChips.classList.add("hidden"); return; }
+    setSpeed(v);
+    if (UI.speedChips) UI.speedChips.classList.add("hidden");
+    hint("倍速 " + speedText(APP.speed) + "，对方同步", 1800);
+  };
+});
+/* 手势：主界面封面/歌名区域 + 全屏页 */
+bindPlayerGestures(document.querySelector(".heroRow"), false);
+bindPlayerGestures(UI.stage, true);
+renderSpeed();
+applySpeedToAudio();
 $("#coverPicker").onchange = async (e) => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
