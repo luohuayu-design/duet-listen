@@ -308,6 +308,11 @@
       <div class="modeText"><b>设置</b><span id="setDesc">声音与通话、手机存储、接收缓存</span></div>
       <div class="modeArrow">›</div>
     </button>
+    <button class="modeCard hidden" id="btnResume">
+      <div class="modeIcon">▶️</div>
+      <div class="modeText"><b id="resumeName">接着上次听</b><span id="resumeInfo">—</span></div>
+      <div class="modeArrow">›</div>
+    </button>
   </section>
 
   <!-- 第一步：连接 -->
@@ -3220,6 +3225,7 @@ const APP = {
   jo: 0,                 // 我的加入顺序（房主 1，之后进来的依次变大）
   hostId: "",            // 当前房主 id（房主退出会自动转让给别人）
   needTimers: {},        // 催对方补传文件的重试定时器
+  partials: {},          // 传了一半的歌：id -> {parts, received, ts}，断线后从断点续传
   paired: false,         // 至少有一个人直连成功（多人房间里是「派生值」）
   offset: null,          // 对方时钟 - 我的时钟（毫秒）
   bestRtt: Infinity,
@@ -3284,6 +3290,7 @@ const UI = {
   sheetQr: $("#sheetQr"),
   sheetSound: $("#sheetSound"),
   btnSettings: $("#btnSettings"),
+  btnResume: $("#btnResume"),
   sndOn: $("#sndOn"),
   sndCall: $("#sndCall"),
   sndNotice: $("#sndNotice"),
@@ -3909,6 +3916,7 @@ function resetSessionQueue() {
   APP.pendingTarget = null;
   APP.pendPlayId = "";
   APP.needSent.clear();
+  APP.partials = {};
   Object.keys(APP.needTimers).forEach((k) => clearTimeout(APP.needTimers[k]));
   APP.needTimers = {};
   stopCurrentAudio();
@@ -4870,6 +4878,34 @@ function sendTrackToPeer(t, p) {
 
   dc.binaryType = "arraybuffer";
   dc.onopen = async () => {
+    /* 先问对方收到多少：断线重发时从断点接着传，不整首重来。
+       对方 500ms 内没应答就从头传，并让它清掉旧分片，避免数据重复。 */
+    let answered = false;
+    sent = await new Promise((res) => {
+      let done = false;
+      const timer = setTimeout(() => { if (done) return; done = true; res(0); }, 500);
+      dc.onmessage = (ev) => {
+        if (typeof ev.data !== "string") return;
+        try {
+          const s = JSON.parse(ev.data);
+          if (s && typeof s.want === "number") {
+            answered = true;
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            res(Math.max(0, Math.min(s.want, total)));
+          }
+        } catch (e) {}
+      };
+      try { dc.send(JSON.stringify({ ask: true })); } catch (e) {
+        if (!done) { done = true; clearTimeout(timer); res(0); }
+      }
+    });
+    if (!answered) { try { dc.send(JSON.stringify({ reset: true })); } catch (e) {} }
+    if (sent > 0 && sent < total) {
+      t.pct = Math.round((sent / total) * 100);
+      renderPlaylist();
+    }
     /* 分块 64KB、缓冲水位 512KB：局域网/热点下传歌明显更快；
        进度不再每块都重绘整个歌单，按变化节流，避免大文件传输时界面卡。 */
     const CH = 64 * 1024;
@@ -4914,8 +4950,13 @@ function sendTrackToPeer(t, p) {
 
 function receiveTrackChannel(dc, trackId, p) {
   dc.binaryType = "arraybuffer";
-  const chunks = [];
-  let received = 0;
+  /* 断点续传：断了先把已收的分片留着，对方重发时从断点接着收，不整首重来。
+     分片用 Blob 包起来（不复制底层数据），大文件也不会多占一份 JS 堆内存。 */
+  const key = localId(trackId);
+  prunePartials();
+  const part = APP.partials[key] || (APP.partials[key] = { parts: [], received: 0, ts: Date.now() });
+  const chunks = part.parts;
+  let received = part.received;
   let finished = false;
 
   const mark = () => {
@@ -4958,6 +4999,7 @@ function receiveTrackChannel(dc, trackId, p) {
 
     // 本机已经有一份完整的同一首歌：绝不覆盖（避免把正在播放的地址作废）
     if (t.url && t.blob && expect && t.blob.size === expect) {
+      delete APP.partials[key];
       t.state = "local";
       t.pct = 0;
       clearNeedFor(t.id);
@@ -4969,6 +5011,7 @@ function receiveTrackChannel(dc, trackId, p) {
 
     // 不带 MIME，让浏览器按文件内容自己嗅探（写死类型会导致 m4a/flac 解不了）
     const blob = new Blob(chunks);
+    delete APP.partials[key];
     if (t.url && t.id !== APP.curId) URL.revokeObjectURL(t.url);
     t.blob = blob;
     t.size = blob.size;
@@ -5023,12 +5066,27 @@ function receiveTrackChannel(dc, trackId, p) {
     if (typeof ev.data === "string") {
       try {
         const s = JSON.parse(ev.data);
+        /* 对方问「你收到多少了」：报断点，它从这儿接着发 */
+        if (s && s.ask) {
+          try { dc.send(JSON.stringify({ want: received })); } catch (e) {}
+          return;
+        }
+        /* 对方没等到断点、决定从头传：把旧分片清掉，避免数据重复 */
+        if (s && s.reset) {
+          chunks.length = 0;
+          received = 0;
+          part.received = 0;
+          mark();
+          return;
+        }
         if (s && s.done) finish(s.size);
       } catch (e) {}
       return;
     }
-    chunks.push(ev.data);
+    chunks.push(new Blob([ev.data]));
     received += ev.data.byteLength;
+    part.received = received;
+    part.ts = Date.now();
     if (!finished) mark();
   };
 
@@ -5036,6 +5094,15 @@ function receiveTrackChannel(dc, trackId, p) {
     // 没收到结束标记就断了（对方提前关或断网）：至少把已收到的收尾
     if (!finished) finish(null);
   };
+}
+
+/* 传了一半又很久没动静的分片留着只会占内存：10 分钟没人续传就丢掉 */
+function prunePartials() {
+  const now = Date.now();
+  Object.keys(APP.partials).forEach((k) => {
+    const q = APP.partials[k];
+    if (!q || now - (q.ts || 0) > 10 * 60 * 1000) delete APP.partials[k];
+  });
 }
 
 /* ===================== 歌单：添加 / 排序 ===================== */
@@ -6980,20 +7047,60 @@ function saveProgress() {
   } catch (e) {}
 }
 
-function restoreProgress() {
+function readResume() {
+  try {
+    const rec = JSON.parse(localStorage.getItem("duet_pos_v1") || "null");
+    return rec && rec.key ? rec : null;
+  } catch (e) { return null; }
+}
+
+async function restoreProgress() {
   /* 只在「我的音乐」里找上次那首：一起听歌单每次都是空的 */
   if (!APP.lib.length) return;
-  let rec = null;
-  try { rec = JSON.parse(localStorage.getItem("duet_pos_v1") || "null"); } catch (e) {}
-  if (!rec || !rec.key) return;
-  const t = APP.lib.find((x) => x.url && trackKey(x) === rec.key);
+  const rec = readResume();
+  if (!rec) return;
+  /* 引用模式的歌启动时还没有 url，要先把手机里的文件读出来 */
+  const t = APP.lib.find((x) => (x.url || x.ref) && trackKey(x) === rec.key);
   if (!t) return;
   const pos = Number(rec.pos) || 0;
   if (pos < 3) return;
+  if (!t.url) {
+    if (!t.ref || !FREF) return;
+    try { if (!(await ensureUrl(t))) return; } catch (e) { return; }
+  }
   loadTrackAudio(t, true);
   try { audio.pause(); } catch (e) {}
   APP.pendApply = { pos, playing: false };
   UI.txtListText.textContent = "上次听到「" + t.name + "」" + fmtTime(pos) + "，点播放继续";
+  renderResumeCard(t, pos);
+}
+
+/* 首页「接着上次听」入口：显示上次的歌和位置，点一下直接续播 */
+function renderResumeCard(t, pos) {
+  const b = $("#btnResume");
+  if (!b) return;
+  if (!t) { b.classList.add("hidden"); return; }
+  if ($("#resumeName")) $("#resumeName").textContent = "接着听「" + biPretty(t.name) + "」";
+  if ($("#resumeInfo")) $("#resumeInfo").textContent = "上次听到 " + fmtTime(pos || 0);
+  b.classList.remove("hidden");
+}
+
+async function resumeLast() {
+  const rec = readResume();
+  if (!rec) { renderResumeCard(null); return; }
+  const t = APP.lib.find((x) => (x.url || x.ref) && trackKey(x) === rec.key);
+  if (!t) { hint("上次那首歌已经不在「我的音乐」里了", 4000); renderResumeCard(null); return; }
+  const pos = Number(rec.pos) || 0;
+  enterSolo();
+  renderResumeCard(null);
+  if (!t.url) {
+    hint("正在读取「" + t.name + "」…", 2500);
+    try { if (!(await ensureUrl(t))) { hint("这个文件打不开了，重新选一次文件再试", 5000); return; } } catch (e) { return; }
+  }
+  loadTrackAudio(t);
+  /* metadata 一就绪就跳到上次的位置并接着播 */
+  APP.pendApply = { pos, playing: true };
+  APP.wantPlaying = true;
 }
 
 setInterval(saveProgress, 5000);
@@ -8221,6 +8328,7 @@ function renderStore() {
 if ($("#btnFree")) $("#btnFree").onclick = () => { freeLocalCopies().then(renderStore); };
 if ($("#btnCheck")) $("#btnCheck").onclick = checkRefs;
 if ($("#btnCleanRecv")) $("#btnCleanRecv").onclick = cleanRecvCache;
+if (UI.btnResume) UI.btnResume.onclick = () => { resumeLast(); };
 if (UI.btnSettings) {
   UI.btnSettings.onclick = () => { renderSound(); openSheet("sound"); };
   if (!AF) {
