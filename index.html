@@ -77,6 +77,8 @@
   }
   .btnSkip.on{background:rgba(91,140,255,.22);border-color:var(--accent);color:#fff}
   .volRow{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--sub);font-size:12px}
+  .volRow > span{flex:none;white-space:nowrap}
+  .volRow input[type=range]{flex:1;width:auto;min-width:0}
   .volRow input[type=range]::-webkit-slider-thumb{width:18px;height:18px;margin-top:-5px}
   .syncInfo{margin-top:10px;font-size:12px;color:var(--sub);display:flex;justify-content:space-between;gap:8px}
   .syncInfo b{color:var(--fg);font-weight:600}
@@ -99,6 +101,25 @@
                   background:#fff;transition:.18s}
   .switch input:checked + i{background:var(--accent)}
   .switch input:checked + i:before{transform:translateX(20px)}
+
+  /* ===== 专辑封面 ===== */
+  #cardPlayer{position:relative;overflow:hidden}
+  .coverBg{position:absolute;inset:-50px;background-size:cover;background-position:center;
+           filter:blur(38px) saturate(1.2) brightness(.5);opacity:0;transition:opacity .5s;z-index:0;pointer-events:none}
+  #cardPlayer.hasCover .coverBg{opacity:.5}
+  #cardPlayer > *:not(.coverBg){position:relative;z-index:1}
+  .heroRow{display:flex;align-items:center;gap:12px;margin:4px 0 10px}
+  .coverBox{flex:none;width:78px;height:78px;border-radius:16px;border:1px solid var(--line);background:var(--card2);
+            padding:0;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;
+            color:var(--sub);font-size:27px;box-shadow:0 8px 22px rgba(0,0,0,.3);transition:transform .12s}
+  .coverBox:active{transform:scale(.96)}
+  .coverImg{width:100%;height:100%;object-fit:cover;display:block}
+  .heroMain{flex:1;min-width:0}
+  .heroMain .songName{margin-bottom:0}
+  .songArtist{font-size:12.5px;color:var(--sub);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .plCover{flex:none;width:42px;height:42px;border-radius:10px;overflow:hidden;background:#2a2c3a;
+           display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:17px}
+  .plCover img{width:100%;height:100%;object-fit:cover;display:block}
 
   .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
   .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
@@ -320,6 +341,7 @@
 
   <!-- 主界面：连接成功后显示 -->
   <section class="card hidden" id="cardPlayer">
+    <div class="coverBg" id="coverBg"></div>
     <div class="topBar">
       <button class="topBtn" id="btnBackHome" title="返回首页">‹ 首页</button>
       <button class="topBtn duetOnly" id="btnRoomCode" title="复制邀请链接">房号 <span class="num" id="topRoomCode">------</span></button>
@@ -336,7 +358,16 @@
       <span class="whoCount" id="whoCount">1/3</span>
       <div class="whoPeers" id="whoPeers"></div>
     </div>
-    <div class="songName" id="songName">—</div>
+    <div class="heroRow">
+      <button class="coverBox" id="coverBox" title="点封面换一张图">
+        <img class="coverImg hidden" id="coverImg" alt="" />
+        <span class="coverPh" id="coverPh">♪</span>
+      </button>
+      <div class="heroMain">
+        <div class="songName" id="songName">—</div>
+        <div class="songArtist hidden" id="songArtist"></div>
+      </div>
+    </div>
     <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
     <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
     <div class="playRow">
@@ -372,7 +403,7 @@
       <p><b>3. 单机听歌</b>：分「全部音乐 / 我的歌单 / ★ 收藏 / 最近」。全部音乐里点歌就播，并按当前列表自动连播；点行尾的 ＋ 把歌加进自建歌单；「我的歌单」里可以新建、重命名、删除、加歌、移出。</p>
       <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后房间里所有人同步。</p>
       <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。安卓 App 还能在锁屏/通知栏控制播放，拔掉耳机会自动暂停。</p>
-      <p><b>6. 歌词</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，大家都会滚动显示。歌词和声音对不上时，用下面的 −0.1s / +0.1s 微调（只影响自己这边，不会改动对方的播放）。</p>
+      <p><b>6. 歌词与封面</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，大家都会滚动显示。歌词和声音对不上时，用下面的 −0.1s / +0.1s 微调（只影响自己这边，不会改动对方的播放）。播放时会自动联网匹配专辑封面，显示在播放器背景和歌单里；点封面可以手动换一张图。封面会存在本地，之后断网也能显示。</p>
       <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息其他人立刻能看到，带头像。</p>
       <p><b>8. 歌单与传输</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、别人传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，所有人按添加顺序看到同一份歌单，并自动互相传文件。<b>中途进来的人只下「当前这首歌 + 下一首」</b>，下完自动对齐、开始播放，不会打断正在放的人；播放过程中会提前把下一首缓冲好。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 已连接 / 重试第几次」。实在卡住就点右上角 ↻。</p>
       <p><b>9. 房主</b>：房主可以先建房、先放歌，别人进来不影响他。房主退出后，<b>房间里来得最早的人自动接任房主</b>，房间照常继续。</p>
@@ -383,6 +414,7 @@
 
   <!-- 轻提示 -->
   <div class="toast" id="toast"></div>
+  <input type="file" id="coverPicker" accept="image/*" class="hidden" />
 
   <!-- 抽屉：播放列表 与 消息，各自独立 -->
   <div class="mask hidden" id="mask"></div>
@@ -3722,13 +3754,15 @@ function openDB() {
   _dbP = new Promise((res, rej) => {
     if (!window.indexedDB) { _dbBroken = true; rej(new Error("no indexedDB")); return; }
     let req;
-    try { req = indexedDB.open("duetlisten", 1); } catch (e) { _dbBroken = true; rej(e); return; }
+    try { req = indexedDB.open("duetlisten", 2); } catch (e) { _dbBroken = true; rej(e); return; }
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("tracks")) db.createObjectStore("tracks", { keyPath: "id" });
       if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "k" });
+      if (!db.objectStoreNames.contains("covers")) db.createObjectStore("covers", { keyPath: "k" });
     };
     req.onsuccess = () => res(req.result);
+    req.onblocked = () => { _dbBroken = true; rej(new Error("db blocked")); };
     req.onerror = () => { _dbBroken = true; rej(req.error); };
   }).catch((e) => { _dbBroken = true; throw e; });
   return _dbP;
@@ -5229,6 +5263,7 @@ async function cleanRecvCache() {
     if (t.url) { try { URL.revokeObjectURL(t.url); } catch (e) {} }
     const i = APP.lib.indexOf(t);
     if (i >= 0) APP.lib.splice(i, 1);
+    coverDel(trackKey(t));
     dropTrackRec(t.id);
     n++;
   });
@@ -5942,11 +5977,13 @@ function renderPlaylist() {
           '<button class="miniBtn" data-act="qadd" title="加入自建歌单">＋</button>';
       return '<div class="plItem' + (t.id === APP.curId ? " cur" : "") + '" data-id="' + t.id + '">' +
         '<div class="plIdx">' + (i + 1) + "</div>" +
+        coverSlot(t) +
         '<div class="plMain" data-act="play">' +
           '<div class="plName">' + esc(t.name) + "</div>" +
           '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
         "</div>" + tail + "</div>";
     }).join("");
+    scheduleCovers(list);
     return;
   }
 
@@ -5974,6 +6011,7 @@ function renderPlaylist() {
       if (inQ) meta.push("已在一起听");
       return '<div class="plItem' + (inQ ? " cur" : "") + '" data-id="' + t.id + '">' +
         '<div class="plIdx">' + (i + 1) + "</div>" +
+        coverSlot(t) +
         '<div class="plMain" data-act="qadd">' +
           '<div class="plName">' + esc(t.name) + "</div>" +
           '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
@@ -5982,6 +6020,7 @@ function renderPlaylist() {
           (inQ ? "✓" : "＋") + "</button>" +
         "</div>";
     }).join("");
+    scheduleCovers(list);
     return;
   }
 
@@ -6020,8 +6059,9 @@ function renderPlaylist() {
       : '<button class="miniBtn fav ' + (t.fav ? "on" : "off") + '" data-act="fav" title="收藏">' +
         (t.fav ? "★" : "☆") + "</button>" +
         '<button class="miniBtn del" data-act="del" title="从歌单删除">✕</button>';
-    return head + main + tail + "</div>";
+    return head + coverSlot(t) + main + tail + "</div>";
   }).join("");
+  scheduleCovers(list);
 }
 
 function toggleFav(id) {
@@ -6313,6 +6353,353 @@ function sendChat() {
   publish({ k: "chat", from: APP.me, text: text.slice(0, 200), ts: Date.now() });
 }
 
+/* ===================== 专辑封面：自动联网匹配 + 本地缓存 + 手动更换 ===================== */
+const COVER_Q = [];
+const _coverQueued = Object.create(null);
+let _coverBusy = 0;
+
+/* 台区/美区曲库常混用繁体，做一份常用「繁 → 简」映射，只用于匹配歌名 */
+const T2S_PAIRS = ("來来 見见 記记 這这 說说 愛爱 時时 後后 聽听 裡里 裏里 麼么 無无 與与 為为 夢梦 長长 門门 "
+  + "問问 間间 車车 東东 樂乐 聲声 歲岁 開开 關关 會会 動动 風风 雲云 電电 話话 語语 誰谁 認认 讓让 請请 "
+  + "過过 還还 進进 遠远 邊边 變变 沒没 現现 實实 點点 熱热 燈灯 獨独 貓猫 頭头 覺觉 親亲 書书 畫画 處处 "
+  + "別别 對对 應应 總总 結结 給给 經经 紅红 綠绿 藍蓝 黃黄 銀银 鐵铁 鐘钟 錢钱 錯错 難难 頁页 飛飞 飯饭 "
+  + "飲饮 馬马 鳥鸟 魚鱼 龍龙 龜龟 兩两 買买 賣卖 貴贵 貝贝 閃闪 閉闭 陽阳 陰阴 隊队 階阶 際际 陸陆 險险 "
+  + "隨随 雖虽 雙双 髮发 發发 臺台 係系 繫系 隻只 乾干 幹干 鬆松 麵面 鬥斗 倫伦 們们 嗎吗 從从 樣样 種种 "
+  + "帶带 張张 亞亚 業业 產产 傳传 傷伤 價价 億亿 優优 兒儿 內内 軍军 農农 決决 況况 淨净 減减 幾几 鳳凤 "
+  + "劉刘 則则 剛刚 創创 刪删 凱凯 劍剑 劇剧 勝胜 勞劳 勢势 勵励 勸劝 區区 協协 單单 卻却 厲厉 壓压 參参 "
+  + "葉叶 號号 嘆叹 啟启 吳吴 員员 嗚呜 響响 啞哑 喚唤 團团 園园 圍围 國国 圖图 圓圆 場场 壞坏 塊块 堅坚 "
+  + "壇坛 墊垫 墳坟 墜坠 壘垒 墾垦 殼壳 媽妈 嬌娇 嬰婴 孫孙 學学 寧宁 寶宝 寫写 寬宽 審审 寵宠 將将 專专 "
+  + "尋寻 導导 屆届 層层 屬属 岡冈 島岛 嶺岭 峽峡 嶼屿 幣币 帥帅 師师 帳帐 幫帮 廣广 莊庄 慶庆 廬庐 彎弯 "
+  + "彈弹 強强 歸归 當当 錄录 彌弥 徑径 復复 徵征 憂忧 懷怀 態态 憐怜 憑凭 懶懒 戲戏 擠挤 擬拟 擴扩 擺摆 "
+  + "擾扰 攏拢 攔拦 攜携 攝摄 斂敛 斷断 舊旧 曠旷 疊叠 艙舱 藝艺 節节 範范 築筑 簡简 籃篮 籠笼 糾纠 紀纪 "
+  + "約约 級级 純纯 紗纱 紙纸 紛纷 終终 組组 細细 織织 繪绘 繼继 續续 罷罢 羨羡 習习 聯联 聰聪 肅肃 腸肠 "
+  + "膚肤 膽胆 臨临 艱艰 藥药 蟲虫 衝冲 補补 裝装 褲裤 觀观 觸触 計计 訂订 討讨 訓训 訊讯 託托 訪访 設设 "
+  + "許许 訴诉 診诊 註注 詞词 試试 詩诗 詳详 誇夸 誠诚 誕诞 誘诱 誤误 課课 調调 談谈 諾诺 謀谋 謊谎 謝谢 "
+  + "證证 識识 譜谱 讚赞 負负 財财 貢贡 貧贫 貨货 販贩 貪贪 責责 貸贷 費费 賀贺 資资 賈贾 賓宾 賜赐 賞赏 "
+  + "賠赔 賢贤 賤贱 賦赋 質质 賴赖 購购 賽赛 贏赢 趙赵 趕赶 趨趋 躍跃 軌轨 軒轩 軟软 載载 輔辅 輕轻 輛辆 "
+  + "輝辉 輸输 轉转 辦办 辭辞 迴回 週周 遊游 運运 達达 違违 遙遥 適适 選选 遺遗 遼辽 邁迈 邏逻 郵邮 鄉乡 "
+  + "鄧邓 鄭郑 鄰邻 釋释 針针 鈔钞 銅铜 鋼钢 錶表 鍵键 鎖锁 鎮镇 鏡镜 閱阅 闆板 陣阵 陳陈 隱隐 雞鸡 離离 "
+  + "霧雾 靈灵 靜静 頂顶 項项 順顺 須须 頑顽 頓顿 頻频 顆颗 題题 顏颜 願愿 類类 顧顾 顯显 飄飘 飾饰 養养 "
+  + "餓饿 餘余 館馆 駕驾 騎骑 驚惊 體体 鳴鸣 鴻鸿 鵬鹏 鶴鹤 麗丽 麥麦 黨党 齊齐 齒齿 "
+  + "氣气 誌志 於于 爾尔 妳你 牠它 蹟迹 佔占 麼么 佈布 喫吃 裏里 燦灿 灑洒 儘尽 嚮向 昇升 妝妆 "
+  + "準准 揹背 傢家 們们 齣出 剋克 捨舍 掛挂 採采 捲卷 掙挣 揀拣 揹背 撐撑 撈捞 撿捡 擡抬 "
+  + "燙烫 燭烛 燦灿 爍烁 犧牺 猶犹 獄狱 狹狭 獅狮 獎奖 瑣琐 瑤瑶 璽玺 甕瓮 暢畅 疊叠 禪禅 "
+  + "穀谷 窯窑 竄窜 竅窍 筍笋 篩筛 簾帘 籤签 粵粤 糰团 紮扎 絲丝 絨绒 綁绑 綿绵 緞缎 縛缚 "
+  + "繃绷 繩绳 繡绣 繳缴 罈坛 翹翘 耬耧 聳耸 膾脍 臘腊 艦舰 芻刍 萊莱 萵莴 蕭萧 薑姜 薦荐 "
+  + "薩萨 藍蓝 蘿萝 處处 號号 蟲虫 蠟蜡 衊蔑 襪袜 覓觅 覷觑 詛诅 詭诡 誣诬 諧谐 諒谅 諮咨 "
+  + "諱讳 譏讥 譚谭 讒谗 譯译 豈岂 豎竖 豬猪 貓猫 賜赐 賓宾 軀躯 軋轧 軸轴 較较 載载 輯辑 "
+  + "轄辖 醜丑 釀酿 鈍钝 鈴铃 鉤钩 銜衔 銳锐 鋪铺 錄录 錐锥 錘锤 鍛锻 鍋锅 鍍镀 鍾钟 隱隐 "
+  + "霽霁 韌韧 韻韵 頒颁 頌颂 頗颇 頰颊 頸颈 顆颗 颱台 颳刮 餚肴 餵喂 驅驱 驟骤 鬍胡 鰓鳃 "
+  + "鱗鳞 鴿鸽 鵝鹅 鷹鹰 鹽盐 麵面 黴霉 齣出 龐庞 慘惨 慚惭 懼惧 攔拦 敘叙 淨净 涼凉 淩凌 "
+  + "滷卤 濫滥 瀟潇 灘滩 燄焰 犢犊 猻狲 瑯琅 痠酸 癡痴 礙碍 祕秘 稅税 穌稣 窪洼 篤笃 糉粽 "
+  + "緝缉 纔才 罌罂 羨羡 翺翱 聶聂 脅胁 腎肾 膠胶 蔥葱 藹蔼 蘆芦 蝕蚀 蠅蝇 蠶蚕 衚胡 覬觊 "
+  + "諭谕 謀谋 謎谜 譁哗 讚赞 豔艳 貍狸 賸剩 蹌跄 軀躯 轎轿 迺乃 邨村 醃腌 釐厘 鈕钮 鉅巨 "
+  + "鎗枪 鏟铲 鐮镰 鑰钥 閒闲 雋隽 靦腆 鞦秋 韁缰 頹颓 餵喂 馥郁 驛驿 髒脏 鬚须 鯉鲤 鴛鸳 "
+  + "鵲鹊 鶯莺 鷗鸥 鸚鹦 鹵卤 麼么 黷黩 鼴鼹").split(" ");
+const T2S = Object.create(null);
+T2S_PAIRS.forEach((p) => { if (p.length === 2) T2S[p[0]] = p[1]; });
+const T2S_RE = new RegExp("[" + T2S_PAIRS.map((p) => p[0]).join("") + "]", "g");
+
+function toSimp(s) {
+  return String(s || "").replace(T2S_RE, (c) => T2S[c] || c);
+}
+
+function normTxt(s) {
+  return toSimp(String(s || "").toLowerCase().replace(/[\s\-_—–·,，。.、'’"“”()（）\[\]【】]/g, ""));
+}
+
+/* 字符重合度：兜底处理繁简表没覆盖到的字（如「告白氣球 / 告白气球」） */
+function simRatio(a, b) {
+  if (!a || !b) return 0;
+  const rest = Array.from(b);
+  let hit = 0;
+  Array.from(a).forEach((ch) => {
+    const i = rest.indexOf(ch);
+    if (i >= 0) { rest.splice(i, 1); hit++; }
+  });
+  return (2 * hit) / (a.length + b.length);
+}
+
+/* 给搜索结果打分：歌名必须像，歌手对上再加分；避免张冠李戴 */
+function matchScore(tokens, trackName, artist) {
+  const tn = normTxt(trackName), an = normTxt(artist);
+  if (!tn) return 0;
+  let best = 0;
+  let artistHit = false;
+  tokens.forEach((tk) => {
+    if (!tk) return;
+    if (tn === tk) best = Math.max(best, 1);
+    else if (tn.indexOf(tk) >= 0) best = Math.max(best, 0.85);
+    else if (tk.indexOf(tn) >= 0 && tn.length >= 2) best = Math.max(best, 0.7);
+    else if (tn.length >= 3 && simRatio(tn, tk) >= 0.7) best = Math.max(best, 0.85);
+    else if (an.indexOf(tk) >= 0) best = Math.max(best, 0.45);
+    if (an.indexOf(tk) >= 0 && tk.length >= 2) artistHit = true;
+  });
+  return Math.min(1, best * 0.8 + (artistHit ? 0.2 : 0));
+}
+
+let _coverLast = 0;
+let _coverCool = 0;   /* 被限流时进入冷却，避免一直重试 */
+
+async function timedFetch(url, ms) {
+  const ctl = new AbortController();
+  const to = setTimeout(() => { try { ctl.abort(); } catch (e) {} }, ms || 8000);
+  try {
+    return await fetch(url, { mode: "cors", signal: ctl.signal });
+  } finally {
+    clearTimeout(to);
+  }
+}
+
+async function searchCover(name) {
+  if (Date.now() < _coverCool) throw new Error("HTTP 429");
+  const term = biPretty(name).replace(/[_\-–—]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!term) return null;
+  const tokens = term.split(/\s+/).map(normTxt).filter((x) => x.length > 0);
+  let best = null, bs = 0;
+  /* 台区/港区的中文曲库最全，美区兜底；找到很匹配的就提前收工 */
+  for (const country of ["tw", "us"]) {
+    const wait = Math.max(0, 320 - (Date.now() - _coverLast));
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    _coverLast = Date.now();
+    const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(term) +
+      "&entity=song&limit=6&country=" + country + "&lang=zh_cn";
+    const r = await timedFetch(url, 8000);
+    if (r.status === 403 || r.status === 429) {
+      _coverCool = Date.now() + 90000;
+      throw new Error("HTTP " + r.status);
+    }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    ((j && j.results) || []).forEach((x) => {
+      if (!x || !x.artworkUrl100) return;
+      const score = matchScore(tokens, x.trackName, x.artistName);
+      if (score > bs) { bs = score; best = x; }
+    });
+    if (bs >= 0.9) break;
+  }
+  if (!best || bs < 0.72) return null;
+  return {
+    artwork: String(best.artworkUrl100).replace(/\/\d+x\d+bb\.(jpg|png)$/i, "/300x300bb.jpg"),
+    artist: best.artistName || "",
+  };
+}
+
+/* 压成 300×300 小图再存，省空间；大图裁成正方形 */
+async function shrinkImage(blob, w, h) {
+  let bmp;
+  try { bmp = await createImageBitmap(blob); }
+  catch (e) {
+    bmp = await new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d");
+  const scale = Math.max(w / bmp.width, h / bmp.height);
+  const dw = bmp.width * scale, dh = bmp.height * scale;
+  ctx.drawImage(bmp, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  if (bmp.close) try { bmp.close(); } catch (e) {}
+  return await new Promise((res) => cv.toBlob((b) => res(b), "image/jpeg", 0.82));
+}
+
+async function fetchCoverBlob(url) {
+  const r = await timedFetch(url, 8000);
+  if (!r.ok) throw new Error("img " + r.status);
+  const b = await r.blob();
+  if (!b || b.size < 512) throw new Error("small");
+  const out = await shrinkImage(b, 300, 300);
+  if (!out || out.size < 512) throw new Error("shrink");
+  return out;
+}
+
+function coverGet(k) {
+  return openDB().then((db) => new Promise((res) => {
+    const tx = db.transaction("covers", "readonly");
+    const rq = tx.objectStore("covers").get(k);
+    rq.onsuccess = () => res(rq.result || null);
+    rq.onerror = () => res(null);
+  })).catch(() => null);
+}
+
+function coverPut(k, blob, src, artist) {
+  return dbDo("covers", "readwrite", (st) =>
+    st.put({ k: k, blob: blob, src: src || "auto", artist: artist || "", at: Date.now() })).catch(() => {});
+}
+
+function coverDel(k) {
+  dbDo("covers", "readwrite", (st) => st.delete(k)).catch(() => {});
+}
+
+function coverSlot(t) {
+  return '<span class="plCover" data-id="' + t.id + '">' +
+    (t.coverUrl ? '<img src="' + t.coverUrl + '" alt="">' : "♪") + "</span>";
+}
+
+function updateRowCover(t) {
+  if (!t || !t.coverUrl) return;
+  document.querySelectorAll(".plCover").forEach((s) => {
+    if (s.dataset.id !== t.id) return;
+    if (!s.firstElementChild || s.firstElementChild.tagName !== "IMG") {
+      s.innerHTML = '<img src="' + t.coverUrl + '" alt="">';
+    }
+  });
+}
+
+function applyCoverUI(t) {
+  if (!t) return;
+  updateRowCover(t);
+  if (t.id !== APP.curId) return;
+  const card = $("#cardPlayer"), bg = $("#coverBg"), img = $("#coverImg"), ph = $("#coverPh"), ar = $("#songArtist");
+  if (t.coverUrl) {
+    if (img) { img.src = t.coverUrl; img.classList.remove("hidden"); }
+    if (ph) ph.classList.add("hidden");
+    if (bg) bg.style.backgroundImage = 'url("' + t.coverUrl + '")';
+    if (card) card.classList.add("hasCover");
+  } else {
+    if (img) { img.removeAttribute("src"); img.classList.add("hidden"); }
+    if (ph) ph.classList.remove("hidden");
+    if (bg) bg.style.backgroundImage = "";
+    if (card) card.classList.remove("hasCover");
+  }
+  if (ar) {
+    if (t.coverArtist) { ar.textContent = t.coverArtist; ar.classList.remove("hidden"); }
+    else { ar.textContent = ""; ar.classList.add("hidden"); }
+  }
+  /* 浏览器里同步到系统媒体面板；App 里由原生服务负责 */
+  if (!MCTL && "mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: biPretty(t.name) || "一起听",
+        artist: t.coverArtist || "双人同步播放器",
+        album: "一起听",
+        artwork: t.coverUrl
+          ? [{ src: t.coverUrl, sizes: "300x300", type: "image/jpeg" }]
+          : [{ src: "icon-512.png", sizes: "512x512", type: "image/png" }],
+      });
+    } catch (e) {}
+  }
+}
+
+function blobDataUrl(blob) {
+  return new Promise((res) => {
+    try {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result || ""));
+      fr.onerror = () => res("");
+      fr.readAsDataURL(blob);
+    } catch (e) { res(""); }
+  });
+}
+
+function setCover(t, blob, src, artist) {
+  if (!t || !blob) return;
+  if (t.coverUrl) { try { URL.revokeObjectURL(t.coverUrl); } catch (e) {} }
+  t.cover = blob;
+  t.coverSrc = src || "auto";
+  if (artist) t.coverArtist = artist;
+  t.coverUrl = URL.createObjectURL(blob);
+  /* 当前这首才转 base64 交给锁屏通知，避免给整个歌单都转一遍 */
+  if (t.id === APP.curId && MCTL) {
+    t.coverArt = "";
+    blobDataUrl(blob).then((u) => {
+      if (u && t.id === APP.curId) {
+        t.coverArt = u;
+        mediaSync();
+      }
+    });
+  }
+  applyCoverUI(t);
+}
+
+async function resolveCover(t) {
+  if (!t || t.coverUrl || t._coverBusy) return;
+  const k = trackKey(t);
+  t._coverBusy = true;
+  try {
+    const rec = await coverGet(k);
+    if (rec && rec.blob) {
+      setCover(t, rec.blob, rec.src || "auto", rec.artist || "");
+      return;
+    }
+    if (t._coverMiss) return;
+    const item = await searchCover(t.name);
+    if (!item) { t._coverMiss = true; return; }
+    const blob = await fetchCoverBlob(item.artwork);
+    await coverPut(k, blob, "auto", item.artist);
+    setCover(t, blob, "auto", item.artist);
+  } catch (e) {
+    /* 被限流时先别判死刑，下次打开还能再试 */
+    if (!/HTTP (403|429)/.test(String(e && e.message || e))) t._coverMiss = true;
+  } finally {
+    t._coverBusy = false;
+  }
+}
+
+function pumpCoverQ() {
+  while (_coverBusy < 2 && COVER_Q.length) {
+    const t = COVER_Q.shift();
+    const k = trackKey(t);
+    _coverBusy++;
+    resolveCover(t).finally(() => {
+      _coverBusy--;
+      _coverQueued[k] = false;
+      pumpCoverQ();
+    });
+  }
+}
+
+function queueCover(t, front) {
+  if (!t || !t.id) return;
+  if (Date.now() < _coverCool) return;
+  const k = trackKey(t);
+  if (t.coverUrl || t._coverMiss || t._coverBusy || _coverQueued[k]) return;
+  _coverQueued[k] = true;
+  if (front) COVER_Q.unshift(t); else COVER_Q.push(t);
+  pumpCoverQ();
+}
+
+/* 歌单里一次最多自动找 10 首，避免一次打开歌单就发几百个请求 */
+function scheduleCovers(list) {
+  let n = 0;
+  for (const t of list || []) {
+    if (n >= 10) break;
+    if (t.coverUrl || t._coverMiss || t._coverBusy) continue;
+    queueCover(t);
+    n++;
+  }
+}
+
+/* 启动时把本地缓存的封面先装回内存，歌单一打开就能看到 */
+async function preloadCovers() {
+  try {
+    const db = await openDB();
+    const recs = await new Promise((res) => {
+      const tx = db.transaction("covers", "readonly");
+      const rq = tx.objectStore("covers").getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => res([]);
+    });
+    const map = Object.create(null);
+    recs.forEach((r) => { if (r && r.k && r.blob) map[r.k] = r; });
+    APP.lib.forEach((t) => {
+      const r = map[trackKey(t)];
+      if (r && !t.coverUrl) {
+        t.cover = r.blob;
+        t.coverSrc = r.src || "auto";
+        t.coverArtist = r.artist || "";
+        t.coverUrl = URL.createObjectURL(r.blob);
+      }
+    });
+    if (APP.curId) applyCoverUI(findTrack(APP.curId));
+    renderPlaylist();
+  } catch (e) {}
+}
+
 /* ===================== 音频加载 ===================== */
 function loadTrackAudio(t, silent) {
   if (!t || !t.url) return;
@@ -6325,6 +6712,8 @@ function loadTrackAudio(t, silent) {
   APP.pendApply = null;
   if (!silent) enterMain();
   UI.songName.textContent = t.name;
+  applyCoverUI(t);
+  queueCover(t, true);
   UI.seek.value = 0;
   UI.tCur.textContent = "0:00";
   UI.tDur.textContent = fmtTime(t.dur || 0);
@@ -7342,6 +7731,29 @@ document.querySelectorAll(".chip[data-tab]").forEach((el) => {
   };
 });
 $("#btnLrcAuto").onclick = findLyricsOnline;
+$("#coverBox").onclick = () => {
+  const t = findTrack(APP.curId);
+  if (!t) { hint("先选一首歌再换封面", 3000); return; }
+  $("#coverPicker").value = "";
+  $("#coverPicker").click();
+};
+$("#coverPicker").onchange = async (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const t = findTrack(APP.curId);
+  if (!t) return;
+  hint("正在处理封面…", 3000);
+  try {
+    const blob = await shrinkImage(f, 300, 300);
+    if (!blob) throw new Error("bad image");
+    await coverPut(trackKey(t), blob, "manual", t.coverArtist || "");
+    t._coverMiss = false;
+    setCover(t, blob, "manual", t.coverArtist || "");
+    toast("封面已更新");
+  } catch (err) {
+    hint("这张图读不出来，换一张试试", 4000);
+  }
+};
 if ($("#btnLrcMinus")) $("#btnLrcMinus").onclick = () => setLrcOff(APP.lrcOff - 0.1);
 if ($("#btnLrcPlus")) $("#btnLrcPlus").onclick = () => setLrcOff(APP.lrcOff + 0.1);
 if ($("#btnLrcReset")) $("#btnLrcReset").onclick = () => setLrcOff(0);
@@ -7397,11 +7809,11 @@ UI.chatInput.addEventListener("keydown", (e) => {
 loadProfile();
 loadPls();
 renderAvatarGrid();
-restorePlaylist();
+restorePlaylist().then(preloadCovers);
 applyModeChrome();
 
-/* ===================== 锁屏 / 通知栏控制 ===================== */
-if ("mediaSession" in navigator) {
+/* ===================== 锁屏 / 通知栏控制（浏览器用 Web MediaSession；App 里有原生控制，避免重复） ===================== */
+if ("mediaSession" in navigator && !MCTL) {
   const ms = navigator.mediaSession;
   const setAct = (name, fn) => { try { ms.setActionHandler(name, fn); } catch (e) {} };
 
@@ -7410,10 +7822,12 @@ if ("mediaSession" in navigator) {
     if (!t) return;
     try {
       ms.metadata = new MediaMetadata({
-        title: String(t.name || "一起听").replace(/\.\w+$/, ""),
-        artist: "双人同步播放器",
+        title: biPretty(t.name) || "一起听",
+        artist: t.coverArtist || "双人同步播放器",
         album: "一起听",
-        artwork: [{ src: "icon-512.png", sizes: "512x512", type: "image/png" }],
+        artwork: t.coverUrl
+          ? [{ src: t.coverUrl, sizes: "300x300", type: "image/jpeg" }]
+          : [{ src: "icon-512.png", sizes: "512x512", type: "image/png" }],
       });
     } catch (e) {}
     try { ms.playbackState = audio.paused ? "paused" : "playing"; } catch (e) {}
@@ -7588,6 +8002,7 @@ function mediaSync() {
       artist: (APP.pf && APP.pf.name) || "一起听",
       playing: !audio.paused,
       pos: audio.currentTime || 0,
+      art: (t && t.coverArt) || "",
     });
     if (r && r.catch) r.catch(() => {});
   } catch (e) {}
