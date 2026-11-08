@@ -113,13 +113,16 @@
             padding:0;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;
             color:var(--sub);font-size:27px;box-shadow:0 8px 22px rgba(0,0,0,.3);transition:transform .12s}
   .coverBox:active{transform:scale(.96)}
-  .coverImg{width:100%;height:100%;object-fit:cover;display:block}
+  .coverImg{width:100%;height:100%;object-fit:cover;display:block;
+            opacity:1;transition:opacity .32s ease}
+  .coverImg.fadeIn{opacity:0}
   .heroMain{flex:1;min-width:0}
   .heroMain .songName{margin-bottom:0}
   .songArtist{font-size:12.5px;color:var(--sub);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .plCover{flex:none;width:42px;height:42px;border-radius:10px;overflow:hidden;background:#2a2c3a;
            display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:17px}
-  .plCover img{width:100%;height:100%;object-fit:cover;display:block}
+  .plCover img{width:100%;height:100%;object-fit:cover;display:block;animation:coverIn .35s ease both}
+  @keyframes coverIn{from{opacity:0;transform:scale(1.06)}to{opacity:1;transform:scale(1)}}
   .nextUp{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);margin:0 0 8px;
           min-height:16px;overflow:hidden;white-space:nowrap}
   .nextUp .nuLabel{flex:none;padding:1px 6px;border-radius:6px;background:var(--card2);color:var(--sub);font-size:11px}
@@ -133,6 +136,19 @@
 
   .playlist{margin-top:10px;display:flex;flex-direction:column;gap:8px}
   .plEmpty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
+  .plMore{margin-top:2px;padding:12px;border-radius:12px;border:1px dashed var(--line);background:transparent;
+          color:var(--sub);font-size:13px;cursor:pointer;font-family:inherit}
+  .plMore:active{transform:scale(.98)}
+  .diagLog{margin:0;padding:12px;border-radius:12px;background:var(--card2);border:1px solid var(--line);
+           color:var(--sub);font-size:11.5px;line-height:1.65;white-space:pre-wrap;word-break:break-all;
+           max-height:52vh;overflow-y:auto;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .upTip{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 10px);
+         z-index:60;display:none;align-items:center;gap:10px;padding:9px 14px;border-radius:12px;
+         background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12.5px;
+         box-shadow:0 8px 22px rgba(0,0,0,.4)}
+  .upTip.on{display:flex}
+  .upTip button{flex:none;border:none;border-radius:9px;padding:6px 10px;font-size:12px;
+                background:rgba(255,255,255,.22);color:#fff;cursor:pointer;font-family:inherit}
   .biBox{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
   .biTitle{font-size:12.5px;color:var(--sub);margin-bottom:8px}
   .biItem{background:rgba(91,140,255,.1);border-color:rgba(91,140,255,.35)}
@@ -458,6 +474,12 @@
 
   <!-- 轻提示 -->
   <div class="toast" id="toast"></div>
+  <!-- 网页版有更新时提示刷新 -->
+  <div class="upTip" id="upTip">
+    <span id="upTipText">网页版有新版本</span>
+    <button id="btnUpdate">刷新</button>
+    <button id="btnUpdateLater">稍后</button>
+  </div>
   <input type="file" id="coverPicker" accept="image/*" class="hidden" />
 
   <!-- 抽屉：播放列表 与 消息，各自独立 -->
@@ -626,7 +648,31 @@
         </div>
         <p class="plsTip" style="margin-top:10px">只清理已不在「一起听歌单」里的接收歌曲；下次对方再加进歌单会重新传。</p>
       </div>
+      <div class="label" style="margin-top:20px">连接诊断</div>
+      <div class="soundRow">
+        <div>
+          <div class="soundName">连接日志</div>
+          <div class="soundDesc">连不上、掉线、卡顿时，把日志复制发给我排查</div>
+        </div>
+        <button class="topBtn" id="btnDiag" style="flex:none">查看</button>
+      </div>
       <div class="verLine" id="verLine">一起听</div>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetDiag">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">连接诊断</div>
+      <button class="topBtn" id="closeDiag">收起</button>
+    </div>
+    <div class="sheetBody">
+      <p class="plsTip" style="margin-top:0">下面是最近 120 条连接事件，只在本地显示，不会上传。</p>
+      <pre class="diagLog" id="diagLog"></pre>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="btnDiagCopy">复制日志</button>
+        <button class="btn" id="btnDiagClear" style="flex:0 0 110px">清空</button>
+      </div>
     </div>
   </section>
 
@@ -3065,6 +3111,7 @@ class MqttWS {
         this.ws = ws;
         this.connected = true;
         this.lastRx = Date.now();
+        if (window.DIAG) DIAG.push("中转", String(this.brokers[0] || "").replace(/^wss?:\/\//, "") + " 已连接");
         socks.forEach((s) => { if (s !== ws) { try { s.close(); } catch (e) {} } });
         this._afterConnect();
         resolve();
@@ -3122,6 +3169,7 @@ class MqttWS {
           clearInterval(this._keep);
           clearInterval(this._wd);
           if (wasConnected) {
+            if (window.DIAG) DIAG.push("中转", String(this.brokers[0] || "").replace(/^wss?:\/\//, "") + " 断开");
             if (this.onLost) this.onLost();
             this._scheduleRetry();
           }
@@ -3342,6 +3390,7 @@ const APP = {
   playQ: [],             // 单机连播队列（歌曲 id，按当前界面顺序）
   chooseFor: "",         // 正在「加到哪个歌单」的那首歌 id
   plQuery: "",           // 歌单搜索词
+  plLimit: 120,          // 长歌单分批渲染：当前已渲染到第几首
   plTab: "duet",         // 歌单筛选：duet|lib|all|pls|pl|fav|recent
   reorder: false,        // 歌单排序模式（拖动 / 上下移动）
   sendQueue: [],         // 传歌排队 [{t, pid}]（一次只传一首，不并发）
@@ -3358,8 +3407,40 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.0.0";
+const APP_VER = "1.1.0";
 window.APP_VER = APP_VER;
+
+/* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
+const DIAG = {
+  items: [],
+  push(tag, text) {
+    const s = String(text || "");
+    const last = this.items[this.items.length - 1];
+    if (last && last.text === s && Date.now() - last.ts < 1200) return;
+    this.items.push({ ts: Date.now(), tag: tag, text: s });
+    if (this.items.length > 120) this.items.splice(0, this.items.length - 120);
+    /* 面板正开着就实时刷新，关着就只存档 */
+    try {
+      if (UI.sheetDiag && UI.sheetDiag.classList.contains("on")) this.render();
+    } catch (e) {}
+  },
+  stamp(ts) {
+    const d = new Date(ts), p = (n) => String(n).padStart(2, "0");
+    return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+  },
+  text() {
+    const head = "一起听 v" + APP_VER + " · " + new Date().toLocaleString() +
+      " · " + (navigator.onLine ? "在线" : "离线") +
+      " · 中转 " + (APP.mqs || []).filter((m) => m.alive()).length + "/" + (APP.mqs || []).length +
+      " · 房间 " + (APP.room || "-") + " · 成员 " + memberCount();
+    return [head].concat(this.items.map((x) => this.stamp(x.ts) + " [" + x.tag + "] " + x.text)).join("\n");
+  },
+  render() {
+    if (UI.diagLog) UI.diagLog.textContent = this.text();
+  },
+};
+window.DIAG = DIAG;
+
 const UI = {
   dotConn: $("#dotConn"),
   txtConn: $("#txtConn"),
@@ -3376,6 +3457,10 @@ const UI = {
   sheetChoose: $("#sheetChoose"),
   sheetQr: $("#sheetQr"),
   sheetSound: $("#sheetSound"),
+  sheetDiag: $("#sheetDiag"),
+  diagLog: $("#diagLog"),
+  btnDiag: $("#btnDiag"),
+  upTip: $("#upTip"),
   btnSettings: $("#btnSettings"),
   btnResume: $("#btnResume"),
   peerStat: $("#peerStat"),
@@ -3439,6 +3524,7 @@ const UI = {
 if (UI.verLine) UI.verLine.textContent = "一起听 v" + APP_VER;
 
 function setConn(text, state) {
+  if (window.DIAG) DIAG.push("状态", text);
   UI.txtConn.textContent = text;
   UI.dotConn.className = "dot" + (state ? " " + state : "");
 }
@@ -3545,6 +3631,7 @@ function dropRoom() {
   APP.hostId = "";
   APP.jo = 0;
   APP.paired = false;
+  clearLastRoom();
   show($("#rowGoListen"), false);
   renderWho();
   resetSessionQueue();
@@ -3559,6 +3646,32 @@ function goHome() {
   show(UI.cardPlayer, false);
   document.body.classList.remove("mode-solo", "mode-duet");
   renderProfile();
+}
+
+/* ===== 上次房间：刷新 / 被杀后台后自动回去 ===== */
+const ROOM_KEY = "duet_last_room_v1";
+function saveLastRoom() {
+  try {
+    if (!APP.room) return;
+    localStorage.setItem(ROOM_KEY, JSON.stringify({ room: APP.room, me: APP.me, ts: Date.now() }));
+  } catch (e) {}
+}
+function clearLastRoom() {
+  try { localStorage.removeItem(ROOM_KEY); } catch (e) {}
+}
+function tryAutoRejoin() {
+  if (APP.mode || APP.room) return;
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(ROOM_KEY) || "null"); } catch (e) {}
+  if (!s || !s.room || !s.me || Date.now() - Number(s.ts || 0) > 2 * 3600 * 1000) {
+    clearLastRoom();
+    return;
+  }
+  APP.me = String(s.me);      // 用回上次的身份，对方看到还是你
+  toast("正在回到上次的房间 " + s.room + "…", 2600);
+  enterDuet();
+  UI.inpCode.value = s.room;
+  joinRoomByCode();
 }
 
 /* ===================== 个人资料（头像 + 用户名） ===================== */
@@ -3814,9 +3927,11 @@ function openSheet(which) {
     : which === "qr" ? UI.sheetQr
     : which === "profile" ? UI.sheetProfile
     : which === "sound" ? UI.sheetSound
+    : which === "diag" ? UI.sheetDiag
     : which === "choose" ? UI.sheetChoose
     : UI.sheetList;
   if (which === "list") renderPlaylist();
+  if (which === "diag") DIAG.render();
   UI.mask.classList.remove("hidden");
   requestAnimationFrame(() => {
     UI.mask.classList.add("on");
@@ -3835,6 +3950,7 @@ function closeSheets() {
   if (UI.sheetChoose) UI.sheetChoose.classList.remove("on");
   if (UI.sheetQr) UI.sheetQr.classList.remove("on");
   if (UI.sheetSound) UI.sheetSound.classList.remove("on");
+  if (UI.sheetDiag) UI.sheetDiag.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
   _maskHideTimer = setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
@@ -4049,6 +4165,7 @@ async function createRoom() {
   UI.topRoomCode.textContent = APP.room;
   startLobbyAd();
   enterList();
+  saveLastRoom();
 }
 
 async function joinRoomByCode() {
@@ -4077,6 +4194,7 @@ async function joinRoomByCode() {
   setConn("已进入房间，正在寻找房间里的人…", "warn blink");
   show(UI.codeWrap, false);
   enterList();
+  saveLastRoom();
 }
 
 function enterList() {
@@ -4540,12 +4658,14 @@ function createPeer(p, initiator) {
     if (st === "connected") {
       p.tryCount = 0;
       p.closing = false;
+      if (window.DIAG) DIAG.push("直连", "与 " + p.id.slice(-4) + " 已连通");
       setConn("已直连成功（不经过服务器）", "ok");
       setPill("已连接 · " + memberCount() + " 人", "ok");
       show(UI.tipFallback, false);
       pumpSendQueue();
       ensureBuffer();
     } else if (st === "disconnected") {
+      if (window.DIAG) DIAG.push("直连", "与 " + p.id.slice(-4) + " 连接不稳，尝试恢复");
       setPill("直连不稳，正在恢复", "warn blink");
       if (p.paired) {
         // 先温和地重启 ICE，救不回来再整条重建
@@ -4554,6 +4674,7 @@ function createPeer(p, initiator) {
         }
       }
     } else if (st === "failed" || st === "closed") {
+      if (window.DIAG) DIAG.push("直连", "与 " + p.id.slice(-4) + " 连接断开");
       if (p.closing) return;
       if (p.paired) reconnectPeer(p);
       else retryPair(p);
@@ -5083,7 +5204,7 @@ function sendTrackToPeer(t, p) {
           t.pct = pct;
           lastPct = pct;
           lastDraw = now;
-          if (!paintTrackPct(t)) renderPlaylist();
+          paintTrackPct(t);
         }
       }
       // 关键：等缓冲真正清空，再发“结束标记”，否则 close() 会丢掉尾部字节
@@ -5128,7 +5249,7 @@ function receiveTrackChannel(dc, trackId, p) {
     if (pct === lastPct && now - lastDraw < 300) return t;
     lastPct = pct;
     lastDraw = now;
-    if (!paintTrackPct(t)) renderPlaylist();
+    paintTrackPct(t);
     return t;
   };
   mark();
@@ -6262,7 +6383,8 @@ function renderPlaylist() {
     }
 
     const inPl = APP.plTab === "pl" && APP.plCur;
-    box.innerHTML = head + list.map((t, i) => {
+    const pg = pageSlice(list);
+    box.innerHTML = head + pg.shown.map((t, i) => {
       const meta = [];
       if (t.dur) meta.push(fmtTime(t.dur));
       if (t.lrc && t.lrc.length) meta.push("有歌词");
@@ -6279,8 +6401,8 @@ function renderPlaylist() {
           '<div class="plName">' + esc(t.name) + "</div>" +
           '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
         "</div>" + tail + "</div>";
-    }).join("");
-    scheduleCovers(list);
+    }).join("") + moreHtml(pg.rest);
+    scheduleCovers(pg.shown);
     renderNextUp();
     return;
   }
@@ -6300,7 +6422,8 @@ function renderPlaylist() {
       renderNextUp();
       return;
     }
-    box.innerHTML = list.map((t, i) => {
+    const pg = pageSlice(list);
+    box.innerHTML = pg.shown.map((t, i) => {
       const inQ = !!findInQueue(t.id);
       const meta = [];
       if (t.dur) meta.push(fmtTime(t.dur));
@@ -6319,8 +6442,8 @@ function renderPlaylist() {
         '<button class="miniBtn' + (inQ ? " fav on" : "") + '" data-act="qadd" title="加入一起听">' +
           (inQ ? "✓" : "＋") + "</button>" +
         "</div>";
-    }).join("");
-    scheduleCovers(list);
+    }).join("") + moreHtml(pg.rest);
+    scheduleCovers(pg.shown);
     renderNextUp();
     return;
   }
@@ -6339,7 +6462,8 @@ function renderPlaylist() {
     renderNextUp();
     return;
   }
-  box.innerHTML = list.map((t, i) => {
+  const pg = pageSlice(list);
+  box.innerHTML = pg.shown.map((t, i) => {
     const meta = [];
     if (t.dur) meta.push(fmtTime(t.dur));
     if (t.lrc && t.lrc.length) meta.push("有歌词");
@@ -6363,8 +6487,8 @@ function renderPlaylist() {
         (t.fav ? "★" : "☆") + "</button>" +
         '<button class="miniBtn del" data-act="del" title="从歌单删除">✕</button>';
     return head + coverSlot(t) + main + tail + "</div>";
-  }).join("");
-  scheduleCovers(list);
+  }).join("") + moreHtml(pg.rest);
+  scheduleCovers(pg.shown);
   renderNextUp();
 }
 
@@ -6378,7 +6502,7 @@ function paintTrackPct(t) {
   const label = t.state === "sending" ? "发送中 " : t.state === "recv" ? "接收中 " : "";
   if (!label) return false;
   const want = label + (t.pct || 0) + "%";
-  const parts = meta.textContent.split(" · ");
+  const parts = meta.textContent ? meta.textContent.split(" · ") : [];
   for (let i = 0; i < parts.length; i++) {
     if (parts[i].indexOf("发送中 ") === 0 || parts[i].indexOf("接收中 ") === 0) {
       if (parts[i] === want) return true;
@@ -6387,7 +6511,21 @@ function paintTrackPct(t) {
       return true;
     }
   }
-  return false;
+  /* 还没有进度这一项（刚开始传），就地补上，避免整表重绘 */
+  parts.push(want);
+  meta.textContent = parts.join(" · ");
+  return true;
+}
+
+/* 长歌单分批渲染：首屏只画 plLimit 行，底部按钮 / 滚到底再往上加 */
+function pageSlice(list) {
+  const lim = Math.max(30, APP.plLimit || 120);
+  return { shown: list.slice(0, lim), rest: Math.max(0, list.length - lim) };
+}
+function moreHtml(rest) {
+  return rest > 0
+    ? '<button class="plMore" data-act="more">显示更多（还有 ' + rest + ' 首）</button>'
+    : "";
 }
 
 function toggleFav(id) {
@@ -6402,6 +6540,7 @@ function toggleFav(id) {
 function setPlTab(tab) {
   APP.plTab = tab;
   if (tab !== "pl") APP.plCur = "";
+  APP.plLimit = 120;      // 切页回到首屏行数，避免上一页滚到底后新页面一次性画太多
   syncTabs();
   renderPlaylist();
 }
@@ -7084,7 +7223,16 @@ function applyCoverUI(t) {
   if (t.id !== APP.curId) return;
   const card = $("#cardPlayer"), bg = $("#coverBg"), img = $("#coverImg"), ph = $("#coverPh"), ar = $("#songArtist");
   if (t.coverUrl) {
-    if (img) { img.src = t.coverUrl; img.classList.remove("hidden"); }
+    if (img) {
+      /* 切歌时旧封面先淡出，新封面加载完成再淡入，避免硬切闪一下 */
+      if (img.getAttribute("src") !== t.coverUrl) {
+        img.classList.add("fadeIn");
+        img.onload = () => { img.classList.remove("fadeIn"); img.onload = null; };
+        img.src = t.coverUrl;
+      }
+      img.classList.remove("hidden");
+      if (img.complete) img.classList.remove("fadeIn");
+    }
     if (ph) ph.classList.add("hidden");
     if (bg) bg.style.backgroundImage = 'url("' + t.coverUrl + '")';
     if (card) card.classList.add("hasCover");
@@ -8357,6 +8505,9 @@ UI.playlist.addEventListener("click", (e) => {
     if (pact === "rename") { renamePlaylist(APP.plCur); return; }
   }
 
+  const moreEl = e.target.closest('[data-act="more"]');
+  if (moreEl) { APP.plLimit = (APP.plLimit || 120) + 120; renderPlaylist(); return; }
+
   const item = e.target.closest(".plItem");
   if (!item) return;
   const id = item.getAttribute("data-id");
@@ -8405,7 +8556,33 @@ $("#btnNext").onclick = () => stepTrack(1);
 $("#btnShuffle").onclick = toggleShuffle;
 $("#btnRepeat").onclick = toggleRepeat;
 $("#btnReorder").onclick = () => setReorder(!APP.reorder);
-if (UI.plSearch) UI.plSearch.oninput = () => { APP.plQuery = UI.plSearch.value || ""; renderPlaylist(); };
+/* 搜索：250ms 防抖，避免每敲一个字都把上百行重画一遍 */
+if (UI.plSearch) {
+  let _plQTimer = null;
+  UI.plSearch.oninput = () => {
+    clearTimeout(_plQTimer);
+    _plQTimer = setTimeout(() => {
+      APP.plQuery = UI.plSearch.value || "";
+      APP.plLimit = 120;
+      renderPlaylist();
+    }, 250);
+  };
+}
+/* 歌单滚到接近底部时自动接着渲染下一批 */
+(() => {
+  const body = UI.sheetList ? UI.sheetList.querySelector(".sheetBody") : null;
+  if (!body) return;
+  let _moreLock = 0;
+  body.addEventListener("scroll", () => {
+    if (!UI.playlist || !UI.playlist.querySelector('[data-act="more"]')) return;
+    if (body.scrollTop + body.clientHeight < body.scrollHeight - 140) return;
+    const now = Date.now();
+    if (now - _moreLock < 400) return;
+    _moreLock = now;
+    APP.plLimit = (APP.plLimit || 120) + 120;
+    renderPlaylist();
+  }, { passive: true });
+})();
 document.querySelectorAll(".chip[data-tab]").forEach((el) => {
   el.onclick = () => {
     if (APP.reorder) setReorder(false);
@@ -8494,6 +8671,10 @@ loadPls();
 renderAvatarGrid();
 restorePlaylist().then(preloadCovers);
 applyModeChrome();
+/* 上次的房间 1.5 秒后自动回去（用户主动离开过就不会） */
+setTimeout(tryAutoRejoin, 1500);
+/* 网页版：3 秒后对比线上版本号，有新版就提示刷新 */
+setTimeout(checkUpdate, 3000);
 
 /* ===================== 锁屏 / 通知栏控制（浏览器用 Web MediaSession；App 里有原生控制，避免重复） ===================== */
 if ("mediaSession" in navigator && !MCTL) {
@@ -8723,6 +8904,37 @@ if (BG && UI.btnBg) UI.btnBg.onclick = async () => {
 };
 if (BG) refreshBg();
 if ($("#closeSound")) $("#closeSound").onclick = closeSheets;
+/* ===== 连接诊断面板 ===== */
+if (UI.btnDiag) UI.btnDiag.onclick = () => openSheet("diag");
+if ($("#closeDiag")) $("#closeDiag").onclick = closeSheets;
+if ($("#btnDiagClear")) $("#btnDiagClear").onclick = () => {
+  DIAG.items.length = 0;
+  DIAG.render();
+  toast("诊断日志已清空");
+};
+if ($("#btnDiagCopy")) $("#btnDiagCopy").onclick = async () => {
+  const txt = DIAG.text();
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(txt);
+      toast("日志已复制，粘贴发给开发者即可");
+      return;
+    }
+  } catch (e) {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = txt;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    toast(ok ? "日志已复制" : "复制失败，可长按日志手动复制");
+  } catch (e) {
+    toast("复制失败，可长按日志手动复制");
+  }
+};
 if (UI.sndOn) UI.sndOn.onchange = () => {
   SND.on = !!UI.sndOn.checked;
   sndSave();
@@ -8801,6 +9013,42 @@ if ("serviceWorker" in navigator && /^http/.test(location.protocol)) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   });
+}
+
+/* ===== 网页版更新提示 =====
+   本地 HTML 的版本号比线上小，说明服务器已经换了新版本，提示用户刷新一次。
+   安卓 App 打包的是同一份文件，不走这条路。 */
+function cmpVer(a, b) {
+  const pa = String(a).split(".").map(Number);
+  const pb = String(b).split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+async function checkUpdate() {
+  const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if (native) return;
+  if (!/^http/.test(location.protocol)) return;
+  try {
+    const url = (location.pathname || "/index.html") + "?v=" + Date.now();
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) return;
+    const html = await r.text();
+    const m = html.match(/const APP_VER = "([0-9.]+)"/);
+    if (!m) return;
+    if (cmpVer(m[1], APP_VER) > 0) showUpdateTip(m[1]);
+  } catch (e) {}
+}
+function showUpdateTip(ver) {
+  if (!UI.upTip) return;
+  const txt = $("#upTipText");
+  if (txt) txt.textContent = "网页版有新版本 v" + ver;
+  UI.upTip.classList.add("on");
+  const b1 = $("#btnUpdate"), b2 = $("#btnUpdateLater");
+  if (b1) b1.onclick = () => { try { location.reload(); } catch (e) {} };
+  if (b2) b2.onclick = () => UI.upTip.classList.remove("on");
 }
 
 /* 首屏检查 */
