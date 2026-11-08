@@ -131,6 +131,20 @@
   .peerStat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--warn);margin:0 0 8px;
             min-height:16px;overflow:hidden;white-space:nowrap}
   .peerStat .psDot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none;animation:blink 1s infinite}
+  .offlineTip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#ffd08a;margin:0 0 8px;
+              padding:8px 10px;border-radius:10px;background:rgba(255,180,60,.1);
+              border:1px solid rgba(255,180,60,.3)}
+  .offlineTip .psDot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none;animation:blink 1s infinite}
+  .xferBar{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border-radius:10px;
+           background:rgba(91,140,255,.1);border:1px solid rgba(91,140,255,.3)}
+  .xferBar > span{flex:1;min-width:0;font-size:12px;color:var(--sub);white-space:nowrap;
+                  overflow:hidden;text-overflow:ellipsis}
+  .chatPeek{display:flex;gap:8px;align-items:flex-start;margin:2px 0 10px;cursor:pointer}
+  .chatPeek:active{opacity:.8}
+  .cpLabel{flex:none;font-size:11px;padding:2px 7px;border-radius:7px;background:var(--card2);color:var(--sub)}
+  .cpList{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .cpLine{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cpLine b{color:var(--fg);font-weight:600}
   .verLine{margin-top:24px;padding-top:14px;border-top:1px solid var(--line);text-align:center;
            font-size:11.5px;color:var(--sub);letter-spacing:.4px}
 
@@ -139,6 +153,8 @@
   .plMore{margin-top:2px;padding:12px;border-radius:12px;border:1px dashed var(--line);background:transparent;
           color:var(--sub);font-size:13px;cursor:pointer;font-family:inherit}
   .plMore:active{transform:scale(.98)}
+  .plMore.addAll{background:rgba(91,140,255,.12);border-color:rgba(91,140,255,.4);color:var(--fg);
+                  font-weight:600;margin-bottom:8px}
   .diagLog{margin:0;padding:12px;border-radius:12px;background:var(--card2);border:1px solid var(--line);
            color:var(--sub);font-size:11.5px;line-height:1.65;white-space:pre-wrap;word-break:break-all;
            max-height:52vh;overflow-y:auto;font-family:ui-monospace,Menlo,Consolas,monospace}
@@ -166,7 +182,17 @@
   .miniBtn.del{color:var(--err);border-color:rgba(255,96,96,.35)}
   .lyrics{max-height:150px;overflow-y:auto;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
   .lyrLine{font-size:13px;line-height:1.6;color:var(--sub);padding:3px 6px;border-radius:8px;transition:.2s}
-  .lyrLine.active{color:#fff;font-weight:600;background:rgba(91,140,255,.14)}
+  .lyrLine.active{font-weight:600;background:rgba(91,140,255,.14)}
+  /* 逐字高亮：用渐变裁剪文字，--p 表示唱到整行的百分比 */
+  .lyrLine .lyrFill{
+    background-image:linear-gradient(90deg,
+      var(--fg) 0%, var(--fg) var(--p,0%),
+      var(--sub) var(--p,0%), var(--sub) 100%);
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent;-webkit-text-fill-color:transparent;
+    transition:background-image .12s linear;
+  }
+  .lyrLine.active{color:var(--fg)}
   .chatList{margin-top:10px;max-height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
   .chatEmpty{color:var(--sub);font-size:12.5px;text-align:center;padding:6px}
   .chatMsg{max-width:82%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.5;word-break:break-word}
@@ -404,6 +430,10 @@
         <button class="topBtn" id="btnOpenList">☰ 歌单 <span class="num" id="listCount">0</span></button>
       </div>
     </div>
+    <div class="chatPeek hidden" id="chatPeek" title="点一下打开消息">
+      <span class="cpLabel">消息</span>
+      <div class="cpList" id="chatPeekList"></div>
+    </div>
     <div class="whoRow duetOnly" id="whoRow">
       <div class="whoItem"><img class="avatar" id="meAvatar" alt="" /><span id="meName">我</span></div>
       <span class="whoCount" id="whoCount">1/3</span>
@@ -424,6 +454,9 @@
     </div>
     <div class="peerStat hidden" id="peerStat">
       <span class="psDot"></span><span id="peerStatText">—</span>
+    </div>
+    <div class="offlineTip hidden" id="offlineTip">
+      <span class="psDot"></span><span id="offlineText">对方已离线…</span>
     </div>
     <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
     <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
@@ -509,6 +542,10 @@
         <button class="chip" data-tab="fav">★ 收藏</button>
         <button class="chip" data-tab="recent">最近</button>
         <span class="tag" id="plFilterCount" style="margin-left:auto"></span>
+      </div>
+      <div class="xferBar hidden" id="xferBar">
+        <span id="xferText">正在传…</span>
+        <button class="topBtn" id="btnXferPause" style="flex:none">暂停</button>
       </div>
       <div class="playlist" id="playlist"></div>
       <div class="status" id="txtList"><span class="dot warn blink"></span><span id="txtListText">一起听歌单是空的，去「我的歌曲」点 ＋ 添加</span></div>
@@ -3395,6 +3432,11 @@ const APP = {
   reorder: false,        // 歌单排序模式（拖动 / 上下移动）
   sendQueue: [],         // 传歌排队 [{t, pid}]（一次只传一首，不并发）
   sending: false,        // 当前是否正在传某一首
+  sendPaused: false,     // 手动暂停传歌（当前这首歌停在中途，继续时接着传）
+  curSend: null,         // 当前正在传的 {t, pid}，用于歌单里的传输进度条
+  hadPeer: false,        // 本房间曾经连上过人（用来判断「对方离线」）
+  offlineSince: 0,       // 对方掉线的起始时间
+  chatRecent: [],        // 最近两条聊天，显示在主界面聊天入口下方
   needSent: new Set(),   // 已经催过对方补传的歌曲 id
   peerTracks: [],        // 预留
   lrcCache: {},          // 对方发来的歌词原文（本地还没这首歌时先存着）
@@ -3407,7 +3449,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.1.0";
+const APP_VER = "1.2.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3465,6 +3507,13 @@ const UI = {
   btnResume: $("#btnResume"),
   peerStat: $("#peerStat"),
   peerStatText: $("#peerStatText"),
+  offlineTip: $("#offlineTip"),
+  offlineText: $("#offlineText"),
+  xferBar: $("#xferBar"),
+  xferText: $("#xferText"),
+  btnXferPause: $("#btnXferPause"),
+  chatPeek: $("#chatPeek"),
+  chatPeekList: $("#chatPeekList"),
   themeChips: $("#themeChips"),
   bgBox: $("#bgBox"),
   bgDesc: $("#bgDesc"),
@@ -3617,6 +3666,12 @@ function dropRoom() {
   APP.peerStat = {};
   APP.sendQueue = [];
   APP.sending = false;
+  APP.sendPaused = false;
+  APP.curSend = null;
+  APP.hadPeer = false;
+  APP.offlineSince = 0;
+  APP.chatRecent = [];
+  try { renderChatPeek(); renderXferBar(); renderOfflineTick(); } catch (e) {}
   APP.needTimers = {};
   APP.needSent.clear();
   closeMqs();
@@ -3966,6 +4021,18 @@ function clearUnread() {
   show(UI.chatDot, false);
 }
 
+/* 主界面聊天入口下方露出最近两条消息，不用每次点开消息面板 */
+function renderChatPeek() {
+  if (!UI.chatPeek || !UI.chatPeekList) return;
+  if (APP.mode !== "duet" || !APP.chatRecent.length) {
+    UI.chatPeek.classList.add("hidden");
+    return;
+  }
+  UI.chatPeek.classList.remove("hidden");
+  UI.chatPeekList.innerHTML = APP.chatRecent.slice(-2).map((m) =>
+    '<div class="cpLine"><b>' + esc(m.name) + "：</b>" + esc(m.text) + "</div>").join("");
+}
+
 function syncListCount() {
   const n = APP.mode === "solo" ? APP.lib.length : APP.tracks.length;
   if (UI.listCount) UI.listCount.textContent = n;
@@ -4126,6 +4193,10 @@ function resetSessionQueue() {
   APP.stateVer = 0;
   APP.lastBy = "";
   APP.alias = {};
+  APP.chatRecent = [];
+  APP.sendPaused = false;
+  APP.curSend = null;
+  renderChatPeek();
   APP.pendingTarget = null;
   APP.pendPlayId = "";
   APP.needSent.clear();
@@ -4514,6 +4585,8 @@ function onMqttMessage(topic, payload) {
       const p = APP.peers[m.from];
       const wasHost = (APP.hostId === m.from) || (p && p.role === "host");
       const next = m.next || "";
+      APP.hadPeer = false;
+      APP.offlineSince = 0;
       dropPeerRecord(m.from);
       if (memberCount() <= 1) {
         setConn("其他人都离开了，还在等新的人加入…", "warn blink");
@@ -4551,6 +4624,9 @@ function onMqttMessage(topic, payload) {
       break;
     case "pl_op":
       applyPlOp(m);
+      break;
+    case "pl_sync":
+      applyPlSync(m);
       break;
     case "need": {
       // 有人没收到这首歌，我手上有就补传给他
@@ -5024,18 +5100,18 @@ function forceReconnect() {
   publish(helloMsg());
 }
 
-/* 重连/配对成功时，把当前一起听歌单逐首重报一次（对方已有的会自动跳过） */
+/* 重连/配对成功时，把当前一起听歌单整包重报一次（对方已有的会自动跳过） */
+function queueSnap(t) {
+  return {
+    id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
+    owner: t.owner || (t.mine ? APP.me : ""),
+  };
+}
 function syncQueueToPeer() {
   if (!APP.mqs.length || !APP.tracks.length) return;
-  const ver = APP.plVer;
-  APP.tracks.forEach((t) => {
-    publish({
-      k: "pl_op", from: APP.me, ver, by: APP.plBy || APP.me, op: "add",
-      item: {
-        id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
-        owner: t.owner || (t.mine ? APP.me : ""),
-      },
-    });
+  publish({
+    k: "pl_sync", from: APP.me, ver: APP.plVer, by: APP.plBy || APP.me,
+    items: APP.tracks.map(queueSnap),
   });
 }
 
@@ -5050,10 +5126,11 @@ function queueTrackSend(t, pid) {
   if (APP.sendQueue.some((j) => j.t === t && j.pid === pid)) return;
   APP.sendQueue.push({ t: t, pid: pid });
   pumpSendQueue();
+  renderXferBar();
 }
 
 function pumpSendQueue() {
-  if (APP.sending) return;
+  if (APP.sending || APP.sendPaused) return;
   while (APP.sendQueue.length) {
     const job = APP.sendQueue[0];
     const p = APP.peers[job.pid];
@@ -5071,6 +5148,8 @@ function pumpSendQueue() {
     }
     APP.sendQueue.shift();
     APP.sending = true;
+    APP.curSend = { t: job.t, pid: p.id };
+    renderXferBar();
     sendTrackToPeer(job.t, p);
     return;
   }
@@ -5078,6 +5157,8 @@ function pumpSendQueue() {
 
 function onTrackSent() {
   APP.sending = false;
+  APP.curSend = null;
+  renderXferBar();
   // 让接收端把缓冲和入库做完，再传下一首
   setTimeout(() => { if (!APP.sending) pumpSendQueue(); }, 700);
 }
@@ -5189,6 +5270,11 @@ function sendTrackToPeer(t, p) {
     let lastPct = -1, lastDraw = 0;
     try {
       while (sent < total) {
+        /* 手动暂停：停在这里等，通道保持开着，继续时从已发位置接上 */
+        while (APP.sendPaused) {
+          if (dc.readyState !== "open") { finish(false); return; }
+          await sleep(300);
+        }
         if (dc.readyState !== "open") { finish(false); return; }
         if (dc.bufferedAmount > HI) {
           await waitDcDrain(dc, LO);
@@ -5797,6 +5883,36 @@ function addToQueue(id) {
   ensureBuffer();
 }
 
+/* 一键把「我的歌曲」里还没进一起听的歌全部加进去（不逐首弹提示、也不立刻传文件） */
+function addAllToQueue() {
+  const list = visibleLib();
+  const todo = list.filter((t) => !findInQueue(t.id) && (t.blob || t.url || t.ref));
+  if (!todo.length) { toast("没有可加入的歌（都已经在歌单里，或文件已释放）"); return; }
+  let added = 0;
+  todo.forEach((t) => {
+    const twin = APP.tracks.find((x) => trackKey(x) === trackKey(t));
+    if (twin) {
+      APP.alias[t.id] = twin.id;
+      if (!twin.url && (t.url || t.ref)) {
+        twin.blob = t.blob; twin.url = t.url; twin.ref = t.ref; twin.size = t.size;
+        twin.mine = t.mine; twin.owner = t.owner || twin.owner; twin.state = "local";
+        saveTrack(twin);
+      }
+      return;
+    }
+    APP.tracks.push(t);
+    added++;
+  });
+  if (!added) { toast("这些歌都已经在一起听歌单里了"); return; }
+  APP.plVer++;
+  APP.plBy = APP.me;
+  syncQueueToPeer();               // 整包同步一次，避免几百条 pl_op
+  renderPlaylist();
+  syncListCount();
+  toast("已加入一起听：" + added + " 首");
+  ensureBuffer();                  // 音频等对方轮到再按需拉，不一次性全传
+}
+
 /* ===== 内置歌曲：随网页/App 一起打包的几首示例歌，点了才去取，取到就当成自己导入的歌 ===== */
 const BUILTIN = [
   { id: "bi1", name: "越来越不懂 - 蔡健雅.mp3", src: "audio/b1.mp3" },
@@ -6075,7 +6191,7 @@ function applyPlOp(m) {
       APP.plVer = Math.max(APP.plVer, m.ver || 0);
       renderPlaylist();
       syncListCount();
-      hint("对方把「" + item.name + "」加进了一起听");
+      if (!m.silent) hint("对方把「" + item.name + "」加进了一起听");
       return;
     }
 
@@ -6105,7 +6221,7 @@ function applyPlOp(m) {
     }
     renderPlaylist();
     syncListCount();
-    hint("「" + item.name + "」被加进了一起听歌单");
+    if (!m.silent) hint("「" + item.name + "」被加进了一起听歌单");
     /* 不盲目下载整个歌单：只补当前正在放的 + 下一首 */
     ensureBuffer();
     return;
@@ -6162,6 +6278,24 @@ function applyPlOp(m) {
     renderPlaylist();
     syncListCount();
     hint("对方把「" + t.name + "」移出了一起听（歌还在各自的列表里）");
+  }
+}
+
+/* 整包歌单同步：进房 / 重连后一次补齐，比逐首发几十条消息更快、更不容易丢 */
+function applyPlSync(m) {
+  if (m.from === APP.me || !Array.isArray(m.items)) return;
+  let added = 0;
+  m.items.forEach((item) => {
+    if (!item || !item.id) return;
+    const before = APP.tracks.length;
+    applyPlOp({ k: "pl_op", op: "add", item: item, ver: m.ver, by: m.by, from: m.from, silent: true });
+    if (APP.tracks.length > before) added++;
+  });
+  if (added) {
+    renderPlaylist();
+    syncListCount();
+    hint("已同步对方的歌单，新增 " + added + " 首");
+    ensureBuffer();
   }
 }
 
@@ -6423,7 +6557,8 @@ function renderPlaylist() {
       return;
     }
     const pg = pageSlice(list);
-    box.innerHTML = pg.shown.map((t, i) => {
+    const addable = list.filter((t) => !findInQueue(t.id) && (t.blob || t.url || t.ref)).length;
+    box.innerHTML = addAllHtml(addable) + pg.shown.map((t, i) => {
       const inQ = !!findInQueue(t.id);
       const meta = [];
       if (t.dur) meta.push(fmtTime(t.dur));
@@ -6526,6 +6661,12 @@ function pageSlice(list) {
 function moreHtml(rest) {
   return rest > 0
     ? '<button class="plMore" data-act="more">显示更多（还有 ' + rest + ' 首）</button>'
+    : "";
+}
+/* 「我的歌曲」里还没进一起听的歌，给一个一键全加 */
+function addAllHtml(n) {
+  return n > 0
+    ? '<button class="plMore addAll" data-act="addall">一键全部加入一起听（' + n + ' 首）</button>'
     : "";
 }
 
@@ -6696,7 +6837,7 @@ function renderLyrics() {
   }
   if (lines) {
     UI.lyrics.innerHTML = lines.map((l, i) =>
-      '<div class="lyrLine" data-i="' + i + '">' + esc(l.text) + "</div>").join("");
+      '<div class="lyrLine" data-i="' + i + '"><span class="lyrFill">' + esc(l.text) + "</span></div>").join("");
     show(UI.lyrics, true);
     const tools = $("#lrcTools");
     if (tools) show(tools, true);
@@ -6722,12 +6863,26 @@ function updateLyric(force) {
     if (t.lrc[i].t <= cur + 0.05) idx = i;
     else break;
   }
-  if (idx === APP.lrcIdx && !force) return;
-  APP.lrcIdx = idx;
   const rows = UI.lyrics.querySelectorAll(".lyrLine");
-  rows.forEach((el, i) => el.classList.toggle("active", i === idx));
+  if (idx !== APP.lrcIdx || force) {
+    APP.lrcIdx = idx;
+    rows.forEach((el, i) => {
+      const on = i === idx;
+      el.classList.toggle("active", on);
+      if (!on) el.style.setProperty("--p", "0%");
+    });
+    if (idx >= 0 && rows[idx]) {
+      try { rows[idx].scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+    }
+  }
+  /* 按「这一行到下个时间戳」的进度，逐字把字染亮 */
   if (idx >= 0 && rows[idx]) {
-    try { rows[idx].scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+    const start = t.lrc[idx].t;
+    const next = idx + 1 < t.lrc.length ? t.lrc[idx + 1].t : start + 4;
+    const span = Math.max(0.5, next - start);
+    const pct = Math.max(0, Math.min(100, ((cur - start) / span) * 100));
+    const fill = rows[idx].querySelector(".lyrFill");
+    if (fill) fill.style.setProperty("--p", pct.toFixed(1) + "%");
   }
 }
 
@@ -7011,6 +7166,13 @@ function addChat(text, mine, fromId) {
   UI.chatList.appendChild(line);
   while (UI.chatList.children.length > 20) UI.chatList.removeChild(UI.chatList.firstChild);
   UI.chatList.scrollTop = UI.chatList.scrollHeight;
+  /* 最近两条同步露在主界面，红点之外还能直接看到内容 */
+  APP.chatRecent.push({
+    name: mine ? (APP.pf.name || "我") : (peerPfOf(fromId).name || "对方"),
+    text: text.slice(0, 80),
+  });
+  while (APP.chatRecent.length > 2) APP.chatRecent.shift();
+  renderChatPeek();
 }
 
 function sendChat() {
@@ -8005,6 +8167,7 @@ setInterval(() => {
 /* 每 3 秒把自己的播放状态报给对方：用来区分「正在缓冲」和「真的卡住了」 */
 setInterval(() => { pingStat(); }, 3000);
 setInterval(renderPeerStat, 1000);
+setInterval(() => { renderOfflineTick(); renderXferBar(); }, 1000);
 
 function peerSt() {
   if (!audio.src) return "idle";
@@ -8059,6 +8222,46 @@ function renderPeerStat() {
   if (!msg) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
   txt.textContent = msg;
+}
+
+/* 对方掉线：给一个明确的倒计时，别让人以为只是自己卡了 */
+function renderOfflineTick() {
+  if (!UI.offlineTip || !UI.offlineText) return;
+  let online = false;
+  try { online = Object.keys(APP.peers).some((id) => APP.peers[id] && APP.peers[id].paired); } catch (e) {}
+  if (online) {
+    APP.hadPeer = true;
+    APP.offlineSince = 0;
+    UI.offlineTip.classList.add("hidden");
+    return;
+  }
+  if (!APP.room || !APP.hadPeer) { UI.offlineTip.classList.add("hidden"); return; }
+  if (!APP.offlineSince) APP.offlineSince = Date.now();
+  const sec = Math.max(1, Math.floor((Date.now() - APP.offlineSince) / 1000));
+  UI.offlineTip.classList.remove("hidden");
+  UI.offlineText.textContent = sec < 60
+    ? "对方暂时离线 " + sec + " 秒，网络恢复后会自动续上"
+    : "对方离线 " + Math.floor(sec / 60) + " 分钟，可能已退出房间；重新进房可恢复";
+}
+
+/* 传歌进度条：显示当前第几首、百分比、还剩几首，可暂停/继续 */
+function renderXferBar() {
+  if (!UI.xferBar) return;
+  const active = !!(APP.room && (APP.sending || APP.sendQueue.length));
+  UI.xferBar.classList.toggle("hidden", !active);
+  if (!active) return;
+  let text = "";
+  if (APP.sending && APP.curSend && APP.curSend.t) {
+    const t = APP.curSend.t;
+    text = (APP.sendPaused ? "已暂停 · " : "正在传 · ") + t.name + " " + (t.pct || 0) + "%";
+    if (APP.sendQueue.length) text += " · 后面还有 " + APP.sendQueue.length + " 首";
+  } else if (APP.sendPaused && APP.sendQueue.length) {
+    text = "已暂停 · 排队中 " + APP.sendQueue.length + " 首";
+  } else {
+    text = "排队中 " + APP.sendQueue.length + " 首";
+  }
+  if (UI.xferText) UI.xferText.textContent = text;
+  if (UI.btnXferPause) UI.btnXferPause.textContent = APP.sendPaused ? "继续" : "暂停";
 }
 
 ["waiting", "playing", "pause", "canplay"].forEach((ev) => {
@@ -8221,6 +8424,7 @@ $("#btnAddSongsMain").onclick = pickSongs;
 /* 播放列表 / 消息 两个独立抽屉 */
 UI.btnOpenList.onclick = () => openSheet("list");
 UI.btnOpenChat.onclick = () => openSheet("chat");
+if (UI.chatPeek) UI.chatPeek.onclick = () => openSheet("chat");
 $("#closeList").onclick = closeSheets;
 $("#closeChat").onclick = closeSheets;
 UI.mask.onclick = closeSheets;
@@ -8508,6 +8712,8 @@ UI.playlist.addEventListener("click", (e) => {
 
   const moreEl = e.target.closest('[data-act="more"]');
   if (moreEl) { APP.plLimit = (APP.plLimit || 120) + 120; renderPlaylist(); return; }
+
+  if (e.target.closest('[data-act="addall"]')) { addAllToQueue(); return; }
 
   const item = e.target.closest(".plItem");
   if (!item) return;
@@ -8905,6 +9111,14 @@ if (BG && UI.btnBg) UI.btnBg.onclick = async () => {
 };
 if (BG) refreshBg();
 if ($("#closeSound")) $("#closeSound").onclick = closeSheets;
+/* 传歌暂停 / 继续 */
+if (UI.btnXferPause) UI.btnXferPause.onclick = () => {
+  APP.sendPaused = !APP.sendPaused;
+  if (!APP.sendPaused) pumpSendQueue();
+  else toast("传歌已暂停，点「继续」接着传");
+  renderXferBar();
+  renderPlaylist();
+};
 /* ===== 连接诊断面板 ===== */
 if (UI.btnDiag) UI.btnDiag.onclick = () => openSheet("diag");
 if ($("#closeDiag")) $("#closeDiag").onclick = closeSheets;
