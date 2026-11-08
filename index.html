@@ -170,6 +170,10 @@
   .modeRow{display:flex;align-items:center;gap:8px;margin-top:10px}
   .btnSkip.small{width:40px;height:40px;font-size:14px}
   .modeHint{font-size:12px;color:var(--sub)}
+  .modeRow .chip{flex:none;padding:7px 11px}
+  .lrcTools{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .lrcTools .lrcOff{font-size:12px;color:var(--sub);flex:1}
+  .lrcTools .chip{padding:5px 9px;font-size:12px}
   .qrBox{display:flex;justify-content:center;align-items:center;padding:10px;min-height:120px}
   .qrBox svg{max-width:230px;max-height:230px}
   .lobbyList{display:flex;flex-direction:column;gap:8px;margin-top:10px}
@@ -341,9 +345,8 @@
       <button class="btnSkip" id="btnNext">⏭</button>
     </div>
     <div class="modeRow">
-      <button class="btnSkip small" id="btnShuffle" title="随机播放">🔀</button>
-      <button class="btnSkip small" id="btnRepeat" title="循环模式">🔁</button>
-      <span class="modeHint" id="modeHint">顺序播放</span>
+      <button class="chip" id="btnShuffle" title="随机播放：和对方同步">🔀 顺序</button>
+      <button class="chip" id="btnRepeat" title="循环模式：顺序 → 列表循环 → 单曲循环">🔁 顺序</button>
       <div class="syncInfo duetOnly" style="flex:1;justify-content:flex-end"><span>偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span></div>
     </div>
     <div class="volRow">
@@ -351,6 +354,12 @@
       <input type="range" id="vol" min="0" max="100" value="100" />
     </div>
     <div class="lyrics hidden" id="lyrics"></div>
+    <div class="lrcTools hidden" id="lrcTools">
+      <span class="lrcOff" id="lrcOff">歌词偏移 0.0 秒</span>
+      <button class="chip" id="btnLrcMinus" title="歌词提前 0.1 秒">−0.1s</button>
+      <button class="chip" id="btnLrcPlus" title="歌词延后 0.1 秒">+0.1s</button>
+      <button class="chip" id="btnLrcReset" title="恢复到 0">归零</button>
+    </div>
     <div class="row" style="margin-top:12px">
       <button class="btn primary" id="btnAddSongsMain">＋ 添加歌曲</button>
       <button class="btn" id="btnLrc" style="flex:0 0 92px;padding:12px;font-size:13px">加歌词</button>
@@ -362,8 +371,8 @@
       <p><b>2. 房间号 / 大厅</b>：房主创建后得到 6 位房间号，也可以用「复制邀请链接」「二维码」邀请；不想输号就点「看看有哪些房间」，有人在线就会出现在列表里，点「加入」直接进。人满了（3 人）房间就不再出现在列表里，第 4 个人会被直接拒。</p>
       <p><b>3. 单机听歌</b>：分「全部音乐 / 我的歌单 / ★ 收藏 / 最近」。全部音乐里点歌就播，并按当前列表自动连播；点行尾的 ＋ 把歌加进自建歌单；「我的歌单」里可以新建、重命名、删除、加歌、移出。</p>
       <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后房间里所有人同步。</p>
-      <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。</p>
-      <p><b>6. 歌词</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，大家都会滚动显示。</p>
+      <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。安卓 App 还能在锁屏/通知栏控制播放，拔掉耳机会自动暂停。</p>
+      <p><b>6. 歌词</b>：点「找歌词」自动联网匹配，找不到可点「加歌词」手动选 .lrc 文件，大家都会滚动显示。歌词和声音对不上时，用下面的 −0.1s / +0.1s 微调（只影响自己这边，不会改动对方的播放）。</p>
       <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息其他人立刻能看到，带头像。</p>
       <p><b>8. 歌单与传输</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、别人传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，所有人按添加顺序看到同一份歌单，并自动互相传文件。<b>中途进来的人只下「当前这首歌 + 下一首」</b>，下完自动对齐、开始播放，不会打断正在放的人；播放过程中会提前把下一首缓冲好。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 已连接 / 重试第几次」。实在卡住就点右上角 ↻。</p>
       <p><b>9. 房主</b>：房主可以先建房、先放歌，别人进来不影响他。房主退出后，<b>房间里来得最早的人自动接任房主</b>，房间照常继续。</p>
@@ -503,6 +512,24 @@
           <button class="topBtn" id="btnFree" style="flex:none">释放</button>
         </div>
         <p class="plsTip" style="margin-top:10px">释放后歌名保留，点歌时重新选一次文件就能听。手机里原来的音乐文件不会被删。</p>
+        <div class="soundRow" style="margin-top:12px">
+          <div>
+            <div class="soundName">引用检查</div>
+            <div class="soundDesc" id="checkDesc">检查手机里的歌还能不能读到</div>
+          </div>
+          <button class="topBtn" id="btnCheck" style="flex:none">检查</button>
+        </div>
+      </div>
+      <div class="hidden" id="recvBox">
+        <div class="label" style="margin-top:20px">接收缓存</div>
+        <div class="soundRow">
+          <div>
+            <div class="soundName">对方传来的歌</div>
+            <div class="soundDesc" id="recvDesc">—</div>
+          </div>
+          <button class="topBtn" id="btnCleanRecv" style="flex:none">清理</button>
+        </div>
+        <p class="plsTip" style="margin-top:10px">只清理已不在「一起听歌单」里的接收歌曲；下次对方再加进歌单会重新传。</p>
       </div>
     </div>
   </section>
@@ -4976,7 +5003,36 @@ function loadDuration(url) {
 
 /* ===== 安卓引用模式：只记手机里文件的位置，不再把音频复制一份进 App ===== */
 const FREF = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.FileRef) || null;
+const MCTL = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MediaCtl) || null;
 let _pickBusy = false;
+let _scanDurTimer = 0;
+
+/* 文件夹扫描先秒出列表，原生在后台逐个补时长，这里收到一个就更新一条 */
+function onScanDur(d) {
+  if (!d) return;
+  if (d.done) { if (scanItems.length) renderScanList(); return; }
+  const uri = d.uri, dur = Number(d.dur) || 0;
+  if (!uri || !dur) return;
+  let hit = false;
+  scanItems.forEach((x) => {
+    if (x.uri === uri && !x.dur) { x.dur = dur; hit = true; }
+  });
+  APP.lib.forEach((t) => {
+    if (t.ref && t.ref.uri === uri && !t.dur) { t.dur = dur; saveTrack(t); hit = true; }
+  });
+  if (hit && !_scanDurTimer) {
+    _scanDurTimer = setTimeout(() => {
+      _scanDurTimer = 0;
+      if (scanItems.length) renderScanList();
+    }, 200);
+  }
+}
+if (FREF && FREF.addListener) {
+  try {
+    const h = FREF.addListener("scanDur", onScanDur);
+    if (h && h.catch) h.catch(() => {});
+  } catch (e) {}
+}
 
 function b64ToBytes(s) {
   const bin = atob(s);
@@ -5048,6 +5104,10 @@ async function pickRefFolder() {
     files.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     scanItems = files.map((x) => ({ name: x.name, size: x.size, dur: x.dur, mime: x.mime, uri: x.uri, on: true }));
     renderScanList();
+    /* 列表先出现，时长由原生在后台补（不卡在逐个读元数据上） */
+    if (FREF.durations) {
+      try { FREF.durations({ uris: files.map((x) => x.uri) }); } catch (e) {}
+    }
     openSheet("scan");
     return true;
   } catch (e) {
@@ -5089,6 +5149,17 @@ function addRefFiles(list) {
     /* 之前释放过副本的歌：选到同一个文件就把位置接回去，不新建一条 */
     const old = APP.lib.find((t) => (t.name || "") === name && Math.abs((t.size || 0) - size) < 1024);
     if (old) {
+      /* 引用失效体检标记过的歌：重新选到同一个文件就接回，不新建一条 */
+      if (old.ref && old.missing) {
+        old.ref = { uri: f.uri, mime: f.mime || "" };
+        old.missing = false;
+        old.size = size;
+        if (Number(f.dur)) old.dur = Number(f.dur);
+        if (f.mime) old.type = f.mime;
+        saveTrack(old);
+        linked++;
+        return;
+      }
       if (old.blob || old.ref) { dup++; return; }
       old.ref = { uri: f.uri, mime: f.mime || "" };
       old.missing = false;
@@ -5128,6 +5199,76 @@ function copiesInfo() {
     if (t.blob || t.url) { n++; bytes += (t.blob && t.blob.size) || t.size || 0; }
   });
   return { n: n, bytes: bytes };
+}
+
+/* 接收缓存：对方传来的歌（不在当前一起听歌单里、也不是正在播的那首） */
+function recvInfo() {
+  let n = 0, bytes = 0;
+  APP.lib.forEach((t) => {
+    if (t.mine) return;
+    if (!t.blob && !t.url) return;
+    if (t.id === APP.curId) return;
+    if (APP.tracks.some((x) => x.id === t.id)) return;
+    n++;
+    bytes += (t.blob && t.blob.size) || t.size || 0;
+  });
+  return { n: n, bytes: bytes };
+}
+
+async function cleanRecvCache() {
+  const info = recvInfo();
+  if (!info.n) { hint("没有可清理的接收缓存", 4000); return; }
+  if (!confirm("清理 " + info.n + " 首对方传来的歌（约 " + fmtSize(info.bytes) +
+    "）？只清不在「一起听歌单」里的；下次对方再加进歌单会重新传。")) return;
+  let n = 0;
+  Array.from(APP.lib).forEach((t) => {
+    if (t.mine) return;
+    if (!t.blob && !t.url) return;
+    if (t.id === APP.curId) return;
+    if (APP.tracks.some((x) => x.id === t.id)) return;
+    if (t.url) { try { URL.revokeObjectURL(t.url); } catch (e) {} }
+    const i = APP.lib.indexOf(t);
+    if (i >= 0) APP.lib.splice(i, 1);
+    dropTrackRec(t.id);
+    n++;
+  });
+  saveOrder();
+  renderPlaylist();
+  syncListCount();
+  renderStore();
+  hint("已清理 " + n + " 首接收歌曲", 5000);
+}
+
+/* 引用失效体检：原生逐个试着打开，打不开的标成「文件已释放」 */
+function refTracks() {
+  return APP.lib.filter((t) => t.ref && t.ref.uri);
+}
+
+async function checkRefs() {
+  if (!FREF || !FREF.check) { hint("引用检查只在安卓 App 里可用", 4000); return; }
+  const list = refTracks();
+  if (!list.length) { hint("没有引用模式的歌需要检查", 4000); return; }
+  hint("正在检查 " + list.length + " 首…", 4000);
+  let res = null;
+  try {
+    res = await FREF.check({ uris: list.map((t) => t.ref.uri) });
+  } catch (e) {
+    hint("检查失败：" + ((e && e.message) || "再试一次"), 5000);
+    return;
+  }
+  const ok = Object.create(null);
+  ((res && res.ok) || []).forEach((u) => { ok[u] = 1; });
+  let good = 0, bad = 0;
+  list.forEach((t) => {
+    const valid = !!ok[t.ref.uri];
+    t.missing = !valid;
+    if (valid) good++; else bad++;
+    saveTrack(t);
+  });
+  renderPlaylist();
+  renderStore();
+  if (!bad) hint("检查完成：" + good + " 首引用都能正常读取", 4000);
+  else hint("检查完成：" + bad + " 首失效，已标记；重新选一次对应文件就能接回", 6000);
 }
 
 /* 释放 App 内的音频副本：歌名留着，之后点歌时重新选一次文件 */
@@ -5362,7 +5503,8 @@ function renderScanList() {
       '<input type="checkbox" data-i="' + i + '"' + (x.on ? " checked" : "") + ">" +
       '<div class="scanMain">' +
       '<div class="plName">' + esc(nm) + "</div>" +
-      '<div class="plMeta">' + esc((dir ? dir + " · " : "") + fmtSize(sz)) + "</div>" +
+      '<div class="plMeta">' + esc((dir ? dir + " · " : "") + fmtSize(sz) +
+        (Number(x.dur) > 0 ? " · " + fmtTime(Number(x.dur)) : "")) + "</div>" +
       "</div></label>";
   }).join("");
 }
@@ -6013,6 +6155,26 @@ function sendLrcToPeer(p) {
   });
 }
 
+/* 歌词偏移：正数让歌词延后，负数让歌词提前（只影响本机显示，不改变音频） */
+const LRC_OFF_KEY = "duet_lrcOff_v1";
+APP.lrcOff = 0;
+try { APP.lrcOff = clamp(Number(JSON.parse(localStorage.getItem(LRC_OFF_KEY) || "0")) || 0, -5, 5); } catch (e) {}
+
+function renderLrcOff() {
+  const el = $("#lrcOff");
+  if (el) {
+    const v = Number(APP.lrcOff) || 0;
+    el.textContent = "歌词偏移 " + (v > 0 ? "+" : "") + v.toFixed(1) + " 秒";
+  }
+}
+
+function setLrcOff(v) {
+  APP.lrcOff = clamp(Math.round((Number(v) || 0) * 10) / 10, -5, 5);
+  try { localStorage.setItem(LRC_OFF_KEY, JSON.stringify(APP.lrcOff)); } catch (e) {}
+  renderLrcOff();
+  updateLyric(true);
+}
+
 function renderLyrics() {
   const t = findTrack(APP.curId);
   const lines = t && Array.isArray(t.lrc) && t.lrc.length ? t.lrc : null;
@@ -6020,11 +6182,16 @@ function renderLyrics() {
   if (!lines) {
     UI.lyrics.innerHTML = "";
     show(UI.lyrics, false);
+    const tools = $("#lrcTools");
+    if (tools) show(tools, false);
     return;
   }
   UI.lyrics.innerHTML = lines.map((l, i) =>
     '<div class="lyrLine" data-i="' + i + '">' + esc(l.text) + "</div>").join("");
   show(UI.lyrics, true);
+  const tools = $("#lrcTools");
+  if (tools) show(tools, true);
+  renderLrcOff();
   updateLyric(true);
 }
 
@@ -6032,7 +6199,7 @@ function updateLyric(force) {
   const t = findTrack(APP.curId);
   if (!t || !t.lrc || !t.lrc.length || !UI.lyrics.children.length) return;
   if (!audio.src) return;
-  const cur = audio.currentTime;
+  const cur = audio.currentTime - (APP.lrcOff || 0);
   let idx = -1;
   for (let i = 0; i < t.lrc.length; i++) {
     if (t.lrc[i].t <= cur + 0.05) idx = i;
@@ -6165,6 +6332,7 @@ function loadTrackAudio(t, silent) {
   noteRecent(t);
   renderPlaylist();
   renderLyrics();
+  mediaSync();
 }
 
 /* ---------- 播放进度记忆：下次打开接着上次的位置 ---------- */
@@ -6409,14 +6577,17 @@ function shuffleNeighbor(dir, list) {
 
 function renderShuffleBtn() {
   const b = $("#btnShuffle");
-  if (b) b.classList.toggle("on", APP.shuffle);
+  if (b) {
+    b.classList.toggle("on", APP.shuffle);
+    b.textContent = APP.shuffle ? "🔀 随机" : "🔀 顺序";
+  }
   renderModeHint();
 }
 
 function renderRepeatBtn() {
   const b = $("#btnRepeat");
   if (!b) return;
-  b.textContent = APP.repeat === 2 ? "🔂" : "🔁";
+  b.textContent = APP.repeat === 2 ? "🔂 单曲" : APP.repeat === 1 ? "🔁 列表" : "🔁 顺序";
   b.classList.toggle("on", APP.repeat > 0);
   b.title = APP.repeat === 0 ? "顺序播放：播完最后一首停止"
     : APP.repeat === 1 ? "列表循环：最后一首播完回到第一首"
@@ -7171,6 +7342,10 @@ document.querySelectorAll(".chip[data-tab]").forEach((el) => {
   };
 });
 $("#btnLrcAuto").onclick = findLyricsOnline;
+if ($("#btnLrcMinus")) $("#btnLrcMinus").onclick = () => setLrcOff(APP.lrcOff - 0.1);
+if ($("#btnLrcPlus")) $("#btnLrcPlus").onclick = () => setLrcOff(APP.lrcOff + 0.1);
+if ($("#btnLrcReset")) $("#btnLrcReset").onclick = () => setLrcOff(0);
+renderLrcOff();
 loadMode();
 renderShuffleBtn();
 renderRepeatBtn();
@@ -7332,6 +7507,13 @@ function renderSound() {
 
 /* 「手机存储」只在安卓 App 里出现：显示 App 还压着多少音频副本 */
 function renderStore() {
+  const recvBox = $("#recvBox");
+  const r = recvInfo();
+  if (recvBox) {
+    recvBox.classList.toggle("hidden", !r.n);
+    const rd = $("#recvDesc");
+    if (rd) rd.textContent = r.n ? "有 " + r.n + " 首（约 " + fmtSize(r.bytes) + "），可清理" : "—";
+  }
   const box = $("#storeBox");
   if (!box || !FREF) return;
   box.classList.remove("hidden");
@@ -7344,14 +7526,36 @@ function renderStore() {
   }
   const b = $("#btnFree");
   if (b) b.style.display = c.n ? "" : "none";
+  const refs = refTracks();
+  const miss = refs.filter((t) => t.missing).length;
+  const cd = $("#checkDesc");
+  if (cd) cd.textContent = refs.length
+    ? "共 " + refs.length + " 首引用" + (miss ? "，" + miss + " 首失效，重新选文件可接回" : "，都能正常读取")
+    : "没有引用模式的歌";
+  const cb = $("#btnCheck");
+  if (cb) cb.style.display = refs.length ? "" : "none";
 }
 if ($("#btnFree")) $("#btnFree").onclick = () => { freeLocalCopies().then(renderStore); };
+if ($("#btnCheck")) $("#btnCheck").onclick = checkRefs;
+if ($("#btnCleanRecv")) $("#btnCleanRecv").onclick = cleanRecvCache;
 if (UI.btnSound) {
   if (AF) {
     UI.btnSound.classList.remove("hidden");
     try {
       const h = AF.addListener ? AF.addListener("audioFocus", onAudioFocus) : null;
       if (h && h.catch) h.catch(() => {});
+    } catch (e) {}
+    /* 耳机/蓝牙耳机断开：立刻暂停，不自动续播 */
+    try {
+      const h2 = AF.addListener ? AF.addListener("audioBecomingNoisy", () => {
+        if (audio.paused) return;
+        APP.wantPlaying = false;
+        try { audio.pause(); } catch (e) {}
+        afRelease();
+        hint("耳机已断开，已暂停", 4000);
+        setTimeout(onLocalAction, 60);
+      }) : null;
+      if (h2 && h2.catch) h2.catch(() => {});
     } catch (e) {}
     audio.addEventListener("play", afRequest);
   }
@@ -7372,6 +7576,49 @@ if (UI.sndNotice) UI.sndNotice.querySelectorAll(".chip").forEach((c) => {
   c.onclick = () => { SND.notice = c.dataset.v; sndSave(); renderSound(); };
 });
 renderSound();
+
+/* ===== 锁屏 / 通知栏控制（仅安卓 App）：把当前歌名和播放状态交给原生 ===== */
+function mediaSync() {
+  if (!MCTL) return;
+  const t = findTrack(APP.curId);
+  try {
+    const r = MCTL.update({
+      title: t ? biPretty(t.name) : "一起听",
+      artist: (APP.pf && APP.pf.name) || "一起听",
+      playing: !audio.paused,
+      pos: audio.currentTime || 0,
+    });
+    if (r && r.catch) r.catch(() => {});
+  } catch (e) {}
+}
+
+if (MCTL) {
+  try {
+    const h = MCTL.addListener ? MCTL.addListener("mediaAction", (d) => {
+      const a = d && d.action;
+      if (a === "play") { APP.wantPlaying = true; playSafe(); setTimeout(onLocalAction, 80); }
+      else if (a === "pause") {
+        APP.wantPlaying = false;
+        try { audio.pause(); } catch (e) {}
+        afRelease();
+        setTimeout(onLocalAction, 80);
+      }
+      else if (a === "next") stepTrack(1);
+      else if (a === "prev") stepTrack(-1);
+      else if (a === "seek") {
+        if (audio.src) {
+          audio.currentTime = Number(d.pos) || 0;
+          updateLyric(true);
+        }
+        setTimeout(onLocalAction, 80);
+      }
+    }) : null;
+    if (h && h.catch) h.catch(() => {});
+  } catch (e) {}
+  audio.addEventListener("play", mediaSync);
+  audio.addEventListener("pause", mediaSync);
+  mediaSync();
+}
 
 /* iPhone：用 Safari 打开后「添加到主屏幕」才会全屏；这里给个一次性提示 */
 (function () {
