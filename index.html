@@ -473,6 +473,7 @@
     <div class="volRow">
       <span>音量</span>
       <input type="range" id="vol" min="0" max="100" value="100" />
+      <button class="chip" id="btnSleep" title="睡眠定时：到点自动暂停" style="flex:none">⏱ 定时</button>
     </div>
     <div class="lyrics hidden" id="lyrics"></div>
     <div class="lrcTools hidden" id="lrcTools">
@@ -684,6 +685,14 @@
           <button class="topBtn" id="btnCleanRecv" style="flex:none">清理</button>
         </div>
         <p class="plsTip" style="margin-top:10px">只清理已不在「一起听歌单」里的接收歌曲；下次对方再加进歌单会重新传。</p>
+      </div>
+      <div class="label" style="margin-top:20px">流量</div>
+      <div class="soundRow">
+        <div>
+          <div class="soundName">只在 Wi-Fi 下传歌</div>
+          <div class="soundDesc">移动网络时只同步播放状态，不下载对方的歌，省流量</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="sndWifiOnly" /><i></i></label>
       </div>
       <div class="label" style="margin-top:20px">连接诊断</div>
       <div class="soundRow">
@@ -3434,6 +3443,8 @@ const APP = {
   sending: false,        // 当前是否正在传某一首
   sendPaused: false,     // 手动暂停传歌（当前这首歌停在中途，继续时接着传）
   curSend: null,         // 当前正在传的 {t, pid}，用于歌单里的传输进度条
+  sleepEnd: 0,           // 睡眠定时：到这个时间戳自动暂停
+  sleepMin: 0,           // 当前选的定时分钟数（0 = 关）
   hadPeer: false,        // 本房间曾经连上过人（用来判断「对方离线」）
   offlineSince: 0,       // 对方掉线的起始时间
   chatRecent: [],        // 最近两条聊天，显示在主界面聊天入口下方
@@ -3449,7 +3460,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.2.0";
+const APP_VER = "1.3.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3564,6 +3575,8 @@ const UI = {
   lagVal: $("#lagVal"),
   clockVal: $("#clockVal"),
   vol: $("#vol"),
+  btnSleep: $("#btnSleep"),
+  sndWifiOnly: $("#sndWifiOnly"),
   lyrics: $("#lyrics"),
   chatList: $("#chatList"),
   chatInput: $("#chatInput"),
@@ -3689,7 +3702,24 @@ function dropRoom() {
   clearLastRoom();
   show($("#rowGoListen"), false);
   renderWho();
+  keepQueueToLib();          // 散场前把这次一起听的歌留一份到「我的歌曲」
   resetSessionQueue();
+}
+
+/* 退出房间前：本机有文件（上传的 / 收到的 / 引用的）的歌，留一份到「我的歌曲」 */
+function keepQueueToLib() {
+  if (!APP.tracks.length || !APP.lib) return 0;
+  let n = 0;
+  APP.tracks.forEach((t) => {
+    if (!t || !t.id) return;
+    if (!(t.blob || t.url || t.ref)) return;
+    if (APP.lib.some((x) => x.id === t.id || trackKey(x) === trackKey(t))) return;
+    APP.lib.push(t);
+    try { saveTrack(t); } catch (e) {}
+    n++;
+  });
+  if (n) toast("已把本次一起听的 " + n + " 首存到「我的歌曲」");
+  return n;
 }
 function goHome() {
   if (APP.mode === "duet" && APP.room && !leaveDuet()) return;
@@ -5121,6 +5151,10 @@ function queueTrackSend(t, pid) {
   if (!t.blob && !t.ref) return;
   const p = APP.peers[pid];
   if (!p) return;
+  if (wifiBlocked()) {
+    wifiSkipHint("已开启「只在 Wi-Fi 下传歌」，移动网络下先不传「" + t.name + "」");
+    return;
+  }
   if (!t.sentTo) t.sentTo = {};
   if (t.sentTo[pid]) return;
   if (APP.sendQueue.some((j) => j.t === t && j.pid === pid)) return;
@@ -6385,6 +6419,10 @@ function clearNeedFor(id) {
 /* 缺歌就向歌的主人要；主人不在线就广播问一圈，最多催 4 回 */
 function requestTrackFile(id, owner) {
   if (!APP.mqs.length) return;
+  if (wifiBlocked()) {
+    wifiSkipHint("这首歌要在 Wi-Fi 下才会下载");
+    return;
+  }
   const lid = localId(id);
   const ownerId = owner || "";
   const key = lid + "|" + ownerId;
@@ -7544,6 +7582,7 @@ function loadTrackAudio(t, silent) {
   if (!t || !t.url) return;
   t._retried = false;
   APP.curId = t.id;
+  try { if (!APP.duck) audio.volume = 0; } catch (e) {}  // 新歌从 0 开始，由 playing 事件淡入
   audio.src = t.url;
   audio.load();
   audio.playbackRate = 1;   // 换歌时清掉上一次同步留下的调速
@@ -8167,7 +8206,7 @@ setInterval(() => {
 /* 每 3 秒把自己的播放状态报给对方：用来区分「正在缓冲」和「真的卡住了」 */
 setInterval(() => { pingStat(); }, 3000);
 setInterval(renderPeerStat, 1000);
-setInterval(() => { renderOfflineTick(); renderXferBar(); }, 1000);
+setInterval(() => { renderOfflineTick(); renderXferBar(); tickSleep(); renderSleepChip(); }, 1000);
 
 function peerSt() {
   if (!audio.src) return "idle";
@@ -8264,8 +8303,33 @@ function renderXferBar() {
   if (UI.btnXferPause) UI.btnXferPause.textContent = APP.sendPaused ? "继续" : "暂停";
 }
 
+/* 睡眠定时：点一下 30 → 60 → 90 → 关，顶部显示剩余分钟 */
+function renderSleepChip() {
+  if (!UI.btnSleep) return;
+  if (!APP.sleepEnd) { UI.btnSleep.textContent = "⏱ 定时"; return; }
+  const left = Math.ceil((APP.sleepEnd - Date.now()) / 60000);
+  UI.btnSleep.textContent = "⏱ " + (left > 0 ? left + " 分" : "即将停");
+}
+function tickSleep() {
+  if (!APP.sleepEnd || Date.now() < APP.sleepEnd) return;
+  APP.sleepEnd = 0;
+  APP.sleepMin = 0;
+  renderSleepChip();
+  if (!audio.paused) {
+    APP.wantPlaying = false;
+    try { audio.pause(); } catch (e) {}
+    setTimeout(onLocalAction, 60);
+    hint("睡眠定时到了，已自动暂停", 4000);
+  }
+}
+
 ["waiting", "playing", "pause", "canplay"].forEach((ev) => {
   audio.addEventListener(ev, () => { pingStat(); });
+});
+/* 新歌开始播放时把音量淡入；被系统压低音量时保持压低值 */
+audio.addEventListener("playing", () => {
+  if (APP.duck) applyVol();
+  else fadeTo(volBase(), 340);
 });
 
 /* 每 5 秒补发一次当前状态：只为让对方那边的「差距」数字保持新鲜，不再强制对齐进度 */
@@ -8754,7 +8818,17 @@ UI.btnPlay.onclick = () => {
     return;
   }
   if (audio.paused) { APP.wantPlaying = true; playSafe(); }
-  else { APP.wantPlaying = false; audio.pause(); afRelease(); }
+  else {
+    APP.wantPlaying = false;
+    const done = () => {
+      try { audio.pause(); } catch (e) {}
+      afRelease();
+      applyVol();
+      setTimeout(onLocalAction, 60);
+    };
+    if (!APP.duck && Number(audio.volume) > 0.05) fadeTo(0, 200, done);
+    else done();
+  }
   setTimeout(onLocalAction, 60);
 };
 
@@ -8925,7 +8999,7 @@ const SND_KEY = "duet.sound";
 const SND = (() => {
   let v = {};
   try { v = JSON.parse(localStorage.getItem(SND_KEY) || "{}") || {}; } catch (e) { v = {}; }
-  return Object.assign({ on: true, call: "resume", notice: "duck" }, v);
+  return Object.assign({ on: true, call: "resume", notice: "duck", wifiOnly: false }, v);
 })();
 const AF = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AudioFocus) || null;
 
@@ -8933,6 +9007,42 @@ function sndSave() { try { localStorage.setItem(SND_KEY, JSON.stringify(SND)); }
 function volBase() { return Number((UI.vol && UI.vol.value) || 0) / 100; }
 function applyVol() {
   try { audio.volume = APP.duck ? Math.max(0.06, volBase() * 0.3) : volBase(); } catch (e) {}
+}
+
+/* 音量渐变：切歌淡入、暂停淡出，避免突然出声 */
+const FADE = { timer: null };
+function fadeTo(target, ms, cb) {
+  if (FADE.timer) { clearInterval(FADE.timer); FADE.timer = null; }
+  const to = Math.max(0, Math.min(1, Number(target) || 0));
+  const from = Number(audio.volume) || 0;
+  const t0 = Date.now(), dur = Math.max(80, ms || 300);
+  const step = () => {
+    const k = Math.min(1, (Date.now() - t0) / dur);
+    try { audio.volume = from + (to - from) * k; } catch (e) {}
+    if (k >= 1) {
+      if (FADE.timer) clearInterval(FADE.timer);
+      FADE.timer = null;
+      if (cb) cb();
+    }
+  };
+  FADE.timer = setInterval(step, 30);
+  step();
+}
+
+/* 移动网络检测（浏览器只在部分安卓上给 type，拿不到就当作没限制） */
+function onCellular() {
+  try {
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const t = c && String(c.type || "");
+    return !!(t && t !== "wifi" && t !== "ethernet" && t !== "none" && t !== "unknown");
+  } catch (e) { return false; }
+}
+function wifiBlocked() { return !!(SND.wifiOnly && onCellular()); }
+function wifiSkipHint(text) {
+  const now = Date.now();
+  if (now - (APP.wifiHintTs || 0) < 15000) return;
+  APP.wifiHintTs = now;
+  hint(text, 4000);
 }
 function afRequest() {
   if (!AF || !SND.on) return;
@@ -8994,6 +9104,7 @@ function renderSound() {
     box.style.pointerEvents = SND.on ? "auto" : "none";
   };
   if (UI.sndOn) UI.sndOn.checked = !!SND.on;
+  if (UI.sndWifiOnly) UI.sndWifiOnly.checked = !!SND.wifiOnly;
   mark(UI.sndCall, SND.call);
   mark(UI.sndNotice, SND.notice);
   renderStore();
@@ -9111,6 +9222,17 @@ if (BG && UI.btnBg) UI.btnBg.onclick = async () => {
 };
 if (BG) refreshBg();
 if ($("#closeSound")) $("#closeSound").onclick = closeSheets;
+/* 睡眠定时：30 → 60 → 90 → 关 */
+if (UI.btnSleep) UI.btnSleep.onclick = () => {
+  const opts = [0, 30, 60, 90];
+  const i = opts.indexOf(APP.sleepMin || 0);
+  const next = opts[(i + 1) % opts.length];
+  APP.sleepMin = next;
+  APP.sleepEnd = next ? Date.now() + next * 60000 : 0;
+  renderSleepChip();
+  toast(next ? next + " 分钟后自动暂停" : "已取消睡眠定时");
+};
+renderSleepChip();
 /* 传歌暂停 / 继续 */
 if (UI.btnXferPause) UI.btnXferPause.onclick = () => {
   APP.sendPaused = !APP.sendPaused;
@@ -9157,6 +9279,14 @@ if (UI.sndOn) UI.sndOn.onchange = () => {
   if (SND.on) afRequest();
   else { focusUnduck(); focusResumeBack(); afRelease(); }
 };
+if (UI.sndWifiOnly) {
+  UI.sndWifiOnly.checked = !!SND.wifiOnly;
+  UI.sndWifiOnly.onchange = () => {
+    SND.wifiOnly = !!UI.sndWifiOnly.checked;
+    sndSave();
+    toast(SND.wifiOnly ? "已开启：移动网络下不传歌，只同步播放状态" : "已关闭：任何网络都会传歌");
+  };
+}
 if (UI.sndCall) UI.sndCall.querySelectorAll(".chip").forEach((c) => {
   c.onclick = () => { SND.call = c.dataset.v; sndSave(); renderSound(); };
 });
