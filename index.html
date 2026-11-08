@@ -5036,6 +5036,29 @@ async function ensureUrl(t) {
   return null;
 }
 
+/* 按文件夹导入：一次选中整个音乐文件夹，安卓上再也不用一首一首挑 */
+async function pickRefFolder() {
+  if (!FREF || !FREF.pickFolder || _pickBusy) return false;
+  _pickBusy = true;
+  toast("正在扫描文件夹…");
+  try {
+    const res = await FREF.pickFolder({});
+    const files = (res && res.files) || [];
+    if (!files.length) { toast("这个文件夹里没找到歌曲文件"); return false; }
+    files.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    scanItems = files.map((x) => ({ name: x.name, size: x.size, dur: x.dur, mime: x.mime, uri: x.uri, on: true }));
+    renderScanList();
+    openSheet("scan");
+    return true;
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (msg !== "cancelled") hint("扫描文件夹失败：" + msg, 5000);
+    return false;
+  } finally {
+    _pickBusy = false;
+  }
+}
+
 async function pickRefs() {
   if (!FREF || _pickBusy) return false;
   _pickBusy = true;
@@ -5332,12 +5355,14 @@ function renderScanList() {
     return;
   }
   UI.scanList.innerHTML = scanItems.map((x, i) => {
-    const dir = String(x.f.webkitRelativePath || "").split("/").slice(1, -1).join("/");
+    const nm = x.name || (x.f && x.f.name) || "";
+    const sz = x.size || (x.f && x.f.size) || 0;
+    const dir = String((x.f && x.f.webkitRelativePath) || "").split("/").slice(1, -1).join("/");
     return '<label class="scanItem">' +
       '<input type="checkbox" data-i="' + i + '"' + (x.on ? " checked" : "") + ">" +
       '<div class="scanMain">' +
-      '<div class="plName">' + esc(x.f.name) + "</div>" +
-      '<div class="plMeta">' + esc((dir ? dir + " · " : "") + fmtSize(x.f.size)) + "</div>" +
+      '<div class="plName">' + esc(nm) + "</div>" +
+      '<div class="plMeta">' + esc((dir ? dir + " · " : "") + fmtSize(sz)) + "</div>" +
       "</div></label>";
   }).join("");
 }
@@ -5362,15 +5387,27 @@ scanPicker.onchange = () => {
   openSheet("scan");
 };
 
-$("#btnScan").onclick = () => { rememberPlayState(); scanPicker.click(); };
+$("#btnScan").onclick = () => {
+  rememberPlayState();
+  /* 安卓：用系统文件夹选择器，一次扫进整个音乐文件夹 */
+  if (FREF && FREF.pickFolder) { pickRefFolder(); return; }
+  scanPicker.click();
+};
 $("#scanAll").onclick = () => { scanItems.forEach((x) => { x.on = true; }); renderScanList(); };
 $("#scanNone").onclick = () => { scanItems.forEach((x) => { x.on = false; }); renderScanList(); };
 $("#closeScan").onclick = closeSheets;
 $("#scanAddBtn").onclick = async () => {
-  const picked = scanItems.filter((x) => x.on).map((x) => x.f);
+  const picked = scanItems.filter((x) => x.on);
   if (!picked.length) { toast("还没有勾选歌曲"); return; }
   closeSheets();
-  const r = await addFiles(picked);
+  /* 安卓引用模式：只记文件位置，不复制音频 */
+  if (picked[0].uri) {
+    addRefFiles(picked.map((x) => ({ uri: x.uri, name: x.name, size: x.size, dur: x.dur, mime: x.mime })));
+    scanItems = [];
+    maybeResume();
+    return;
+  }
+  const r = await addFiles(picked.map((x) => x.f));
   scanItems = [];
   maybeResume();
   toast("已加入 " + r.added + " 首" + (r.dup ? "，跳过 " + r.dup + " 首重复的" : "") +
