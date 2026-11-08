@@ -4292,7 +4292,8 @@ function onMqttMessage(topic, payload) {
     case "need": {
       // 有人没收到这首歌，我手上有就补传给他
       const t = findTrack(localId(m.id));
-      if (!t || !t.blob) break;
+      /* 引用模式的歌没有 blob，但能现场从手机里读出来，也要能补传 */
+      if (!t || (!t.blob && !t.ref)) break;
       const owner = t.owner || "";
       // 原主人还在线的话让他自己发，别人不用抢
       if (owner && owner !== APP.me && APP.peers[owner]) break;
@@ -6908,6 +6909,8 @@ function loadTrackAudio(t, silent) {
   renderPlaylist();
   renderLyrics();
   mediaSync();
+  /* 一开始播就把「下一首」提前拉下来，别等这首放完才现找 */
+  ensureBuffer();
 }
 
 /* ---------- 播放进度记忆：下次打开接着上次的位置 ---------- */
@@ -7259,6 +7262,7 @@ function stepTrack(dir) {
 
 audio.onended = () => {
   if (Date.now() - APP.lastStateApplyTs < 1500) return; // 对方刚改过，别重复推进
+  if (!audio.ended) return; // 源已被换掉时，别把新歌又跳过一首
 
   if (APP.repeat === 2) {
     // 单曲循环：原地重播（各自重播，再把状态广播过去对齐）
@@ -7272,8 +7276,14 @@ audio.onended = () => {
   const list = activeTracks();
   if (APP.shuffle) {
     const t = shuffleNeighbor(1, list);
-    if (t && t.url) selectTrack(t.id, true);
-    else if (t) requestTrackFile(t.id, t.owner || "");
+    if (t && t.url) { selectTrack(t.id, true); return; }
+    if (t) {
+      /* 下一首还没下载完：别广播「暂停」，等文件到了自动接上 */
+      APP.pendPlayId = t.id;
+      requestTrackFile(t.id, t.owner || "");
+      ensureBuffer();
+      hint("下一首「" + t.name + "」还在下载，好了会自动接着播", 4000);
+    }
     return;
   }
 
@@ -7284,7 +7294,16 @@ audio.onended = () => {
     selectTrack(next.id, true);
     return;
   }
-  if (next) requestTrackFile(next.id, next.owner || "");
+  if (next) {
+    /* 关键：下一首还没下载完时不能停播，更不能把「暂停」广播给对方——
+       对方收到后也会停住，两边就都卡在上一首末尾了。
+       记下想播的下一首，文件一到就自动接上。 */
+    APP.pendPlayId = next.id;
+    requestTrackFile(next.id, next.owner || "");
+    ensureBuffer();
+    hint("下一首「" + next.name + "」还在下载，好了会自动接着播", 4000);
+    return;
+  }
   // 顺序播放到底：停下
   UI.btnPlay.textContent = "▶";
   APP.remoteBase = null;
