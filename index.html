@@ -7581,6 +7581,7 @@ renderSound();
 function mediaSync() {
   if (!MCTL) return;
   const t = findTrack(APP.curId);
+  if (!t || !audio.src) return;   /* 没在放歌就不弹通知 */
   try {
     const r = MCTL.update({
       title: t ? biPretty(t.name) : "一起听",
