@@ -232,6 +232,10 @@
   .chatMsg{max-width:82%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.5;word-break:break-word}
   .chatMsg.me{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
   .chatMsg.peer{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+  /* 系统消息时间线：进房/退房/切歌/暂停，独立样式不跟聊天气泡混在一起 */
+  .chatSys{align-self:center;max-width:92%;text-align:center;font-size:11.5px;line-height:1.5;color:var(--sub);
+           background:rgba(255,255,255,.04);border:1px dashed var(--line);border-radius:10px;padding:4px 10px}
+  body.light .chatSys{background:rgba(0,0,0,.03)}
   .chatInput{letter-spacing:0 !important;text-transform:none !important;text-align:left !important;padding:11px 12px !important;font-size:14px !important}
 
   /* ===== 主界面顶栏 ===== */
@@ -340,6 +344,21 @@
          opacity:0;pointer-events:none;transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .toast.on{opacity:1;transform:translate(-50%,0)}
 
+  /* ===== 表情飘屏 ===== */
+  .emojiFly{position:fixed;inset:0;z-index:75;pointer-events:none;overflow:hidden;display:none}
+  .emojiFly.on{display:block}
+  .emojiFly i{position:absolute;bottom:-64px;font-style:normal;line-height:1;
+              animation:flyUp linear forwards;will-change:transform,opacity}
+  @keyframes flyUp{
+    0%{transform:translateY(0) scale(.72) rotate(0deg);opacity:0}
+    10%{opacity:1}
+    85%{opacity:1}
+    100%{transform:translateY(-118vh) scale(1.22) rotate(var(--r,0deg));opacity:0}
+  }
+  .emojiMode{width:100% !important;height:30px !important;font-size:12px !important;color:var(--sub) !important;
+             display:flex;align-items:center;justify-content:center}
+  .emojiMode.on{color:#a9c1ff !important;background:rgba(91,140,255,.16) !important}
+
   /* ===== 首页：两个入口 + 个人资料 ===== */
   .homeTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
   .homeTitle{font-size:16px;font-weight:700;margin-bottom:4px}
@@ -367,6 +386,26 @@
   .whoPeers{display:flex;align-items:center;gap:10px;margin-left:auto}
   .whoCount{flex:none;font-size:11px;color:var(--sub);background:var(--card2);border:1px solid var(--line);
             border-radius:999px;padding:2px 8px}
+  .whoRow{cursor:pointer}
+  .whoCount.full{color:#ffd08a;border-color:rgba(255,180,60,.45);background:rgba(255,180,60,.12)}
+
+  /* ===== 房间成员弹层 ===== */
+  .memList{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .memItem{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line);
+           border-radius:12px;padding:10px}
+  .memItem .avatar{width:36px;height:36px}
+  .memMain{flex:1;min-width:0}
+  .memName{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .memMeta{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:11.5px;color:var(--sub)}
+  .memDot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
+  .memDot.warn{background:var(--warn);animation:blink 1s infinite}
+  .memLat{font-variant-numeric:tabular-nums}
+  .memTag{font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(91,140,255,.18);color:#a9c1ff;flex:none}
+  .memTag.owner{background:rgba(255,180,60,.16);color:#ffd08a}
+  .memTag.me{background:rgba(61,220,132,.14);color:#8ff0b8}
+  .memBtn{flex:none;font-size:12px;padding:7px 10px}
+  .memTip{margin-top:10px;font-size:11.5px;color:var(--sub);line-height:1.6;text-align:center}
 
   /* 只有对应模式才显示的元素 */
   body:not(.mode-duet) .duetOnly{display:none !important}
@@ -561,7 +600,7 @@
     </div>
     <div class="whoRow duetOnly" id="whoRow">
       <div class="whoItem"><img class="avatar" id="meAvatar" alt="" /><span id="meName">我</span></div>
-      <span class="whoCount" id="whoCount">1/3</span>
+      <span class="whoCount" id="whoCount">1/4</span>
       <div class="whoPeers" id="whoPeers"></div>
     </div>
     <div class="heroRow">
@@ -680,6 +719,8 @@
 
   <!-- 轻提示 -->
   <div class="toast" id="toast"></div>
+  <!-- 表情飘屏 -->
+  <div class="emojiFly" id="emojiFly"></div>
   <!-- 网页版有更新时提示刷新 -->
   <div class="upTip" id="upTip">
     <span id="upTipText">网页版有新版本</span>
@@ -759,6 +800,7 @@
         <button class="chip" data-t="等我一下">等我一下</button>
         <button class="chip" data-t="换这首吧">换这首吧</button>
         <button class="chip" data-t="先暂停一下">先暂停一下</button>
+        <button class="chip" data-f="🎉">🎉 撒花</button>
       </div>
       <div class="replyBar hidden" id="chatReplyBar">
         <span id="chatReplyText"></span>
@@ -770,6 +812,18 @@
         <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…（点消息可引用回复）" autocomplete="off" />
         <button class="btn" id="chatSend" style="flex:0 0 76px;padding:12px">发送</button>
       </div>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetMembers">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">房间成员 <span class="tag" id="memCount">1/4</span></div>
+      <button class="topBtn" id="closeMembers">收起</button>
+    </div>
+    <div class="sheetBody">
+      <div class="memList" id="memList"></div>
+      <div class="memTip" id="memTip">房间里最多 4 人；房主可以把房主移交给其他人。</div>
     </div>
   </section>
 
@@ -3671,6 +3725,7 @@ const APP = {
   needTimers: {},        // 催对方补传文件的重试定时器
   partials: {},          // 传了一半的歌：id -> {parts, received, ts}，断线后从断点续传
   peerStat: {},          // 对方播放状态：peerId -> {st, trk, ts}，用来提示「缓冲中 / 卡住了」
+  latById: {},           // 每个成员的 RTT 延迟（毫秒），成员列表里显示
   statAt: 0,             // 上一次上报播放状态的时间（节流用）
   paired: false,         // 至少有一个人直连成功（多人房间里是「派生值」）
   offset: null,          // 对方时钟 - 我的时钟（毫秒）
@@ -3731,7 +3786,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.8.0";
+const APP_VER = "1.9.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3776,6 +3831,11 @@ const UI = {
   cardPlayer: $("#cardPlayer"),
   sheetList: $("#sheetList"),
   sheetChat: $("#sheetChat"),
+  sheetMembers: $("#sheetMembers"),
+  memList: $("#memList"),
+  memCount: $("#memCount"),
+  whoRow: $("#whoRow"),
+  emojiFly: $("#emojiFly"),
   sheetScan: $("#sheetScan"),
   sheetProfile: $("#sheetProfile"),
   sheetChoose: $("#sheetChoose"),
@@ -3991,6 +4051,8 @@ function dropRoom() {
   APP.peers = {};
   APP.pfById = {};
   APP.peerStat = {};
+  APP.latById = {};
+  APP._seenJoin = {};
   APP.sendQueue = [];
   APP.sending = false;
   APP.sendPaused = false;
@@ -4105,11 +4167,15 @@ function renderProfile() {
   if (UI.meName) UI.meName.textContent = APP.pf.name || "我";
   renderWho();
 }
-/* 顶栏的成员行：我 + 房间里的其他人（最多再两个）+ 人数 */
+/* 顶栏的成员行：我 + 房间里的其他人（最多 4 人）+ 人数 */
 function renderWho() {
   if (!UI.whoPeers) return;
   const ps = Object.keys(APP.peers).map((id) => APP.peers[id]);
-  if (UI.whoCount) UI.whoCount.textContent = (1 + ps.length) + "/" + MAX_MEMBERS;
+  const n = 1 + ps.length;
+  if (UI.whoCount) {
+    UI.whoCount.textContent = n + "/" + MAX_MEMBERS;
+    UI.whoCount.classList.toggle("full", n >= MAX_MEMBERS);
+  }
   UI.whoPeers.innerHTML = ps.map((p) => {
     const pf = peerPfOf(p.id);
     const name = esc(pf.name || "对方");
@@ -4118,8 +4184,70 @@ function renderWho() {
     return '<div class="whoItem"><span>' + name + "</span>" + host +
       '<img class="avatar" src="' + ava + '" alt="" /></div>';
   }).join("");
+  if (UI.sheetMembers && UI.sheetMembers.classList.contains("on")) renderMembers();
 }
 function peerPfOf(id) { return (id && APP.pfById[id]) || { name: "", avatar: "" }; }
+function nameOf(id) {
+  if (id === APP.me) return APP.pf.name || "你";
+  return peerPfOf(id).name || "对方";
+}
+function peerOnline(p) {
+  if (!p || p.closing) return false;
+  return !!p.paired || (!!p.lastPong && Date.now() - p.lastPong < 12000);
+}
+function peerLat(id) {
+  const v = APP.latById[id];
+  return (typeof v === "number" && isFinite(v)) ? Math.max(0, Math.round(v)) : null;
+}
+/* 房间成员面板：房主/房员、在线状态、延迟；房主可以在这里移交 */
+function renderMembers() {
+  if (!UI.memList) return;
+  const n = memberCount();
+  if (UI.memCount) UI.memCount.textContent = n + "/" + MAX_MEMBERS;
+  if (UI.memTip) {
+    UI.memTip.textContent = n >= MAX_MEMBERS
+      ? "房间已满（最多 " + MAX_MEMBERS + " 人）"
+      : "房间里最多 " + MAX_MEMBERS + " 人；房主可以把房主移交给其他人。";
+  }
+  const amHost = APP.hostId === APP.me;
+  const rows = [{
+    id: APP.me, me: true, name: APP.pf.name || "我", ava: APP.pf.avatar || defaultAvatar(),
+    host: amHost, online: true, lat: null,
+  }];
+  peerList().forEach((p) => {
+    rows.push({
+      id: p.id, me: false, name: peerPfOf(p.id).name || "对方",
+      ava: peerPfOf(p.id).avatar || defaultAvatar(),
+      host: p.id === APP.hostId, online: peerOnline(p), lat: peerLat(p.id),
+    });
+  });
+  UI.memList.innerHTML = rows.map((r) => {
+    const tagHost = r.host ? '<span class="memTag owner">房主</span>' : '<span class="memTag">房员</span>';
+    const tagMe = r.me ? '<span class="memTag me">我</span>' : "";
+    const lat = r.me ? "本机" : (r.lat == null ? "延迟 —" : "延迟 " + r.lat + "ms");
+    const btn = (!r.me && amHost)
+      ? '<button class="topBtn memBtn" data-xfer="' + esc(r.id) + '">移交房主</button>' : "";
+    return '<div class="memItem"><img class="avatar" src="' + r.ava + '" alt="" />' +
+      '<div class="memMain"><div class="memName">' + esc(r.name) + tagMe + tagHost + "</div>" +
+      '<div class="memMeta"><span class="memDot' + (r.online ? "" : " warn") + '"></span>' +
+      (r.online ? "在线" : "连接中") + ' · <span class="memLat">' + lat + "</span></div></div>" +
+      btn + "</div>";
+  }).join("");
+}
+function openMembers() { renderMembers(); openSheet("members"); }
+function transferHost(id) {
+  if (APP.hostId !== APP.me || !id || id === APP.me || !APP.peers[id]) return;
+  const nm = nameOf(id);
+  APP.role = "guest";
+  APP.hostId = id;
+  UI.tagRole.textContent = "加入者";
+  stopLobbyAd();
+  renderWho();
+  addSys("你把房主移交给了 " + nm);
+  publish({ k: "role", from: APP.me, host: id, xfer: true });
+  toast("已把房主移交给 " + nm);
+  renderMembers();
+}
 function applyPeerProfile(pf, fromId) {
   if (!pf || !fromId || fromId === APP.me) return false;
   const n = String(pf.name != null ? pf.name : pf.n || "").slice(0, 12);
@@ -4326,6 +4454,7 @@ function openSheet(which) {
   clearTimeout(_maskHideTimer);
   closeSheets();
   const el = which === "chat" ? UI.sheetChat
+    : which === "members" ? UI.sheetMembers
     : which === "scan" ? UI.sheetScan
     : which === "qr" ? UI.sheetQr
     : which === "profile" ? UI.sheetProfile
@@ -4350,6 +4479,7 @@ function openSheet(which) {
 function closeSheets() {
   UI.sheetList.classList.remove("on");
   UI.sheetChat.classList.remove("on");
+  if (UI.sheetMembers) UI.sheetMembers.classList.remove("on");
   UI.sheetScan.classList.remove("on");
   if (UI.sheetProfile) UI.sheetProfile.classList.remove("on");
   if (UI.sheetChoose) UI.sheetChoose.classList.remove("on");
@@ -4632,7 +4762,7 @@ function enterList() {
 }
 
 /* ===== 多人房间的基础设施 ===== */
-const MAX_MEMBERS = 3;
+const MAX_MEMBERS = 4;
 
 function peerList() { return Object.keys(APP.peers).map((id) => APP.peers[id]); }
 function memberCount() { return 1 + Object.keys(APP.peers).length; }
@@ -4668,6 +4798,8 @@ function dropPeerRecord(id) {
   try { closePeerConn(p, true); } catch (e) {}
   delete APP.peers[id];
   delete APP.pfById[id];
+  delete APP.latById[id];
+  if (APP._seenJoin) delete APP._seenJoin[id];
   if (APP.hostId === id) APP.hostId = "";
   refreshPaired();
   renderWho();
@@ -4849,6 +4981,11 @@ function onMqttMessage(topic, payload) {
       }
       const p = ensurePeer(m.from, { jo: m.jo, role: m.role });
       if (!p) break;
+      if (!APP._seenJoin) APP._seenJoin = Object.create(null);
+      if (!APP._seenJoin[m.from]) {
+        APP._seenJoin[m.from] = 1;
+        addSys(nameOf(m.from) + " 加入了房间");
+      }
       if (m.host && !APP.hostId) APP.hostId = m.host;
       /* 记下自己排第几个进来：还不知道就排在对方后面，已经知道了就取更早的那个 */
       if (m.jo > 0) APP.jo = APP.jo > 0 ? Math.min(APP.jo, m.jo) : (m.jo + 1);
@@ -4939,6 +5076,7 @@ function onMqttMessage(topic, payload) {
       const p = APP.peers[m.from];
       const wasHost = (APP.hostId === m.from) || (p && p.role === "host");
       const next = m.next || "";
+      addSys(nameOf(m.from) + " 离开了房间");
       APP.hadPeer = false;
       APP.offlineSince = 0;
       dropPeerRecord(m.from);
@@ -4958,9 +5096,14 @@ function onMqttMessage(topic, payload) {
         UI.tagRole.textContent = APP.role === "host" ? "房主" : "加入者";
         if (APP.role === "host") startLobbyAd(); else stopLobbyAd();
         renderWho();
+        addSys(nameOf(m.host) + " 成为房主");
       }
       break;
     }
+    /* 房间里的实时表情飘屏 */
+    case "emoji":
+      if (m.e) floatEmoji(m.e, m.from);
+      break;
     case "ping":
       publish({ k: "pong", to: m.from, from: APP.me, seq: m.seq, t1: m.t1, t2: Date.now(), t3: Date.now() });
       break;
@@ -5061,6 +5204,7 @@ function onPong(m) {
   const t4 = Date.now();
   const rtt = (t4 - m.t1) - (m.t3 - m.t2);
   if (rtt < -50) return;
+  if (m.from) APP.latById[m.from] = Math.max(0, rtt);
   if (rtt < APP.bestRtt) {
     APP.bestRtt = rtt;
     APP.offset = ((m.t2 - m.t1) + (m.t3 - t4)) / 2;
@@ -7946,6 +8090,53 @@ function addChat(text, mine, fromId, quote) {
   renderChatPeek();
 }
 
+/* 系统消息时间线：进房 / 退房 / 切歌 / 暂停 / 房主变更，只写聊天流，不进未读红点 */
+function addSys(text) {
+  if (!UI.chatList || !text) return;
+  const empty = UI.chatList.querySelector(".chatEmpty");
+  if (empty) empty.remove();
+  const el = document.createElement("div");
+  el.className = "chatSys";
+  el.textContent = text;
+  UI.chatList.appendChild(el);
+  while (UI.chatList.children.length > 24) UI.chatList.removeChild(UI.chatList.firstChild);
+  if (UI.sheetChat.classList.contains("on")) UI.chatList.scrollTop = UI.chatList.scrollHeight;
+}
+
+/* 表情飘屏：整屏从下往上飘，本机先飘，再广播给房间里其他人 */
+function floatEmoji(e, fromId) {
+  if (!UI.emojiFly || !e) return;
+  const i = document.createElement("i");
+  i.textContent = String(e).slice(0, 8);
+  i.style.left = (6 + Math.random() * 82).toFixed(1) + "%";
+  i.style.fontSize = (30 + Math.random() * 22).toFixed(0) + "px";
+  i.style.setProperty("--r", (Math.random() * 50 - 25).toFixed(0) + "deg");
+  const ms = 2600 + Math.random() * 900;
+  i.style.animationDuration = ms + "ms";
+  UI.emojiFly.classList.add("on");
+  UI.emojiFly.appendChild(i);
+  setTimeout(() => {
+    try { i.remove(); } catch (err) {}
+    if (UI.emojiFly && !UI.emojiFly.children.length) UI.emojiFly.classList.remove("on");
+  }, ms + 120);
+  if (fromId && fromId !== APP.me) {
+    const nm = nameOf(fromId);
+    if (nm && nm !== "对方") {
+      const last = APP._lastFlyTs || 0;
+      if (Date.now() - last > 1200) {
+        APP._lastFlyTs = Date.now();
+        toast(nm + " 发来 " + e, 1200);
+      }
+    }
+  }
+}
+function sendFloatEmoji(e) {
+  if (!e) return;
+  floatEmoji(e);
+  publish({ k: "emoji", from: APP.me, e: String(e).slice(0, 8) });
+}
+
+
 /* 引用回复：点聊天里任意一条，把它挂到输入框上面的引用条 */
 function setChatReply(q) {
   APP.chatReply = q || null;
@@ -9180,8 +9371,10 @@ function applyPeerState(m, force) {
   if (fresh) {
     if (m.trk && wantId !== prevId) {
       hint("房间切到「" + (t ? t.name : "另一首歌") + "」");
+      addSys(nameOf(m.from) + " 切到「" + (t ? t.name : "另一首歌") + "」");
     } else if (!!m.playing !== prevPlaying) {
       hint(m.playing ? "有人开始播放" : "有人暂停了");
+      addSys(nameOf(m.from) + (m.playing ? " 开始播放" : " 暂停了"));
     }
   }
 
@@ -9244,6 +9437,10 @@ setInterval(() => {
 setInterval(() => { pingStat(); }, 3000);
 setInterval(renderPeerStat, 1000);
 setInterval(() => { renderOfflineTick(); renderXferBar(); tickSleep(); renderSleepChip(); }, 1000);
+/* 成员面板开着时每秒刷新在线状态和延迟 */
+setInterval(() => {
+  if (UI.sheetMembers && UI.sheetMembers.classList.contains("on")) renderMembers();
+}, 1000);
 
 function peerSt() {
   if (!audio.src) return "idle";
@@ -9579,6 +9776,14 @@ UI.btnOpenChat.onclick = () => openSheet("chat");
 if (UI.chatPeek) UI.chatPeek.onclick = () => openSheet("chat");
 $("#closeList").onclick = closeSheets;
 $("#closeChat").onclick = closeSheets;
+$("#closeMembers").onclick = closeSheets;
+if (UI.whoRow) UI.whoRow.onclick = () => openMembers();
+if (UI.memList) {
+  UI.memList.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-xfer]");
+    if (b) transferHost(b.getAttribute("data-xfer"));
+  });
+}
 UI.mask.onclick = closeSheets;
 picker.onchange = () => {
   const files = picker.files ? Array.from(picker.files) : [];
@@ -10253,10 +10458,14 @@ if (UI.fadeChips) {
 applyFadeCfg();
 if (UI.chatQuick) {
   UI.chatQuick.querySelectorAll(".chip").forEach((c) => {
-    c.onclick = () => { UI.chatInput.value = c.dataset.t || ""; sendChat(); };
+    c.onclick = () => {
+      if (c.dataset.f) { sendFloatEmoji(c.dataset.f); return; }
+      UI.chatInput.value = c.dataset.t || "";
+      sendChat();
+    };
   });
 }
-/* 表情面板：点一下追加到输入框，顺手聚焦，不打断正在打的字 */
+/* 表情面板：默认点一下追加到输入框；打开「飘屏」后点一下直接飘给房间里所有人 */
 (function bindChatExtras() {
   const EMOJI = ["😀", "😄", "😁", "😆", "🥰", "😍", "😘", "😂", "🤣", "😅", "😭", "😢",
     "😡", "🤔", "😴", "🥳", "👍", "👌", "✌️", "🙏", "💪", "🎵", "🎶", "❤️", "💔", "🌙",
@@ -10264,12 +10473,23 @@ if (UI.chatQuick) {
   const panel = $("#emojiPanel");
   const btn = $("#chatEmojiBtn");
   if (panel) {
-    panel.innerHTML = EMOJI.map((e) => '<button type="button" data-e="' + e + '">' + e + "</button>").join("");
+    panel.innerHTML = '<button type="button" class="emojiMode" data-mode="1">🎈 点表情飘屏：关</button>' +
+      EMOJI.map((e) => '<button type="button" data-e="' + e + '">' + e + "</button>").join("");
     panel.onclick = (ev) => {
+      const mo = ev.target.closest("[data-mode]");
+      if (mo) {
+        APP.emojiFly = !APP.emojiFly;
+        mo.classList.toggle("on", !!APP.emojiFly);
+        mo.textContent = "🎈 点表情飘屏：" + (APP.emojiFly ? "开" : "关");
+        toast(APP.emojiFly ? "飘屏已开：点表情直接飘给房间里所有人" : "飘屏已关：点表情插入输入框");
+        return;
+      }
       const b = ev.target.closest("[data-e]");
       if (!b) return;
-      UI.chatInput.value = (UI.chatInput.value || "") + b.getAttribute("data-e");
-      try { UI.chatInput.focus(); } catch (e) {}
+      const e = b.getAttribute("data-e");
+      if (APP.emojiFly) { sendFloatEmoji(e); return; }
+      UI.chatInput.value = (UI.chatInput.value || "") + e;
+      try { UI.chatInput.focus(); } catch (err) {}
     };
   }
   if (btn && panel) btn.onclick = () => panel.classList.toggle("hidden");
