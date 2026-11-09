@@ -15,7 +15,7 @@
 <style>
   :root{
     --bg:#0f1016; --card:#1a1b24; --card2:#23242f; --line:#2e3040;
-    --fg:#e9eaf2; --sub:#99a0b6; --accent:#5b8cff; --accent2:#8a6bff;
+    --fg:#e9eaf2; --sub:#99a0b6; --accent:#5b8cff; --accent2:#8a6bff; --accentRgb:91,140,255;
     --ok:#3ddc84; --warn:#ffb43c; --err:#ff6060;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -68,14 +68,14 @@
   .btnPlay{
     flex:none;width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
     background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:24px;
-    display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(91,140,255,.35);
+    display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(var(--accentRgb),.35);
   }
   .btnPlay:active{transform:scale(.95)}
   .btnSkip{
     flex:none;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--card2);
     color:var(--fg);font-size:16px;cursor:pointer;
   }
-  .btnSkip.on{background:rgba(91,140,255,.22);border-color:var(--accent);color:#fff}
+  .btnSkip.on{background:rgba(var(--accentRgb),.22);border-color:var(--accent);color:#fff}
   .volRow{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--sub);font-size:12px}
   .volRow > span{flex:none;white-space:nowrap}
   .volRow input[type=range]{flex:1;width:auto;min-width:0}
@@ -138,7 +138,7 @@
               border:1px solid rgba(255,180,60,.3)}
   .offlineTip .psDot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none;animation:blink 1s infinite}
   .xferBar{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border-radius:10px;
-           background:rgba(91,140,255,.1);border:1px solid rgba(91,140,255,.3)}
+           background:rgba(var(--accentRgb),.1);border:1px solid rgba(var(--accentRgb),.3)}
   .xferBar > span{flex:1;min-width:0;font-size:12px;color:var(--sub);white-space:nowrap;
                   overflow:hidden;text-overflow:ellipsis}
   .chatPeek{display:flex;gap:8px;align-items:flex-start;margin:2px 0 10px;cursor:pointer}
@@ -155,7 +155,7 @@
   .plMore{margin-top:2px;padding:12px;border-radius:12px;border:1px dashed var(--line);background:transparent;
           color:var(--sub);font-size:13px;cursor:pointer;font-family:inherit}
   .plMore:active{transform:scale(.98)}
-  .plMore.addAll{background:rgba(91,140,255,.12);border-color:rgba(91,140,255,.4);color:var(--fg);
+  .plMore.addAll{background:rgba(var(--accentRgb),.12);border-color:rgba(var(--accentRgb),.4);color:var(--fg);
                   font-weight:600;margin-bottom:8px}
   .diagLog{margin:0;padding:12px;border-radius:12px;background:var(--card2);border:1px solid var(--line);
            color:var(--sub);font-size:11.5px;line-height:1.65;white-space:pre-wrap;word-break:break-all;
@@ -175,10 +175,10 @@
                transition:width .2s}
   .biBox{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
   .biTitle{font-size:12.5px;color:var(--sub);margin-bottom:8px}
-  .biItem{background:rgba(91,140,255,.1);border-color:rgba(91,140,255,.35)}
+  .biItem{background:rgba(var(--accentRgb),.1);border-color:rgba(var(--accentRgb),.35)}
   .plItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px;
           content-visibility:auto;contain-intrinsic-size:auto 58px}
-  .plItem.cur{border-color:var(--accent);background:rgba(91,140,255,.12)}
+  .plItem.cur{border-color:var(--accent);background:rgba(var(--accentRgb),.12)}
   .plIdx{width:22px;text-align:center;color:var(--sub);font-size:12px;flex:none}
   .plIdx.grip{color:var(--accent);font-size:16px;cursor:grab;touch-action:none}
   .plMain{flex:1;min-width:0;padding:2px 0}
@@ -198,7 +198,7 @@
   .miniBtn.del{color:var(--err);border-color:rgba(255,96,96,.35)}
   /* 批量选择 */
   #playlist.seling .miniBtn{display:none}
-  #playlist.seling .plItem.seled{border-color:var(--accent);background:rgba(91,140,255,.16)}
+  #playlist.seling .plItem.seled{border-color:var(--accent);background:rgba(var(--accentRgb),.16)}
   #playlist.seling .plItem.seled .plIdx{color:var(--accent);font-weight:700}
   .selBar{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 10px;
           border-radius:12px;background:var(--card);border:1px solid var(--accent);
@@ -219,7 +219,7 @@
             box-shadow:0 0 0 2px rgba(61,220,132,.25);transition:left .35s linear}
   .lyrics{max-height:150px;overflow-y:auto;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
   .lyrLine{font-size:13px;line-height:1.6;color:var(--sub);padding:3px 6px;border-radius:8px;transition:.2s}
-  .lyrLine.active{font-weight:600;background:rgba(91,140,255,.14)}
+  .lyrLine.active{font-weight:600;background:rgba(var(--accentRgb),.14)}
   /* 逐字高亮：用渐变裁剪文字，--p 表示唱到整行的百分比 */
   .lyrLine .lyrFill{
     background-image:linear-gradient(90deg,
@@ -280,11 +280,11 @@
   .sheetBody .playlist{margin-top:8px}
   .chip{flex:none;font-size:12.5px;font-weight:600;color:var(--sub);background:var(--card2);
         border:1px solid var(--line);border-radius:999px;padding:7px 12px;cursor:pointer;font-family:inherit}
-  .chip.on{color:#fff;border-color:var(--accent);background:rgba(91,140,255,.18)}
+  .chip.on{color:#fff;border-color:var(--accent);background:rgba(var(--accentRgb),.18)}
   .miniBtn.fav{font-size:15px}
   .miniBtn.fav.off{color:#5a5f73}
   .miniBtn.fav.on{color:var(--warn)}
-  .plItem.reorder{background:rgba(91,140,255,.08)}
+  .plItem.reorder{background:rgba(var(--accentRgb),.08)}
   .plItem.dragging{border-color:var(--accent);box-shadow:0 8px 20px rgba(0,0,0,.5);opacity:.92}
   .modeRow{display:flex;align-items:center;gap:8px;margin-top:10px}
   .btnSkip.small{width:40px;height:40px;font-size:14px}
@@ -309,14 +309,14 @@
   .lrcItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);
            border-radius:11px;padding:9px 10px;cursor:pointer}
   .lrcItem:active{transform:scale(.99)}
-  .lrcItem.cur{border-color:var(--accent);background:rgba(91,140,255,.1)}
+  .lrcItem.cur{border-color:var(--accent);background:rgba(var(--accentRgb),.1)}
   .lrcItem .liMain{flex:1;min-width:0}
   .lrcItem .liName{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .lrcItem .liSub{font-size:11.5px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .lrcItem .liTags{flex:none;display:flex;flex-direction:column;gap:3px;align-items:flex-end}
   .lrcItem .liTag{font-size:10px;padding:2px 6px;border-radius:6px;background:var(--card);color:var(--sub);white-space:nowrap}
   .lrcItem .liTag.syn{background:rgba(61,220,132,.14);color:var(--ok)}
-  .lrcItem .liTag.src{background:rgba(91,140,255,.16);color:#9db9ff}
+  .lrcItem .liTag.src{background:rgba(var(--accentRgb),.16);color:#9db9ff}
   .lrcProg{height:6px;border-radius:6px;background:#2a2c3a;overflow:hidden;margin-top:8px}
   .lrcProg > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
   .speedRow{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
@@ -391,7 +391,7 @@
   }
   .emojiMode{width:100% !important;height:30px !important;font-size:12px !important;color:var(--sub) !important;
              display:flex;align-items:center;justify-content:center}
-  .emojiMode.on{color:#a9c1ff !important;background:rgba(91,140,255,.16) !important}
+  .emojiMode.on{color:#a9c1ff !important;background:rgba(var(--accentRgb),.16) !important}
 
   /* ===== 首页：两个入口 + 个人资料 ===== */
   .homeTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
@@ -406,7 +406,7 @@
     border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--fg);font-family:inherit;
     cursor:pointer;margin-top:10px}
   .modeCard:active{transform:scale(.985);border-color:var(--accent)}
-  .modeIcon{width:44px;height:44px;border-radius:12px;background:rgba(91,140,255,.16);display:flex;
+  .modeIcon{width:44px;height:44px;border-radius:12px;background:rgba(var(--accentRgb),.16);display:flex;
     align-items:center;justify-content:center;font-size:21px;flex:none}
   .modeText{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
   .modeText b{font-size:15px}
@@ -435,7 +435,7 @@
   .memDot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
   .memDot.warn{background:var(--warn);animation:blink 1s infinite}
   .memLat{font-variant-numeric:tabular-nums}
-  .memTag{font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(91,140,255,.18);color:#a9c1ff;flex:none}
+  .memTag{font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(var(--accentRgb),.18);color:#a9c1ff;flex:none}
   .memTag.owner{background:rgba(255,180,60,.16);color:#ffd08a}
   .memTag.me{background:rgba(61,220,132,.14);color:#8ff0b8}
   .memBtn{flex:none;font-size:12px;padding:7px 10px}
@@ -452,7 +452,7 @@
   .avatarOpt{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px;
     cursor:pointer;display:flex;align-items:center;justify-content:center}
   .avatarOpt img{width:48px;height:48px;border-radius:50%;display:block}
-  .avatarOpt.on{border-color:var(--accent);background:rgba(91,140,255,.16)}
+  .avatarOpt.on{border-color:var(--accent);background:rgba(var(--accentRgb),.16)}
   .profName{letter-spacing:0 !important;text-transform:none !important;text-align:left !important}
 
   /* ===== 歌单（单机模式） ===== */
@@ -461,7 +461,7 @@
   .plsItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);
     border-radius:12px;padding:10px;cursor:pointer}
   .plsItem:active{transform:scale(.99)}
-  .plsItem.cur{border-color:var(--accent);background:rgba(91,140,255,.12)}
+  .plsItem.cur{border-color:var(--accent);background:rgba(var(--accentRgb),.12)}
   .plsHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .plsHead .plName{flex:1;min-width:0}
   .chooserList{display:flex;flex-direction:column;gap:8px;margin-top:8px}
@@ -487,7 +487,7 @@
     border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
   .recallPop button{border:none;background:transparent;color:var(--fg);font-size:13px;
     font-family:inherit;padding:8px 16px;border-radius:8px;cursor:pointer}
-  .recallPop button:active{background:rgba(91,140,255,.18)}
+  .recallPop button:active{background:rgba(var(--accentRgb),.18)}
   .replyBar{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;border-radius:10px;
     background:var(--card2);border:1px solid var(--line);font-size:12px;color:var(--sub)}
   .replyBar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -495,7 +495,7 @@
     background:var(--card2);border:1px solid var(--line)}
   .emojiPanel button{width:38px;height:36px;font-size:20px;border:none;border-radius:8px;
     background:transparent;color:var(--fg);cursor:pointer;font-family:inherit}
-  .emojiPanel button:active{background:rgba(91,140,255,.2)}
+  .emojiPanel button:active{background:rgba(var(--accentRgb),.2)}
   #cardPlayer.trackSwap .heroRow,
   #cardPlayer.trackSwap .songName{animation:trackIn .42s cubic-bezier(.2,.7,.3,1) both}
   @keyframes trackIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
@@ -515,7 +515,7 @@
   /* ===== 浅色主题 ===== */
   body.light{
     --bg:#f3f5fa; --card:#ffffff; --card2:#eef0f7; --line:#dde1ec;
-    --fg:#191b24; --sub:#616779; --accent:#3f6fe0; --accent2:#6f56dd;
+    --fg:#191b24; --sub:#616779; --accent:#3f6fe0; --accent2:#6f56dd; --accentRgb:63,111,224;
     --ok:#12994a; --warn:#b26a00; --err:#d63b3b;
     background:radial-gradient(1200px 600px at 50% -10%, #e8edfa 0%, var(--bg) 55%) no-repeat, var(--bg);
   }
@@ -526,7 +526,7 @@
   body.light .mask{background:rgba(10,12,20,.35)}
   body.light .sheet{box-shadow:0 -12px 40px rgba(0,0,0,.22)}
   body.light .chip.on,body.light .lyrLine.active{color:#1b1d26}
-  body.light .modeIcon{background:rgba(63,111,224,.12)}
+  body.light .modeIcon{background:rgba(var(--accentRgb),.12)}
 
   /* ===== 纯黑 OLED 主题 ===== */
   body.oled{
@@ -548,6 +548,70 @@
   .infoRow:last-child{border-bottom:none}
   .infoRow > span{color:var(--sub);flex:none}
   .infoRow > b{font-weight:600;text-align:right;word-break:break-all;font-size:13px}
+
+  /* ===== v1.13.0 外观自定义 ===== */
+  body{--fs:1}
+  body.fs-small{--fs:.93}
+  body.fs-large{--fs:1.09}
+  body.fs-xlarge{--fs:1.2}
+  h1{font-size:calc(22px * var(--fs))}
+  .sub{font-size:calc(13px * var(--fs))}
+  .btn{font-size:calc(15px * var(--fs))}
+  .topBtn{font-size:calc(13px * var(--fs))}
+  .chip{font-size:calc(12.5px * var(--fs))}
+  .code{font-size:calc(34px * var(--fs))}
+  .songName{font-size:calc(15px * var(--fs))}
+  .songArtist{font-size:calc(12.5px * var(--fs))}
+  .plName{font-size:calc(14px * var(--fs))}
+  .plMeta,.plNote{font-size:calc(11.5px * var(--fs))}
+  .lyrics .lyrLine{font-size:calc(13px * var(--fs))}
+  .lyrics.lyrS .lyrLine{font-size:calc(11.5px * var(--fs))}
+  .lyrics.lyrL .lyrLine{font-size:calc(15px * var(--fs))}
+  .chatMsg{font-size:calc(13px * var(--fs))}
+  .chatInput{font-size:calc(14px * var(--fs)) !important}
+  .sheetTitle{font-size:calc(15px * var(--fs))}
+  .label,.soundDesc,.plsTip{font-size:calc(12px * var(--fs))}
+  .soundName{font-size:calc(14px * var(--fs))}
+  details p{font-size:calc(12.5px * var(--fs))}
+  .times,.syncInfo,.volRow,.stageArtist,.stagePeer{font-size:calc(12px * var(--fs))}
+  .stageName{font-size:calc(20px * var(--fs))}
+  .stageLyr{font-size:calc(16px * var(--fs))}
+  .stageTip{font-size:calc(11.5px * var(--fs))}
+  /* 列表密度 */
+  body.dn-compact .plItem{padding:5px 9px;gap:7px}
+  body.dn-compact .plCover{width:34px;height:34px}
+  body.dn-compact .plName{font-size:calc(13px * var(--fs))}
+  body.dn-loose .plItem{padding:15px 11px}
+  body.dn-loose .plCover{width:48px;height:48px}
+  /* 播放器封面形状 */
+  body.cv-square .coverBox,body.cv-square .stageCover,body.cv-square .plCover,
+  body.cv-square .infoCover,body.cv-square .plsCover{border-radius:4px}
+  body.cv-circle .coverBox,body.cv-circle .stageCover,body.cv-circle .plCover,
+  body.cv-circle .infoCover,body.cv-circle .plsCover{border-radius:50%}
+  body.cv-vinyl .coverBox,body.cv-vinyl .stageCover,body.cv-vinyl .plCover,
+  body.cv-vinyl .infoCover,body.cv-vinyl .plsCover{border-radius:50%}
+  body.cv-vinyl .coverBox,body.cv-vinyl .plCover{box-shadow:0 0 0 5px var(--card2),0 6px 16px rgba(0,0,0,.35)}
+  body.cv-vinyl .stageCover{box-shadow:0 0 0 8px rgba(255,255,255,.1),0 24px 60px rgba(0,0,0,.5)}
+  /* 主界面快捷入口 */
+  .quickBar{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+  .quickBar::-webkit-scrollbar{display:none}
+  .quickBar .chip{flex:none;padding:8px 13px;background:var(--card2)}
+  /* 外观自定义面板 */
+  .lookList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .lookItem{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);
+            border-radius:10px;padding:8px 10px}
+  .lookItem .lookName{flex:1;min-width:0;font-size:13px;font-weight:600}
+  .lookItem.off .lookName{color:var(--sub);font-weight:400}
+  .lookItem .miniBtn{width:30px;height:30px;font-size:14px;background:rgba(255,255,255,.04)}
+  .lookItem .miniBtn:disabled{opacity:.3}
+  .accentChips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .accentChips .chip{display:inline-flex;align-items:center;padding:7px 11px}
+  .accentChips .acDot{width:11px;height:11px;border-radius:50%;margin-right:6px;border:1px solid rgba(0,0,0,.2)}
+  .lookColor{width:42px;height:34px;padding:0;border:1px solid var(--line);border-radius:9px;background:transparent}
+  .lookTime{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--sub)}
+  .lookTime input[type=time]{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);
+                             border-radius:10px;color:var(--fg);padding:9px 10px;font-family:inherit;font-size:14px}
+  .lookStatus{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -687,6 +751,7 @@
       <button class="chip" id="btnSpeed" title="倍速播放：和对方同步">1.0×</button>
       <div class="syncInfo duetOnly" style="flex:1;justify-content:flex-end"><span>偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span><button class="topBtn" id="btnAlignLag" style="padding:3px 8px;font-size:11px;flex:none">对齐</button></div>
     </div>
+    <div class="quickBar" id="quickBar"></div>
     <div class="speedRow hidden" id="speedChips">
       <button class="chip" data-speed="0.5">0.5×</button>
       <button class="chip" data-speed="0.75">0.75×</button>
@@ -743,6 +808,7 @@
       <p><b>9. 房主</b>：房主可以先建房、先放歌，别人进来不影响他。房主退出后，<b>房间里来得最早的人自动接任房主</b>，房间照常继续。</p>
       <p><b>10. 个人资料</b>：首页右上角点自己的头像/名字，可以选内置头像、从相册选图、改用户名；进入「一起听」后所有人的顶栏和聊天都会显示头像和名字，不需要密码。</p>
       <p><b>11. 限制</b>：音量各自独立；聊天记录只保存在本机；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
+      <p><b>12. 外观自定义</b>：设置里点「外观自定义」，可以调全局字号（小/标准/大/特大）、强调色（含自定义取色）、歌单列表密度、播放器封面形状（方形/圆角/圆形/唱片）；还能设定「几点到几点用深色」自动切换，以及长按/切歌/按钮操作的触感反馈开关。主界面新增快捷入口栏，可勾选显示哪些按钮、用 ↑ ↓ 调整顺序。所有设置只保存在本机。</p>
     </details>
   </section>
 
@@ -998,6 +1064,9 @@
         <button class="chip" data-v="oled">纯黑</button>
         <button class="chip" data-v="auto">跟随系统</button>
       </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnLook" style="padding:11px;font-size:13.5px">外观自定义（字号 / 强调色 / 密度 / 封面…）</button>
+      </div>
       <div class="label" style="margin-top:20px">音量渐变</div>
       <div class="sndChips" id="fadeChips">
         <button class="chip" data-v="0">关闭</button>
@@ -1099,6 +1168,79 @@
       </div>
       <div class="updStatus" id="updStatus"><span class="dot" id="updDot"></span><span id="updStatusText">只在连上校园网、能连到本机服务器时才会去问；连不上不影响听歌。</span></div>
       <div class="verLine" id="verLine">一起听</div>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetLook">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">外观自定义</div>
+      <button class="topBtn" id="closeLook">收起</button>
+    </div>
+    <div class="sheetBody">
+      <div class="label" style="margin-top:0">全局字号</div>
+      <div class="sndChips" id="fontChips">
+        <button class="chip" data-v="s">小</button>
+        <button class="chip" data-v="m">标准</button>
+        <button class="chip" data-v="l">大</button>
+        <button class="chip" data-v="xl">特大</button>
+      </div>
+      <div class="label" style="margin-top:18px">强调色</div>
+      <div class="accentChips" id="accentChips">
+        <button class="chip" data-v="default">默认</button>
+        <button class="chip" data-v="blue"><i class="acDot" style="background:#5b8cff"></i>蓝</button>
+        <button class="chip" data-v="purple"><i class="acDot" style="background:#a06bff"></i>紫</button>
+        <button class="chip" data-v="pink"><i class="acDot" style="background:#ff6b9d"></i>粉</button>
+        <button class="chip" data-v="green"><i class="acDot" style="background:#2fbf71"></i>绿</button>
+        <button class="chip" data-v="orange"><i class="acDot" style="background:#ff9a3c"></i>橙</button>
+        <button class="chip" data-v="custom">自定义</button>
+        <input type="color" class="lookColor" id="accentColor" value="#5b8cff" title="自定义强调色" />
+      </div>
+      <div class="label" style="margin-top:18px">列表密度</div>
+      <div class="sndChips" id="densityChips">
+        <button class="chip" data-v="compact">紧凑</button>
+        <button class="chip" data-v="std">标准</button>
+        <button class="chip" data-v="loose">宽松</button>
+      </div>
+      <div class="label" style="margin-top:18px">播放器封面</div>
+      <div class="sndChips" id="coverChips">
+        <button class="chip" data-v="square">方形</button>
+        <button class="chip" data-v="round">圆角</button>
+        <button class="chip" data-v="circle">圆形</button>
+        <button class="chip" data-v="vinyl">唱片</button>
+      </div>
+      <div class="label" style="margin-top:18px">深色 / 浅色按时间切换</div>
+      <div class="soundRow">
+        <div>
+          <div class="soundName">按时间自动切</div>
+          <div class="soundDesc">开启后到点自动换主题，手动选的深浅色会被临时覆盖</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="autoThemeOn" /><i></i></label>
+      </div>
+      <div class="lookTime">
+        <span>深色从</span>
+        <input type="time" id="themeFrom" value="19:00" />
+        <span>到</span>
+        <input type="time" id="themeTo" value="07:00" />
+      </div>
+      <div class="lookStatus" id="autoThemeState">—</div>
+      <div class="label" style="margin-top:18px">触感反馈</div>
+      <div class="soundRow">
+        <div>
+          <div class="soundName">操作震动</div>
+          <div class="soundDesc">手机上轻震一下，网页版多数不支持</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="hapOn" /><i></i></label>
+      </div>
+      <div class="sndChips" id="hapChips" style="margin-top:10px">
+        <button class="chip" data-v="longPress">长按</button>
+        <button class="chip" data-v="switchSong">切歌</button>
+        <button class="chip" data-v="action">按钮操作</button>
+      </div>
+      <div class="label" style="margin-top:18px">主界面快捷入口</div>
+      <div class="soundDesc" style="margin-bottom:8px">勾选要显示的按钮，用 ↑ ↓ 调整顺序</div>
+      <div class="lookList" id="quickEdit"></div>
+      <p class="plsTip" style="margin-top:18px">所有外观设置只保存在这台设备，不会同步给房间里其他人。换手机或清理数据后会恢复默认。</p>
     </div>
   </section>
 
@@ -3912,7 +4054,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.12.0";
+const APP_VER = "1.13.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3967,6 +4109,7 @@ const UI = {
   sheetChoose: $("#sheetChoose"),
   sheetQr: $("#sheetQr"),
   sheetSound: $("#sheetSound"),
+  sheetLook: $("#sheetLook"),
   sheetUpdate: $("#sheetUpdate"),
   updUrl: $("#updUrl"),
   updAuto: $("#updAuto"),
@@ -4101,6 +4244,7 @@ function show(el, yes) { el.classList.toggle("hidden", !yes); }
 function enterMain() {
   show(UI.cardConn, false);
   show(UI.cardPlayer, true);
+  renderQuickBar();
   if (APP.mode === "solo") { setPill("单机听歌", "ok"); return; }
   setPill(APP.paired ? ("已连接 · " + memberCount() + " 人") : "等待其他人加入",
     APP.paired ? "ok" : "warn blink");
@@ -4119,6 +4263,7 @@ function applyModeChrome() {
   syncTabs();
   syncListCount();
   renderProfile();
+  renderQuickBar();
   if (APP.mode === "solo") setPill("单机听歌", "ok");
 }
 function syncTabs() {
@@ -4591,6 +4736,7 @@ function openSheet(which) {
     : which === "qr" ? UI.sheetQr
     : which === "profile" ? UI.sheetProfile
     : which === "sound" ? UI.sheetSound
+    : which === "look" ? UI.sheetLook
     : which === "update" ? UI.sheetUpdate
     : which === "diag" ? UI.sheetDiag
     : which === "info" ? UI.sheetInfo
@@ -4600,6 +4746,7 @@ function openSheet(which) {
     : UI.sheetList;
   if (which === "list") renderPlaylist();
   if (which === "diag") DIAG.render();
+  if (which === "look") renderLook();
   UI.mask.classList.remove("hidden");
   requestAnimationFrame(() => {
     UI.mask.classList.add("on");
@@ -4620,6 +4767,7 @@ function closeSheets() {
   if (UI.sheetChoose) UI.sheetChoose.classList.remove("on");
   if (UI.sheetQr) UI.sheetQr.classList.remove("on");
   if (UI.sheetSound) UI.sheetSound.classList.remove("on");
+  if (UI.sheetLook) UI.sheetLook.classList.remove("on");
   if (UI.sheetUpdate) UI.sheetUpdate.classList.remove("on");
   if (UI.sheetDiag) UI.sheetDiag.classList.remove("on");
   if (UI.sheetInfo) UI.sheetInfo.classList.remove("on");
@@ -9080,6 +9228,7 @@ function showRecallPop(el) {
   const rec = chatById(el.getAttribute("data-id"));
   if (!rec || !rec.mine || rec.del) return;
   if (Date.now() - rec.ts > CHAT_RECALL_MS) { toast("超过 2 分钟，不能撤回了"); return; }
+  haptic("longPress");
   APP._recallHold = Date.now();
   const pop = document.createElement("div");
   pop.className = "recallPop";
@@ -10259,6 +10408,7 @@ function toggleRepeat() {
 function stepTrack(dir) {
   const list = activeTracks();
   if (!list.length) return;
+  haptic("switch");
 
   if (APP.shuffle) {
     const t = shuffleNeighbor(dir, list);
@@ -11232,6 +11382,7 @@ UI.playlist.addEventListener("click", (e) => {
 
 UI.btnPlay.onclick = () => {
   // 本机用户主动按播放/暂停：记下意图
+  haptic("action");
   APP.localIntentTs = Date.now();
   APP._playRetry = 0;
   if (!audio.src) {
@@ -11971,29 +12122,323 @@ function alignToPeer() {
   toast("已对齐到对方的位置", 1600);
 }
 if (UI.btnAlignLag) UI.btnAlignLag.onclick = alignToPeer;
+/* ===== v1.13.0 外观自定义（字号 / 强调色 / 密度 / 触感 / 快捷入口 / 定时主题 / 封面） ===== */
+const LOOK_KEY = "duet_ui_v1";
+const LOOK_DEFAULT = {
+  font: "m", accent: "default", accentCustom: "#5b8cff", density: "std",
+  haptic: { on: true, longPress: true, switchSong: true, action: true },
+  quick: ["add", "lrc", "find", "fill", "sleep", "stage"],
+  autoTheme: { on: false, from: "19:00", to: "07:00" },
+  cover: "round",
+};
+const LOOK = (function () {
+  const d = JSON.parse(JSON.stringify(LOOK_DEFAULT));
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(LOOK_KEY) || "{}") || {}; } catch (e) {}
+  Object.keys(d).forEach((k) => {
+    if (o[k] === undefined || o[k] === null) return;
+    if (k === "haptic" || k === "autoTheme") {
+      if (typeof o[k] === "object") Object.keys(d[k]).forEach((kk) => {
+        if (o[k][kk] !== undefined && o[k][kk] !== null) d[k][kk] = o[k][kk];
+      });
+    } else if (k === "quick") {
+      if (Array.isArray(o[k])) d.quick = o[k].slice();
+    } else d[k] = o[k];
+  });
+  return d;
+})();
+const ACCENTS = {
+  blue: { c: "#5b8cff", c2: "#8a6bff" },
+  purple: { c: "#a06bff", c2: "#c86bff" },
+  pink: { c: "#ff6b9d", c2: "#ff8a6b" },
+  green: { c: "#2fbf71", c2: "#5b8cff" },
+  orange: { c: "#ff9a3c", c2: "#ff6b6b" },
+};
+const QUICK_DEFS = {
+  add: { label: "＋ 添加", run() { const b = $("#btnAddSongsMain"); if (b) b.click(); } },
+  lrc: { label: "加歌词", run() { const b = $("#btnLrc"); if (b) b.click(); } },
+  find: { label: "找歌词", run() { const b = $("#btnLrcAuto"); if (b) b.click(); } },
+  fill: { label: "整单补全", run() { const b = $("#btnFillAll2"); if (b) b.click(); } },
+  sleep: { label: "⏱ 定时", run() { const b = $("#btnSleep"); if (b) b.click(); } },
+  stage: { label: "全屏", run() { const b = $("#coverBox"); if (b) b.click(); } },
+  list: { label: "☰ 歌单", run() { const b = $("#btnOpenList"); if (b) b.click(); } },
+  chat: { label: "消息", run() { const b = $("#btnOpenChat"); if (b) b.click(); } },
+};
+function hexRgb(h) {
+  const s = String(h || "").replace("#", "");
+  const v = s.length === 3 ? s.split("").map((x) => x + x).join("") : s;
+  const n = parseInt(v, 16) || 0;
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function lightenHex(hex, amt) {
+  const c = hexRgb(hex);
+  const f = (x) => Math.round(x + (255 - x) * amt);
+  return "#" + [f(c.r), f(c.g), f(c.b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+function lookAccent() {
+  if (LOOK.accent === "custom") {
+    const c = LOOK.accentCustom || "#5b8cff";
+    const rgb = hexRgb(c);
+    return { c, c2: lightenHex(c, .25), rgb: rgb.r + "," + rgb.g + "," + rgb.b };
+  }
+  const a = ACCENTS[LOOK.accent];
+  if (!a) return null;
+  const rgb = hexRgb(a.c);
+  return { c: a.c, c2: a.c2, rgb: rgb.r + "," + rgb.g + "," + rgb.b };
+}
+function lookSave() { try { localStorage.setItem(LOOK_KEY, JSON.stringify(LOOK)); } catch (e) {} }
+function lookAutoDark() {
+  if (!LOOK.autoTheme.on) return null;
+  const sm = (v) => { const p = String(v || "").split(":"); return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0); };
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const f = sm(LOOK.autoTheme.from), t = sm(LOOK.autoTheme.to);
+  return f <= t ? (cur >= f && cur < t) : (cur >= f || cur < t);
+}
+function haptic(kind) {
+  const h = LOOK.haptic || {};
+  if (!h.on) return;
+  if (kind === "longPress" && !h.longPress) return;
+  if (kind === "switch" && !h.switchSong) return;
+  if (kind === "action" && !h.action) return;
+  try { if (navigator.vibrate) navigator.vibrate(kind === "longPress" ? 18 : 12); } catch (e) {}
+}
+function quickIdsForMode() {
+  return (LOOK.quick || []).filter((id) => {
+    if (!QUICK_DEFS[id]) return false;
+    if (id === "chat" && APP.mode !== "duet") return false;
+    return true;
+  });
+}
+function renderQuickBar() {
+  const bar = $("#quickBar");
+  if (!bar) return;
+  let ids = [];
+  try { ids = quickIdsForMode(); } catch (e) { return; }
+  bar.innerHTML = "";
+  ids.forEach((id) => {
+    const d = QUICK_DEFS[id];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip";
+    btn.setAttribute("data-q", id);
+    btn.textContent = d.label;
+    btn.onclick = () => { haptic("action"); d.run(); };
+    bar.appendChild(btn);
+  });
+  bar.classList.toggle("hidden", !ids.length);
+}
+function lookChipSet(box, v) {
+  if (!box) return;
+  box.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.v === v));
+}
+function renderQuickEdit() {
+  const box = $("#quickEdit");
+  if (!box) return;
+  const order = (LOOK.quick || []).filter((id) => QUICK_DEFS[id]);
+  Object.keys(QUICK_DEFS).forEach((id) => { if (order.indexOf(id) < 0) order.push(id); });
+  box.innerHTML = "";
+  order.forEach((id) => {
+    const on = (LOOK.quick || []).indexOf(id) >= 0;
+    const row = document.createElement("div");
+    row.className = "lookItem" + (on ? "" : " off");
+    row.setAttribute("data-id", id);
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = on;
+    cb.style.cssText = "flex:none;width:18px;height:18px;accent-color:var(--accent)";
+    const nm = document.createElement("span");
+    nm.className = "lookName";
+    nm.textContent = QUICK_DEFS[id].label;
+    const up = document.createElement("button");
+    up.type = "button"; up.className = "miniBtn"; up.textContent = "↑";
+    const dn = document.createElement("button");
+    dn.type = "button"; dn.className = "miniBtn"; dn.textContent = "↓";
+    const idx = (LOOK.quick || []).indexOf(id);
+    up.disabled = !on || idx <= 0;
+    dn.disabled = !on || idx < 0 || idx >= LOOK.quick.length - 1;
+    row.appendChild(cb); row.appendChild(nm); row.appendChild(up); row.appendChild(dn);
+    box.appendChild(row);
+  });
+}
+function renderLook() {
+  if (!document.getElementById("sheetLook")) return;
+  lookChipSet($("#fontChips"), LOOK.font);
+  lookChipSet($("#accentChips"), LOOK.accent);
+  lookChipSet($("#densityChips"), LOOK.density);
+  lookChipSet($("#coverChips"), LOOK.cover);
+  const ac = $("#accentColor");
+  if (ac) ac.value = LOOK.accentCustom || "#5b8cff";
+  const on = $("#autoThemeOn");
+  if (on) on.checked = !!LOOK.autoTheme.on;
+  const f = $("#themeFrom"), t = $("#themeTo");
+  if (f) f.value = LOOK.autoTheme.from || "19:00";
+  if (t) t.value = LOOK.autoTheme.to || "07:00";
+  const st = $("#autoThemeState");
+  if (st) {
+    if (!LOOK.autoTheme.on) st.textContent = "未开启：使用上面手动选择的主题";
+    else st.textContent = "已开启：" + LOOK.autoTheme.from + "–" + LOOK.autoTheme.to + " 为深色，其余时间浅色；现在是" + (lookAutoDark() ? "深色" : "浅色");
+  }
+  const hc = $("#hapChips");
+  if (hc) hc.querySelectorAll(".chip").forEach((c) => {
+    c.classList.toggle("on", !!LOOK.haptic[c.dataset.v]);
+    c.style.opacity = LOOK.haptic.on ? 1 : .4;
+    c.style.pointerEvents = LOOK.haptic.on ? "auto" : "none";
+  });
+  const ho = $("#hapOn");
+  if (ho) ho.checked = !!LOOK.haptic.on;
+  renderQuickEdit();
+}
+function lookApply() {
+  const b = document.body;
+  b.classList.toggle("fs-small", LOOK.font === "s");
+  b.classList.toggle("fs-large", LOOK.font === "l");
+  b.classList.toggle("fs-xlarge", LOOK.font === "xl");
+  b.classList.toggle("dn-compact", LOOK.density === "compact");
+  b.classList.toggle("dn-loose", LOOK.density === "loose");
+  b.classList.remove("cv-square", "cv-round", "cv-circle", "cv-vinyl");
+  b.classList.add("cv-" + (["square", "circle", "vinyl"].indexOf(LOOK.cover) >= 0 ? LOOK.cover : "round"));
+  const a = lookAccent();
+  if (!a) {
+    b.style.removeProperty("--accent");
+    b.style.removeProperty("--accent2");
+    b.style.removeProperty("--accentRgb");
+  } else {
+    b.style.setProperty("--accent", a.c);
+    b.style.setProperty("--accent2", a.c2);
+    b.style.setProperty("--accentRgb", a.rgb);
+  }
+  THEME.apply();
+  renderQuickBar();
+  renderLook();
+}
+function bindLookChips(sel, key) {
+  const box = $(sel);
+  if (!box) return;
+  box.querySelectorAll(".chip").forEach((c) => {
+    c.onclick = () => {
+      LOOK[key] = c.dataset.v;
+      haptic("action");
+      lookSave();
+      lookApply();
+    };
+  });
+}
+bindLookChips("#fontChips", "font");
+bindLookChips("#accentChips", "accent");
+bindLookChips("#densityChips", "density");
+bindLookChips("#coverChips", "cover");
+if ($("#accentColor")) $("#accentColor").oninput = () => {
+  LOOK.accentCustom = $("#accentColor").value || "#5b8cff";
+  LOOK.accent = "custom";
+  lookSave();
+  lookApply();
+};
+if ($("#autoThemeOn")) $("#autoThemeOn").onchange = (e) => {
+  LOOK.autoTheme.on = !!e.target.checked;
+  haptic("action");
+  lookSave();
+  THEME.apply();
+  renderLook();
+};
+if ($("#themeFrom")) $("#themeFrom").onchange = (e) => {
+  LOOK.autoTheme.from = e.target.value || "19:00";
+  lookSave();
+  THEME.apply();
+  renderLook();
+};
+if ($("#themeTo")) $("#themeTo").onchange = (e) => {
+  LOOK.autoTheme.to = e.target.value || "07:00";
+  lookSave();
+  THEME.apply();
+  renderLook();
+};
+if ($("#hapOn")) $("#hapOn").onchange = (e) => {
+  LOOK.haptic.on = !!e.target.checked;
+  lookSave();
+  renderLook();
+  if (LOOK.haptic.on) haptic("action");
+};
+if ($("#hapChips")) $("#hapChips").querySelectorAll(".chip").forEach((c) => {
+  c.onclick = () => {
+    if (!LOOK.haptic.on) return;
+    const k = c.dataset.v;
+    LOOK.haptic[k] = !LOOK.haptic[k];
+    if (LOOK.haptic[k]) haptic("action");
+    lookSave();
+    renderLook();
+  };
+});
+if ($("#quickEdit")) $("#quickEdit").addEventListener("click", (e) => {
+  const row = e.target.closest(".lookItem");
+  const btn = e.target.closest("button");
+  if (!row || !btn) return;
+  const id = row.getAttribute("data-id");
+  const arr = LOOK.quick;
+  const i = arr.indexOf(id);
+  if (i < 0) return;
+  if (btn.textContent === "↑" && i > 0) { arr[i] = arr[i - 1]; arr[i - 1] = id; }
+  else if (btn.textContent === "↓" && i < arr.length - 1) { arr[i] = arr[i + 1]; arr[i + 1] = id; }
+  else return;
+  haptic("action");
+  lookSave();
+  renderQuickBar();
+  renderQuickEdit();
+});
+if ($("#quickEdit")) $("#quickEdit").addEventListener("change", (e) => {
+  const cb = e.target.closest('input[type="checkbox"]');
+  const row = cb && cb.closest(".lookItem");
+  if (!row) return;
+  const id = row.getAttribute("data-id");
+  const i = LOOK.quick.indexOf(id);
+  if (cb.checked && i < 0) LOOK.quick.push(id);
+  else if (!cb.checked && i >= 0) LOOK.quick.splice(i, 1);
+  else return;
+  haptic("action");
+  lookSave();
+  renderQuickBar();
+  renderQuickEdit();
+});
+if ($("#btnLook")) $("#btnLook").onclick = () => openSheet("look");
+if ($("#closeLook")) $("#closeLook").onclick = closeSheets;
+setInterval(() => {
+  if (!LOOK.autoTheme.on) return;
+  THEME.apply();
+  renderLook();
+}, 60000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && LOOK.autoTheme.on) { THEME.apply(); renderLook(); }
+});
+
 /* ===== 外观主题 ===== */
 const THEME = {
   key: "duet.theme",
   get() { try { return localStorage.getItem(this.key) || "dark"; } catch (e) { return "dark"; } },
   isLight(v) {
     const m = v || this.get();
-    return m === "light" || (m === "auto" && !!(window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches));
+    if (m === "dark") return false;
+    if (m === "light") return true;
+    if (m === "oled") return false;
+    return !!(window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches);
   },
   apply(v) {
-    const mode = v || this.get();
+    let mode = v || this.get();
+    if (LOOK.autoTheme.on) mode = lookAutoDark() ? "dark" : "light";
     const light = this.isLight(mode);
     const oled = mode === "oled";
     document.body.classList.toggle("light", light);
     document.body.classList.toggle("oled", oled);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", oled ? "#000000" : light ? "#f3f5fa" : "#12131a");
+    const shown = LOOK.autoTheme.on ? (lookAutoDark() ? "dark" : "light") : this.get();
     if (UI.themeChips) {
-      UI.themeChips.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.v === mode));
+      UI.themeChips.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.v === shown));
     }
   },
   set(v) { try { localStorage.setItem(this.key, v); } catch (e) {} this.apply(v); },
 };
 THEME.apply();
+lookApply();
 if (UI.themeChips) {
   UI.themeChips.querySelectorAll(".chip").forEach((c) => { c.onclick = () => THEME.set(c.dataset.v); });
 }
