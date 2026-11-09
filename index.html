@@ -477,6 +477,17 @@
   .chatQuote{font-size:11.5px;line-height:1.4;color:var(--sub);border-left:2px solid var(--accent);
     padding:2px 6px;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chatMsg.me .chatQuote{color:rgba(255,255,255,.85);border-left-color:rgba(255,255,255,.75)}
+  /* ===== v1.12.0：已读回执 / 图片消息 / 撤回 ===== */
+  .chatAck{flex:none;align-self:flex-end;font-size:10px;color:var(--sub);padding-bottom:2px;white-space:nowrap}
+  .chatImg{display:block;max-width:190px;max-height:190px;border-radius:10px;margin:1px 0}
+  .chatGone{font-size:11.5px;color:var(--sub)}
+  .chatMsg.chatTomb{background:transparent;border:1px dashed var(--line);color:var(--sub);
+    font-size:11.5px;padding:4px 10px;cursor:default}
+  .recallPop{position:fixed;z-index:120;padding:4px;background:var(--card2);border:1px solid var(--line);
+    border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .recallPop button{border:none;background:transparent;color:var(--fg);font-size:13px;
+    font-family:inherit;padding:8px 16px;border-radius:8px;cursor:pointer}
+  .recallPop button:active{background:rgba(91,140,255,.18)}
   .replyBar{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;border-radius:10px;
     background:var(--card2);border:1px solid var(--line);font-size:12px;color:var(--sub)}
   .replyBar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -727,11 +738,11 @@
       <p><b>4. 播放模式</b>：▶ 下面有 🔀 随机、🔁 循环（顺序 → 列表循环 → 单曲循环），切换后房间里所有人同步。</p>
       <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。安卓 App 还能在锁屏/通知栏控制播放，拔掉耳机会自动暂停。播放页支持手势：<b>双击左侧/右侧切歌、上下滑调音量、长按封面 2× 试听</b>；右下角可以选 0.5–2× 倍速，<b>倍速会同步给房间里所有人</b>。点封面进入全屏播放页，背景颜色会跟着封面变。</p>
       <p><b>6. 歌词与封面</b>：点「找歌词」打开搜索面板，一次查 LRCLIB / lyrics.ovh / Lyrist 三个源，可以填「歌手」过滤同名版本；点结果里任意一条即可套用，「自动选最佳」会直接挑最合适的。歌单里两个按钮：「整单找歌词」只补歌词，「整单补全歌词+封面」两样一起补，进度会显示在按钮下方，再点一次可中途停止。只有纯文本歌词时会先展示、但不滚动。歌词和声音对不上时，点「校准」拖滑块边听边调（只影响自己这边，不会改动对方播放），也可以「以当前句校准」一键对齐；找不到歌词可点「加歌词」手动选 .lrc 文件。播放时会自动联网匹配专辑封面，显示在播放器背景和歌单里；点封面进入全屏页，右上角「换封面」可以手动换一张图。封面会存在本地，之后断网也能显示。</p>
-      <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息其他人立刻能看到，带头像。</p>
+      <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息其他人立刻能看到，带头像。可以点「🖼 发图片」直接发压缩后的小图、点任意消息引用回复、点表情飘屏；自己发的消息下面会显示「送达 / 已读」，<b>2 分钟内长按自己的消息可以撤回</b>。下面两个开关分别控制新消息的震动和提示音。聊天记录只存在本机，下次打开还在（最多 80 条，图片最多 8 张）。</p>
       <p><b>8. 歌单与传输</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、别人传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，所有人按添加顺序看到同一份歌单，并自动互相传文件。<b>中途进来的人只下「当前这首歌 + 下一首」</b>，下完自动对齐、开始播放，不会打断正在放的人；播放过程中会提前把下一首缓冲好。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 已连接 / 重试第几次」。实在卡住就点右上角 ↻。</p>
       <p><b>9. 房主</b>：房主可以先建房、先放歌，别人进来不影响他。房主退出后，<b>房间里来得最早的人自动接任房主</b>，房间照常继续。</p>
       <p><b>10. 个人资料</b>：首页右上角点自己的头像/名字，可以选内置头像、从相册选图、改用户名；进入「一起听」后所有人的顶栏和聊天都会显示头像和名字，不需要密码。</p>
-      <p><b>11. 限制</b>：音量各自独立；聊天记录不保存；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
+      <p><b>11. 限制</b>：音量各自独立；聊天记录只保存在本机；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
     </details>
   </section>
 
@@ -854,7 +865,13 @@
         <button class="chip" data-t="换这首吧">换这首吧</button>
         <button class="chip" data-t="先暂停一下">先暂停一下</button>
         <button class="chip" data-f="🎉">🎉 撒花</button>
+        <button class="chip" id="chatImgBtn">🖼 发图片</button>
       </div>
+      <div class="sndChips" id="chatNotifyRow" style="margin-top:8px">
+        <button class="chip on" id="chatVibBtn">📳 震动提醒</button>
+        <button class="chip on" id="chatSndBtn">🔔 提示音</button>
+      </div>
+      <input type="file" id="chatImg" accept="image/*" style="display:none" />
       <div class="replyBar hidden" id="chatReplyBar">
         <span id="chatReplyText"></span>
         <button class="topBtn" id="chatReplyCancel" style="flex:none;padding:3px 8px">✕</button>
@@ -3881,6 +3898,8 @@ const APP = {
   hadPeer: false,        // 本房间曾经连上过人（用来判断「对方离线」）
   offlineSince: 0,       // 对方掉线的起始时间
   chatRecent: [],        // 最近两条聊天，显示在主界面聊天入口下方
+  chatMsgs: [],          // 本机聊天记录（持久化，最近 80 条）
+  notify: { vib: true, snd: true },  // 新消息震动/提示音开关（持久化）
   needSent: new Set(),   // 已经催过对方补传的歌曲 id
   peerTracks: [],        // 预留
   lrcCache: {},          // 对方发来的歌词原文（本地还没这首歌时先存着）
@@ -3893,7 +3912,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.11.0";
+const APP_VER = "1.12.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -4588,6 +4607,7 @@ function openSheet(which) {
   });
   if (which === "chat") {
     clearUnread();
+    try { chatAckSend(); } catch (e) {}
     setTimeout(() => { try { UI.chatInput.focus(); } catch (e) {} }, 260);
   }
 }
@@ -5311,12 +5331,30 @@ function onMqttMessage(topic, payload) {
       }
       break;
     case "chat":
-      if (typeof m.text === "string" && m.text) {
-        addChat(m.text.slice(0, 200), false, m.from, m.quote || null);
-        /* 没停在消息界面时亮红点 */
-        if (!UI.sheetChat.classList.contains("on")) markUnread();
+      if ((typeof m.text === "string" && m.text) || (typeof m.img === "string" && m.img)) {
+        const rec = addChat(
+          typeof m.text === "string" ? m.text.slice(0, 200) : "",
+          false, m.from, m.quote || null,
+          { id: m.id, img: typeof m.img === "string" ? m.img : "", ts: m.ts }
+        );
+        if (!rec) break;
+        /* 停在消息界面时直接算已读并回执；否则亮红点 + 震动/提示音 */
+        if (UI.sheetChat.classList.contains("on") && !document.hidden) {
+          chatAckSend();
+        } else {
+          markUnread();
+          chatNotifyPing();
+        }
       }
       break;
+    case "chatRead":
+      chatApplyRead(m.ids);
+      break;
+    case "chatDel": {
+      const rec = chatById(String(m.id || ""));
+      if (rec && !rec.mine && !rec.del) chatMarkDel(rec);
+      break;
+    }
   }
 }
 
@@ -8804,42 +8842,316 @@ async function autoLyric(t, quiet) {
 
 /* ===================== 边听边聊 ===================== */
 APP.chatReply = null;   // 正在引用回复的那条消息 {name,text}
-function addChat(text, mine, fromId, quote) {
-  if (!UI.chatList || !text) return;
-  const empty = UI.chatList.querySelector(".chatEmpty");
-  if (empty) empty.remove();
+
+const CHAT_KEY = "duet_chat_v1";        // 聊天记录（本机）
+const CHAT_NOTIFY_KEY = "duet.chat_notify";
+const CHAT_MAX = 80;                    // 最多保留 80 条
+const CHAT_IMG_KEEP = 8;                // 持久化时最多保留 8 张图片
+const CHAT_RECALL_MS = 2 * 60 * 1000;   // 2 分钟内可撤回
+try {
+  const n = JSON.parse(localStorage.getItem(CHAT_NOTIFY_KEY) || "null");
+  if (n && typeof n === "object") {
+    if (typeof n.vib === "boolean") APP.notify.vib = n.vib;
+    if (typeof n.snd === "boolean") APP.notify.snd = n.snd;
+  }
+} catch (e) {}
+
+function chatNewId() { return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function chatById(id) {
+  for (let i = APP.chatMsgs.length - 1; i >= 0; i--) {
+    if (APP.chatMsgs[i].id === id) return APP.chatMsgs[i];
+  }
+  return null;
+}
+function chatSave() {
+  try {
+    const arr = APP.chatMsgs.slice(-CHAT_MAX).map((m) => Object.assign({}, m));
+    /* 图片最占空间：只留最近 8 张，更早的标记为已清理 */
+    let imgs = 0;
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (!arr[i].img) continue;
+      imgs++;
+      if (imgs > CHAT_IMG_KEEP) { arr[i].img = ""; arr[i].imgGone = true; }
+    }
+    localStorage.setItem(CHAT_KEY, JSON.stringify(arr));
+  } catch (e) {
+    /* 空间不足：先丢掉图片再试一次 */
+    try {
+      const arr = APP.chatMsgs.slice(-CHAT_MAX).map((m) =>
+        Object.assign({}, m, { img: "", imgGone: !!(m.img || m.imgGone) }));
+      localStorage.setItem(CHAT_KEY, JSON.stringify(arr));
+    } catch (e2) {
+      try { localStorage.removeItem(CHAT_KEY); } catch (e3) {}
+    }
+  }
+}
+function chatLoad() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(CHAT_KEY) || "[]");
+    return Array.isArray(arr)
+      ? arr.filter((m) => m && m.id && (m.text || m.img || m.imgGone || m.del)) : [];
+  } catch (e) { return []; }
+}
+function chatAvatar(rec) {
+  if (rec.mine) return APP.pf.avatar || AVATARS[rec.av] || defaultAvatar();
+  return AVATARS[rec.av] || defaultAvatar();
+}
+
+/* 一条消息 → DOM；撤回后显示为灰色占位 */
+function chatLineEl(rec) {
+  const mine = !!rec.mine;
   const line = document.createElement("div");
   line.className = "chatLine " + (mine ? "me" : "peer");
+  line.setAttribute("data-id", rec.id);
   const ava = document.createElement("img");
   ava.className = "chatAva";
-  ava.src = mine ? (APP.pf.avatar || defaultAvatar()) : (peerPfOf(fromId).avatar || defaultAvatar());
+  ava.src = chatAvatar(rec);
   ava.alt = "";
   const el = document.createElement("div");
   el.className = "chatMsg " + (mine ? "me" : "peer");
-  const who = mine ? (APP.pf.name || "我") : (peerPfOf(fromId).name || "对方");
-  el.setAttribute("data-nm", who);
-  el.setAttribute("data-tx", String(text).slice(0, 60));
-  if (quote && quote.text) {
+  el.setAttribute("data-id", rec.id);
+  el.setAttribute("data-nm", mine ? (APP.pf.name || "我") : (rec.nm || "对方"));
+  if (rec.del) {
+    el.classList.add("chatTomb");
+    el.textContent = mine ? "你撤回了一条消息" : ((rec.nm || "对方") + "撤回了一条消息");
+    line.appendChild(el);
+    return line;
+  }
+  el.setAttribute("data-tx", rec.img ? "[图片]" : String(rec.text || "").slice(0, 60));
+  if (rec.quote && rec.quote.text) {
     const q = document.createElement("div");
     q.className = "chatQuote";
-    q.textContent = (quote.name || "") + "：" + quote.text;
+    q.textContent = (rec.quote.name || "") + "：" + rec.quote.text;
     el.appendChild(q);
   }
-  const body = document.createElement("div");
-  body.textContent = text;
-  el.appendChild(body);
-  if (mine) { line.appendChild(el); line.appendChild(ava); }
-  else { line.appendChild(ava); line.appendChild(el); }
-  UI.chatList.appendChild(line);
-  while (UI.chatList.children.length > 20) UI.chatList.removeChild(UI.chatList.firstChild);
+  if (rec.img) {
+    const im = document.createElement("img");
+    im.className = "chatImg";
+    im.src = rec.img;
+    im.alt = "图片";
+    el.appendChild(im);
+  } else if (rec.imgGone) {
+    const gone = document.createElement("div");
+    gone.className = "chatGone";
+    gone.textContent = "[图片已清理]";
+    el.appendChild(gone);
+  }
+  if (rec.text) {
+    const body = document.createElement("div");
+    body.textContent = rec.text;
+    el.appendChild(body);
+  }
+  if (mine) {
+    const ack = document.createElement("span");
+    ack.className = "chatAck";
+    ack.textContent = rec.read ? "已读" : "送达";
+    line.appendChild(ack);
+    line.appendChild(el);
+    line.appendChild(ava);
+  } else {
+    line.appendChild(ava);
+    line.appendChild(el);
+  }
+  return line;
+}
+
+function addChat(text, mine, fromId, quote, opt) {
+  if (!UI.chatList) return null;
+  const o = opt || {};
+  const body = String(text == null ? "" : text).slice(0, 200);
+  const img = (typeof o.img === "string" && o.img.indexOf("data:image/") === 0 && o.img.length < 400000)
+    ? o.img : "";
+  if (!body && !img) return null;
+  const rec = {
+    id: String(o.id || chatNewId()),
+    mine: !!mine,
+    text: body,
+    img: img,
+    ts: Number(o.ts) || Date.now(),
+    quote: (quote && quote.text)
+      ? { name: String(quote.name || "").slice(0, 20), text: String(quote.text).slice(0, 60) } : null,
+    read: !!o.read,
+    del: false,
+    nm: mine ? "" : String(o.nm || (fromId ? nameOf(fromId) : "对方")).slice(0, 20),
+    av: "",
+  };
+  if (!mine) {
+    /* 内置头像只存 key，避免把整段 SVG 写进 localStorage */
+    const pava = fromId ? peerPfOf(fromId).avatar : "";
+    const k = Object.keys(AVATARS).find((x) => AVATARS[x] === pava);
+    if (k) rec.av = k;
+  }
+  const old = chatById(rec.id);
+  if (old) return old;
+  const empty = UI.chatList.querySelector(".chatEmpty");
+  if (empty) empty.remove();
+  UI.chatList.appendChild(chatLineEl(rec));
+  while (UI.chatList.children.length > 40) UI.chatList.removeChild(UI.chatList.firstChild);
   UI.chatList.scrollTop = UI.chatList.scrollHeight;
+  APP.chatMsgs.push(rec);
+  while (APP.chatMsgs.length > CHAT_MAX) APP.chatMsgs.shift();
+  chatSave();
   /* 最近两条同步露在主界面，红点之外还能直接看到内容 */
   APP.chatRecent.push({
-    name: who,
-    text: text.slice(0, 80),
+    name: mine ? (APP.pf.name || "我") : rec.nm,
+    text: (rec.text || (rec.img ? "[图片]" : "[图片已清理]")).slice(0, 80),
   });
   while (APP.chatRecent.length > 2) APP.chatRecent.shift();
   renderChatPeek();
+  return rec;
+}
+
+/* 刷新后把本机聊天记录放回消息面板 */
+function restoreChat() {
+  const arr = chatLoad();
+  if (!arr.length || !UI.chatList) return;
+  APP.chatMsgs = arr.slice(-CHAT_MAX);
+  const empty = UI.chatList.querySelector(".chatEmpty");
+  if (empty) empty.remove();
+  APP.chatMsgs.forEach((rec) => UI.chatList.appendChild(chatLineEl(rec)));
+  while (UI.chatList.children.length > 40) UI.chatList.removeChild(UI.chatList.firstChild);
+  UI.chatList.scrollTop = UI.chatList.scrollHeight;
+  APP.chatRecent = APP.chatMsgs.slice(-2).map((r) => ({
+    name: r.mine ? "我" : (r.nm || "对方"),
+    text: r.del ? "撤回了一条消息" : (r.img ? "[图片]" : (r.text || "[图片已清理]").slice(0, 80)),
+  }));
+  renderChatPeek();
+}
+
+/* 关键控制消息（撤回/已读）：多站冗余发出，用同一个 mid 去重 */
+function chatPublishCtl(msg) {
+  const m = Object.assign({}, msg);
+  if (!m.mid) m.mid = APP.me + "-" + (APP.midSeq++).toString(36);
+  if (!m.from) m.from = APP.me;
+  publish(m);
+  setTimeout(() => publish(m), 450);
+  setTimeout(() => publish(m), 1100);
+}
+
+/* 我看完了对方的哪些消息 → 回执（对方那边变「已读」） */
+function chatAckSend() {
+  const ids = [];
+  APP.chatMsgs.forEach((m) => {
+    if (!m.mine && !m.read && !m.del) { m.read = true; ids.push(m.id); }
+  });
+  if (!ids.length) return;
+  chatSave();
+  if (APP.room) chatPublishCtl({ k: "chatRead", ids: ids.slice(-30) });
+}
+function chatApplyRead(ids) {
+  let changed = false;
+  (Array.isArray(ids) ? ids : []).forEach((id) => {
+    const rec = chatById(String(id));
+    if (!rec || !rec.mine || rec.read) return;
+    rec.read = true;
+    changed = true;
+    const el = UI.chatList.querySelector('.chatMsg[data-id="' + String(id) + '"]');
+    const ack = el && el.parentNode ? el.parentNode.querySelector(".chatAck") : null;
+    if (ack) ack.textContent = "已读";
+  });
+  if (changed) chatSave();
+}
+function chatMarkDel(rec) {
+  rec.del = true;
+  rec.text = "";
+  rec.img = "";
+  rec.imgGone = false;
+  rec.quote = null;
+  chatSave();
+  const old = UI.chatList.querySelector('.chatMsg[data-id="' + rec.id + '"]');
+  if (old && old.parentNode) old.parentNode.replaceWith(chatLineEl(rec));
+}
+function recallChat(id) {
+  const rec = chatById(id);
+  if (!rec || !rec.mine || rec.del) return;
+  if (Date.now() - rec.ts > CHAT_RECALL_MS) { toast("超过 2 分钟，不能撤回了"); return; }
+  chatMarkDel(rec);
+  chatPublishCtl({ k: "chatDel", id: rec.id });
+  toast("已撤回", 1600);
+}
+
+/* 长按自己的消息 → 浮出「撤回」按钮（2 分钟内） */
+let _recallPop = null;
+function hideRecallPop() {
+  if (_recallPop) { try { _recallPop.remove(); } catch (e) {} _recallPop = null; }
+}
+function showRecallPop(el) {
+  hideRecallPop();
+  const rec = chatById(el.getAttribute("data-id"));
+  if (!rec || !rec.mine || rec.del) return;
+  if (Date.now() - rec.ts > CHAT_RECALL_MS) { toast("超过 2 分钟，不能撤回了"); return; }
+  APP._recallHold = Date.now();
+  const pop = document.createElement("div");
+  pop.className = "recallPop";
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = "撤回这条消息";
+  b.onclick = (ev) => { ev.stopPropagation(); const id = rec.id; hideRecallPop(); recallChat(id); };
+  pop.appendChild(b);
+  document.body.appendChild(pop);
+  const r = el.getBoundingClientRect();
+  const w = 120;
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
+  pop.style.top = Math.max(8, r.top - 46) + "px";
+  _recallPop = pop;
+}
+
+/* 新消息提醒：震动 + 提示音，各自可关 */
+function chatNotifySave() {
+  try { localStorage.setItem(CHAT_NOTIFY_KEY, JSON.stringify(APP.notify)); } catch (e) {}
+}
+function chatApplyNotifyUI() {
+  const v = $("#chatVibBtn");
+  const s = $("#chatSndBtn");
+  if (v) v.classList.toggle("on", !!APP.notify.vib);
+  if (s) s.classList.toggle("on", !!APP.notify.snd);
+}
+let _chatActx = null;
+function chatBeep() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    _chatActx = _chatActx || new AC();
+    if (_chatActx.state === "suspended") { try { _chatActx.resume(); } catch (e) {} }
+    const t = _chatActx.currentTime;
+    const o = _chatActx.createOscillator();
+    const g = _chatActx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(880, t);
+    o.frequency.setValueAtTime(1180, t + 0.1);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+    o.connect(g);
+    g.connect(_chatActx.destination);
+    o.start(t);
+    o.stop(t + 0.28);
+  } catch (e) {}
+}
+function chatNotifyPing() {
+  if (APP.notify.vib) { try { if (navigator.vibrate) navigator.vibrate([90, 60, 90]); } catch (e) {} }
+  if (APP.notify.snd) chatBeep();
+}
+
+/* 发图片：先压到 480px，再大就压到 320px，尽量让消息能过中转 */
+async function sendChatImage(file) {
+  if (!file || !/^image\//.test(file.type || "")) { toast("请选择图片文件"); return; }
+  try {
+    let blob = await shrinkImage(file, 480, 480);
+    if (!blob) throw new Error("shrink");
+    let data = await blobToDataUrl(blob);
+    if (data.length > 140000) {
+      const small = await shrinkImage(blob, 320, 320);
+      if (small) data = await blobToDataUrl(small);
+    }
+    if (data.length > 400000) { toast("图片太大，换一张试试"); return; }
+    const id = chatNewId();
+    const ts = Date.now();
+    addChat("", true, "", null, { id: id, img: data, ts: ts });
+    publish({ k: "chat", from: APP.me, id: id, img: data, ts: ts });
+  } catch (e) {
+    toast("图片处理失败，换一张试试");
+  }
 }
 
 /* 系统消息时间线：进房 / 退房 / 切歌 / 暂停 / 房主变更，只写聊天流，不进未读红点 */
@@ -8906,8 +9218,10 @@ function sendChat() {
   if (!text) return;
   UI.chatInput.value = "";
   const q = APP.chatReply;
-  addChat(text, true, "", q);
-  const msg = { k: "chat", from: APP.me, text: text.slice(0, 200), ts: Date.now() };
+  const id = chatNewId();
+  const ts = Date.now();
+  addChat(text, true, "", q, { id: id, ts: ts });
+  const msg = { k: "chat", from: APP.me, id: id, text: text.slice(0, 200), ts: ts };
   if (q) msg.quote = { name: String(q.name || "").slice(0, 20), text: String(q.text || "").slice(0, 60) };
   publish(msg);
   clearChatReply();
@@ -11198,6 +11512,7 @@ UI.chatInput.addEventListener("keydown", (e) => {
 
 /* 刷新后恢复上次的歌单、自建歌单和个人资料 */
 loadProfile();
+restoreChat();
 loadPls();
 renderAvatarGrid();
 restorePlaylist().then(preloadCovers);
@@ -11304,6 +11619,7 @@ if (UI.fadeChips) {
 applyFadeCfg();
 if (UI.chatQuick) {
   UI.chatQuick.querySelectorAll(".chip").forEach((c) => {
+    if (c.id === "chatImgBtn") return;   // 发图片单独绑定
     c.onclick = () => {
       if (c.dataset.f) { sendFloatEmoji(c.dataset.f); return; }
       UI.chatInput.value = c.dataset.t || "";
@@ -11311,6 +11627,78 @@ if (UI.chatQuick) {
     };
   });
 }
+/* v1.12.0：发图片 / 提醒开关 / 长按撤回 */
+(function bindChatV12() {
+  const imgBtn = $("#chatImgBtn");
+  const imgInput = $("#chatImg");
+  if (imgBtn && imgInput) {
+    imgBtn.onclick = () => { imgInput.value = ""; imgInput.click(); };
+    imgInput.onchange = () => {
+      const f = imgInput.files && imgInput.files[0];
+      imgInput.value = "";
+      if (f) sendChatImage(f);
+    };
+  }
+  const vib = $("#chatVibBtn");
+  const snd = $("#chatSndBtn");
+  chatApplyNotifyUI();
+  if (vib) vib.onclick = () => {
+    APP.notify.vib = !APP.notify.vib;
+    chatNotifySave();
+    chatApplyNotifyUI();
+    toast(APP.notify.vib ? "新消息震动已开" : "新消息震动已关", 1600);
+  };
+  if (snd) snd.onclick = () => {
+    APP.notify.snd = !APP.notify.snd;
+    chatNotifySave();
+    chatApplyNotifyUI();
+    if (APP.notify.snd) chatBeep();
+    toast(APP.notify.snd ? "新消息提示音已开" : "新消息提示音已关", 1600);
+  };
+  if (UI.chatList) {
+    let holdTimer = null;
+    let holdEl = null;
+    let moved = false;
+    /* 点空白 / 滚动聊天列表时收起「撤回」按钮；长按后的那一下 click 不算 */
+    document.addEventListener("click", (e) => {
+      if (!_recallPop) return;
+      if (_recallPop.contains(e.target)) return;
+      if (Date.now() - (APP._recallHold || 0) < 600) return;
+      hideRecallPop();
+    });
+    UI.chatList.addEventListener("scroll", hideRecallPop);
+    const startHold = (ev) => {
+      const el = ev.target.closest(".chatMsg.me");
+      if (!el) return;
+      const rec = chatById(el.getAttribute("data-id"));
+      if (!rec || rec.del) return;
+      if (Date.now() - rec.ts > CHAT_RECALL_MS) return;
+      holdEl = el;
+      moved = false;
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => { holdTimer = null; if (!moved && holdEl) showRecallPop(holdEl); }, 550);
+    };
+    const cancelHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    UI.chatList.addEventListener("touchstart", (e) => {
+      if (e.touches && e.touches.length === 1) startHold(e);
+    }, { passive: true });
+    UI.chatList.addEventListener("touchmove", () => { moved = true; cancelHold(); }, { passive: true });
+    UI.chatList.addEventListener("touchend", cancelHold);
+    UI.chatList.addEventListener("mousedown", startHold);
+    UI.chatList.addEventListener("mousemove", () => { moved = true; cancelHold(); });
+    UI.chatList.addEventListener("mouseup", cancelHold);
+    UI.chatList.addEventListener("mouseleave", cancelHold);
+    UI.chatList.addEventListener("contextmenu", (e) => {
+      const el = e.target.closest(".chatMsg.me");
+      if (!el) return;
+      const rec = chatById(el.getAttribute("data-id"));
+      if (rec && !rec.del && Date.now() - rec.ts <= CHAT_RECALL_MS) {
+        e.preventDefault();
+        showRecallPop(el);
+      }
+    });
+  }
+})();
 /* 表情面板：默认点一下追加到输入框；打开「飘屏」后点一下直接飘给房间里所有人 */
 (function bindChatExtras() {
   const EMOJI = ["😀", "😄", "😁", "😆", "🥰", "😍", "😘", "😂", "🤣", "😅", "😭", "😢",
@@ -11343,8 +11731,10 @@ if (UI.chatQuick) {
   if (bar) $("#chatReplyCancel").onclick = () => clearChatReply();
   if (UI.chatList) {
     UI.chatList.addEventListener("click", (e) => {
+      /* 刚长按弹过撤回按钮，别顺手触发引用回复 */
+      if (Date.now() - (APP._recallHold || 0) < 500) return;
       const el = e.target.closest(".chatMsg");
-      if (!el) return;
+      if (!el || el.classList.contains("chatTomb")) return;
       setChatReply({ name: el.getAttribute("data-nm") || "", text: el.getAttribute("data-tx") || "" });
     });
   }
