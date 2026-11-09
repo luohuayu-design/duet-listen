@@ -399,6 +399,31 @@
   .chatLine.me{justify-content:flex-end}
   .chatAva{width:26px;height:26px;border-radius:50%;object-fit:cover;background:#2a2c3a;flex:none}
 
+  /* ===== v1.8.0：引用回复 / 表情 / 合并视图 / 歌单封面 / 切歌动画 ===== */
+  .chatMsg{cursor:pointer}
+  .chatQuote{font-size:11.5px;line-height:1.4;color:var(--sub);border-left:2px solid var(--accent);
+    padding:2px 6px;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chatMsg.me .chatQuote{color:rgba(255,255,255,.85);border-left-color:rgba(255,255,255,.75)}
+  .replyBar{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;border-radius:10px;
+    background:var(--card2);border:1px solid var(--line);font-size:12px;color:var(--sub)}
+  .replyBar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .emojiPanel{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;padding:8px;border-radius:12px;
+    background:var(--card2);border:1px solid var(--line)}
+  .emojiPanel button{width:38px;height:36px;font-size:20px;border:none;border-radius:8px;
+    background:transparent;color:var(--fg);cursor:pointer;font-family:inherit}
+  .emojiPanel button:active{background:rgba(91,140,255,.2)}
+  #cardPlayer.trackSwap .heroRow,
+  #cardPlayer.trackSwap .songName{animation:trackIn .42s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes trackIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+  .plsCover{flex:none;width:40px;height:40px;border-radius:10px;overflow:hidden;background:#2a2c3a;
+    display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--sub);cursor:pointer}
+  .plsCover img{width:100%;height:100%;object-fit:cover;display:block}
+  .plsIntro{font-size:11.5px;color:var(--sub);line-height:1.4;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .mergeHead{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-size:12px;color:var(--sub)}
+  .mergeHead b{color:var(--fg);font-size:12.5px}
+  .mergeHead .topBtn{margin-left:auto;padding:5px 9px;font-size:11.5px}
+
   /* ===== 浅色主题 ===== */
   body.light{
     --bg:#f3f5fa; --card:#ffffff; --card2:#eef0f7; --line:#dde1ec;
@@ -695,6 +720,7 @@
       <div class="plChips">
         <button class="chip duetOnly" data-tab="duet">一起听</button>
         <button class="chip duetOnly" data-tab="lib">我的歌曲</button>
+        <button class="chip duetOnly" data-tab="merge">共用</button>
         <button class="chip soloOnly" data-tab="all">全部音乐</button>
         <button class="chip soloOnly" data-tab="pls">我的歌单</button>
         <button class="chip" data-tab="fav">★ 收藏</button>
@@ -734,8 +760,14 @@
         <button class="chip" data-t="换这首吧">换这首吧</button>
         <button class="chip" data-t="先暂停一下">先暂停一下</button>
       </div>
+      <div class="replyBar hidden" id="chatReplyBar">
+        <span id="chatReplyText"></span>
+        <button class="topBtn" id="chatReplyCancel" style="flex:none;padding:3px 8px">✕</button>
+      </div>
+      <div class="emojiPanel hidden" id="emojiPanel"></div>
       <div class="row" style="margin-top:8px">
-        <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…" autocomplete="off" />
+        <button class="btn" id="chatEmojiBtn" style="flex:0 0 50px;padding:12px;font-size:18px">😊</button>
+        <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…（点消息可引用回复）" autocomplete="off" />
         <button class="btn" id="chatSend" style="flex:0 0 76px;padding:12px">发送</button>
       </div>
     </div>
@@ -761,6 +793,9 @@
         <button class="btn" id="scanAll" style="flex:0 0 84px;padding:11px;font-size:13px">全选</button>
         <button class="btn" id="scanNone" style="flex:0 0 84px;padding:11px;font-size:13px">全不选</button>
         <button class="btn primary" id="scanAddBtn" style="padding:11px">加入歌单（<span id="scanPick">0</span>）</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="scanFolderPl" style="padding:11px;font-size:13px">按文件夹各建一个歌单</button>
       </div>
       <div class="scanList" id="scanList"></div>
     </div>
@@ -878,6 +913,14 @@
           <button class="topBtn" id="btnCleanRecv" style="flex:none">清理</button>
         </div>
         <p class="plsTip" style="margin-top:10px">只清理已不在「一起听歌单」里的接收歌曲；下次对方再加进歌单会重新传。</p>
+      </div>
+      <div class="label" style="margin-top:20px">歌单整理</div>
+      <div class="soundRow">
+        <div>
+          <div class="soundName">重复歌曲</div>
+          <div class="soundDesc" id="dupDesc">—</div>
+        </div>
+        <button class="topBtn" id="btnDedup" style="flex:none">清理</button>
       </div>
       <div class="label" style="margin-top:20px">流量</div>
       <div class="soundRow">
@@ -3688,7 +3731,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.7.0";
+const APP_VER = "1.8.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -4142,6 +4185,8 @@ function loadPls() {
     id: String(x.id),
     name: String(x.name).slice(0, 16),
     ids: Array.isArray(x.ids) ? x.ids.filter((v) => typeof v === "string") : [],
+    cover: typeof x.cover === "string" ? x.cover : "",     // 歌单封面（压缩后的 dataURL）
+    intro: typeof x.intro === "string" ? x.intro.slice(0, 40) : "",
   }));
 }
 function savePls() {
@@ -4173,11 +4218,13 @@ function renamePlaylist(pid) {
   const p = APP.pls.find((x) => x.id === pid);
   if (!p) return;
   const name = (prompt("歌单名：", p.name) || "").trim();
-  if (!name || name === p.name) return;
+  if (!name) return;
   p.name = name.slice(0, 16);
+  const intro = prompt("歌单简介（可留空，最多 40 字）：", p.intro || "");
+  if (intro !== null) p.intro = String(intro).trim().slice(0, 40);
   savePls();
   renderPlaylist();
-  toast("已重命名");
+  toast("已保存");
 }
 function deletePlaylist(pid) {
   const p = APP.pls.find((x) => x.id === pid);
@@ -4406,7 +4453,8 @@ function saveTrack(t) {
   dbDo("tracks", "readwrite", (st) => st.put({
     id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
     blob: keepBlob, ref: ref, missing: !!t.missing,
-    mine: !!t.mine, owner: t.owner || "", lrc: t.lrc || null, lrcText: t.lrcText || "", fav: !!t.fav, ts: Date.now(),
+    mine: !!t.mine, owner: t.owner || "", lrc: t.lrc || null, lrcText: t.lrcText || "", fav: !!t.fav,
+    spd: Number(t.spd) || 0, ts: Date.now(),
   })).catch((e) => {
     /* 存储写满：明确告诉用户这首歌没存住，别让它在重启后无声消失 */
     const quota = e && (e.name === "QuotaExceededError" || /quota|exceed|full/i.test(String(e.message || e)));
@@ -4469,6 +4517,7 @@ async function restorePlaylist() {
         lrc: Array.isArray(r.lrc) && r.lrc.length ? r.lrc : null,
         lrcText: r.lrcText || "",
         fav: !!r.fav,
+        spd: Number(r.spd) || 0,     // 这首歌自己的倍速（0 = 跟随全局）
       };
       if (t.blob) t.url = URL.createObjectURL(t.blob);
       byId[r.id] = t;
@@ -4999,7 +5048,7 @@ function onMqttMessage(topic, payload) {
       break;
     case "chat":
       if (typeof m.text === "string" && m.text) {
-        addChat(m.text.slice(0, 200), false, m.from);
+        addChat(m.text.slice(0, 200), false, m.from, m.quote || null);
         /* 没停在消息界面时亮红点 */
         if (!UI.sheetChat.classList.contains("on")) markUnread();
       }
@@ -6406,6 +6455,101 @@ $("#scanAddBtn").onclick = async () => {
         (r.bad ? "，忽略 " + r.bad + " 个非音频文件" : ""));
 };
 
+/* 按文件夹各建一个歌单：用 webkitRelativePath 的目录部分分组 */
+$("#scanFolderPl").onclick = async () => {
+  const picked = scanItems.filter((x) => x.on);
+  if (!picked.length) { toast("还没有勾选歌曲"); return; }
+  if (picked[0].uri) { hint("安卓的文件夹选择不带目录结构，这个功能请在网页版或电脑上用", 4200); return; }
+  closeSheets();
+  const groups = new Map();
+  picked.forEach((x) => {
+    const rel = String((x.f && x.f.webkitRelativePath) || "");
+    const parts = rel.split("/").filter(Boolean);
+    const dir = parts.length > 2 ? parts.slice(1, -1).join("/") : "根目录";
+    if (!groups.has(dir)) groups.set(dir, []);
+    groups.get(dir).push(x.f);
+  });
+  const r = await addFiles(picked.map((x) => x.f));
+  let made = 0;
+  groups.forEach((files, dir) => {
+    const ids = files.map((f) => {
+      const t = APP.lib.find((x) => (x.name || "") === (f.name || "") &&
+        Math.abs((x.size || 0) - (f.size || 0)) < 1024);
+      return t ? t.id : "";
+    }).filter(Boolean);
+    if (!ids.length) return;
+    const name = (dir.split("/").pop() || "根目录").slice(0, 16);
+    const p = newPlaylist(name);
+    p.ids = ids;
+    made++;
+  });
+  savePls();
+  scanItems = [];
+  maybeResume();
+  if (!made) { toast("没有可建的歌单（可能都已在列表里）"); return; }
+  if (APP.mode === "solo") setPlTab("pls");
+  toast("已按文件夹建好 " + made + " 个歌单" +
+    (r.dup ? "（跳过 " + r.dup + " 首重复的）" : "") +
+    (APP.mode === "solo" ? "" : "，去「单机听歌 → 我的歌单」查看"), 4000);
+};
+
+/* ===== 重复歌曲清理：同名 + 大小差 1KB 以内视为重复，只留一条 ===== */
+function dupGroups() {
+  const kept = [], dup = [];
+  APP.lib.forEach((t) => {
+    const same = kept.find((x) => String(x.name || "") === String(t.name || "") &&
+      Math.abs((Number(x.size) || 0) - (Number(t.size) || 0)) < 1024);
+    if (same) dup.push({ t, keep: same });
+    else kept.push(t);
+  });
+  return { kept, dup };
+}
+function dedupeLib() {
+  const { kept, dup } = dupGroups();
+  if (!dup.length) return 0;
+  const remap = {};
+  dup.forEach(({ t, keep }) => {
+    let keepNow = keep;
+    /* 留「还能播」的那份；原来那份没文件、这条有，就换成这条 */
+    const ok = (x) => !!(x.url || x.blob || x.ref);
+    if (!ok(keep) && ok(t)) {
+      const i = kept.indexOf(keep);
+      if (i >= 0) kept[i] = t;
+      remap[keep.id] = t.id;
+      keepNow = t;
+    } else {
+      remap[t.id] = keepNow.id;
+    }
+    if (t.fav && keepNow !== t) keepNow.fav = true;
+  });
+  APP.lib = kept;
+  Object.keys(remap).forEach((id) => dropTrackRec(id));
+  APP.pls.forEach((p) => {
+    const ids = [];
+    p.ids.forEach((id) => {
+      const nid = remap[id] || id;
+      if (ids.indexOf(nid) < 0) ids.push(nid);
+    });
+    p.ids = ids;
+  });
+  Object.keys(APP.alias || {}).forEach((k) => {
+    if (remap[APP.alias[k]]) APP.alias[k] = remap[APP.alias[k]];
+  });
+  savePls();
+  saveOrder();
+  kept.forEach((t) => saveTrack(t));
+  renderPlaylist();
+  return dup.length;
+}
+$("#btnDedup").onclick = () => {
+  const { dup } = dupGroups();
+  if (!dup.length) { toast("没有重复的歌曲"); return; }
+  if (!confirm("发现 " + dup.length + " 首重复（歌名和大小都一样），只保留一条，其余删掉？歌单里的引用会一起改到保留的那条。")) return;
+  const n = dedupeLib();
+  renderStore();
+  toast(n ? "已清理 " + n + " 首重复歌曲" : "没有重复的歌曲");
+};
+
 function opAdd(track) {
   if (!APP.mqs.length) return;
   APP.plVer++;
@@ -6802,19 +6946,62 @@ function renderPlaylistIndex(box) {
     return;
   }
   box.innerHTML = APP.pls.map((p) => {
+    const n = plsTracks(p.id).length;
+    const cov = p.cover
+      ? '<img src="' + p.cover + '" alt="" />'
+      : "🎵";
     return '<div class="plsItem' + (APP.plCur === p.id ? " cur" : "") + '" data-pid="' + p.id + '">' +
-      '<div class="plIdx">🎵</div>' +
+      '<div class="plsCover" data-pact="cover" title="点一下换封面">' + cov + "</div>" +
       '<div class="plMain"><div class="plName">' + esc(p.name) + "</div>" +
-      '<div class="plMeta">' + plsTracks(p.id).length + " 首</div></div>" +
-      '<button class="miniBtn" data-pact="rename" title="重命名">✎</button>' +
+      (p.intro ? '<div class="plsIntro">' + esc(p.intro) + "</div>" : "") +
+      '<div class="plMeta">' + n + " 首</div></div>" +
+      '<button class="miniBtn" data-pact="rename" title="改名 / 简介">✎</button>' +
       '<button class="miniBtn del" data-pact="del" title="删除歌单">✕</button></div>';
-  }).join("") + '<p class="plsTip">点歌单进入；加歌去「全部音乐」点行尾的 ＋。</p>';
+  }).join("") + '<p class="plsTip">点歌单进入；点左边的方块可以给它换一张封面。加歌去「全部音乐」点行尾的 ＋。</p>';
 }
 
 function renderPlaylist() {
   renderPlaylistBody();
   applySelMarks();
 }
+
+/* 自建歌单封面：选一张图 → 压到 240×240 → 存成 dataURL 放进 localStorage */
+const plCoverPicker = document.createElement("input");
+plCoverPicker.type = "file";
+plCoverPicker.accept = "image/*";
+plCoverPicker.style.display = "none";
+document.body.appendChild(plCoverPicker);
+let _plCoverFor = "";
+function blobToDataUrl(b) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(String(fr.result || ""));
+    fr.onerror = rej;
+    fr.readAsDataURL(b);
+  });
+}
+function pickPlaylistCover(pid) {
+  if (!APP.pls.some((x) => x.id === pid)) return;
+  _plCoverFor = pid;
+  plCoverPicker.value = "";
+  plCoverPicker.click();
+}
+plCoverPicker.onchange = async () => {
+  const f = plCoverPicker.files && plCoverPicker.files[0];
+  const p = APP.pls.find((x) => x.id === _plCoverFor);
+  if (!f || !p) return;
+  hint("正在处理封面…", 2000);
+  try {
+    const blob = await shrinkImage(f, 240, 240);
+    if (!blob) throw new Error("bad");
+    p.cover = await blobToDataUrl(blob);
+    savePls();
+    renderPlaylist();
+    toast("「" + p.name + "」封面已更新");
+  } catch (e) {
+    hint("这张图读不出来，换一张试试", 3000);
+  }
+};
 
 /* ---------- 批量选择 ---------- */
 function selOn() { return !!APP.sel; }
@@ -6974,6 +7161,62 @@ function applyPlaylistSort(kind) {
   toast(kind === "dur" ? "已按时长排序" : kind === "recent" ? "已按最近播放排序" : "已按名称排序");
 }
 
+/* ---------- 共同歌单合并视图：把「我这边」和「对方那边」的文件缺口一次看清 ---------- */
+function hasLocalFile(t) {
+  return !!(t && (t.url || t.blob || t.ref));
+}
+function mergeGroups() {
+  const both = [], mine = [], theirs = [];
+  APP.tracks.forEach((t) => {
+    if (!hasLocalFile(t)) { theirs.push(t); return; }
+    if (t.mine || t.owner === APP.me) mine.push(t);
+    else both.push(t);
+  });
+  return { both, mine, theirs };
+}
+function mergeSendAll() {
+  const { mine } = mergeGroups();
+  const list = mine.filter((t) => t.blob);
+  const peers = peerList();
+  if (!list.length) { toast("没有需要推给对方的歌"); return; }
+  if (!peers.length) { toast("还没连上对方，等连上再推"); return; }
+  list.forEach((t) => peers.forEach((p) => queueTrackSend(t, p.id)));
+  toast("正在把 " + list.length + " 首推给对方");
+}
+function mergePullAll() {
+  const { theirs } = mergeGroups();
+  if (!theirs.length) { toast("没有缺的歌，这边都齐了"); return; }
+  theirs.forEach((t) => requestTrackFile(t.id, t.owner));
+  toast("正在向对方要 " + theirs.length + " 首");
+}
+function renderMergeView(box) {
+  const { both, mine, theirs } = mergeGroups();
+  if (UI.plFilterCount) UI.plFilterCount.textContent = APP.tracks.length ? APP.tracks.length + " 首" : "";
+  if (!APP.tracks.length) {
+    box.innerHTML = '<div class="plEmpty">一起听歌单还是空的<br>先去「我的歌曲」点 ＋ 加歌</div>';
+    renderNextUp();
+    return;
+  }
+  const sec = (title, arr, act, actText, tip) => {
+    if (!arr.length) return "";
+    return '<div class="mergeHead"><b>' + title + '</b><span>' + arr.length + " 首</span>" +
+      (act ? '<button class="topBtn" data-act="' + act + '">' + actText + "</button>" : "") + "</div>" +
+      arr.map((t) =>
+        '<div class="plItem" data-id="' + t.id + '">' +
+        '<div class="plIdx">' + (act === "msendall" ? "↑" : act === "mpullall" ? "↓" : "✓") + "</div>" +
+        coverSlot(t) +
+        '<div class="plMain" data-act="mno"><div class="plName">' + esc(t.name) + "</div>" +
+        '<div class="plMeta">' + esc(tip) + "</div></div></div>").join("");
+  };
+  box.innerHTML =
+    sec("双方都有", both, "", "", "两边都有文件，点歌直接播") +
+    sec("只有我有", mine, "msendall", "全部推给对方", "对方还缺文件，推过去就能播") +
+    sec("只有对方有", theirs, "mpullall", "全部拉下来", "这边缺文件，向对方要一下") +
+    '<p class="plsTip">这里按「本机有没有这份文件」分组。两边都补齐后，任何一首都能直接播放。</p>';
+  scheduleCovers(APP.tracks);
+  renderNextUp();
+}
+
 function renderPlaylistBody() {
   syncListCount();
   const box = UI.playlist;
@@ -7078,6 +7321,7 @@ function renderPlaylistBody() {
   }
 
   const list = visibleTracks();
+  if (APP.plTab === "merge") { renderMergeView(box); return; }
   if (UI.plFilterCount) {
     UI.plFilterCount.textContent = (APP.plTab === "duet" && !APP.plQuery) ? "" : "显示 " + list.length + " 首";
   }
@@ -7663,7 +7907,8 @@ async function autoLyric(t, quiet) {
 }
 
 /* ===================== 边听边聊 ===================== */
-function addChat(text, mine, fromId) {
+APP.chatReply = null;   // 正在引用回复的那条消息 {name,text}
+function addChat(text, mine, fromId, quote) {
   if (!UI.chatList || !text) return;
   const empty = UI.chatList.querySelector(".chatEmpty");
   if (empty) empty.remove();
@@ -7675,7 +7920,18 @@ function addChat(text, mine, fromId) {
   ava.alt = "";
   const el = document.createElement("div");
   el.className = "chatMsg " + (mine ? "me" : "peer");
-  el.textContent = text;
+  const who = mine ? (APP.pf.name || "我") : (peerPfOf(fromId).name || "对方");
+  el.setAttribute("data-nm", who);
+  el.setAttribute("data-tx", String(text).slice(0, 60));
+  if (quote && quote.text) {
+    const q = document.createElement("div");
+    q.className = "chatQuote";
+    q.textContent = (quote.name || "") + "：" + quote.text;
+    el.appendChild(q);
+  }
+  const body = document.createElement("div");
+  body.textContent = text;
+  el.appendChild(body);
   if (mine) { line.appendChild(el); line.appendChild(ava); }
   else { line.appendChild(ava); line.appendChild(el); }
   UI.chatList.appendChild(line);
@@ -7683,19 +7939,35 @@ function addChat(text, mine, fromId) {
   UI.chatList.scrollTop = UI.chatList.scrollHeight;
   /* 最近两条同步露在主界面，红点之外还能直接看到内容 */
   APP.chatRecent.push({
-    name: mine ? (APP.pf.name || "我") : (peerPfOf(fromId).name || "对方"),
+    name: who,
     text: text.slice(0, 80),
   });
   while (APP.chatRecent.length > 2) APP.chatRecent.shift();
   renderChatPeek();
 }
 
+/* 引用回复：点聊天里任意一条，把它挂到输入框上面的引用条 */
+function setChatReply(q) {
+  APP.chatReply = q || null;
+  const bar = $("#chatReplyBar");
+  const txt = $("#chatReplyText");
+  if (!bar || !txt) return;
+  bar.classList.toggle("hidden", !q);
+  txt.textContent = q ? "回复 " + (q.name || "对方") + "：" + String(q.text || "").slice(0, 24) : "";
+  if (q) { try { UI.chatInput.focus(); } catch (e) {} }
+}
+function clearChatReply() { setChatReply(null); }
+
 function sendChat() {
   const text = (UI.chatInput.value || "").trim();
   if (!text) return;
   UI.chatInput.value = "";
-  addChat(text, true);
-  publish({ k: "chat", from: APP.me, text: text.slice(0, 200), ts: Date.now() });
+  const q = APP.chatReply;
+  addChat(text, true, "", q);
+  const msg = { k: "chat", from: APP.me, text: text.slice(0, 200), ts: Date.now() };
+  if (q) msg.quote = { name: String(q.name || "").slice(0, 20), text: String(q.text || "").slice(0, 60) };
+  publish(msg);
+  clearChatReply();
 }
 
 /* ===================== 专辑封面：自动联网匹配 + 本地缓存 + 手动更换 ===================== */
@@ -8273,11 +8545,21 @@ function loadTrackAudio(t, silent) {
   try { if (!APP.duck) audio.volume = 0; } catch (e) {}  // 新歌从 0 开始，由 playing 事件淡入
   audio.src = t.url;
   audio.load();
-  applySpeedToAudio();   // 换歌后仍保持当前倍速
+  /* 每首歌可以有自己的倍速；这首歌没单独设过就沿用当前倍速 */
+  if (Number(t.spd) > 0) APP.speed = normSpeed(Number(t.spd));
+  applySpeedToAudio();
+  renderSpeed();
   APP.remoteBase = null;
   APP.pendApply = null;
   if (!silent) enterMain();
   UI.songName.textContent = t.name;
+  /* 切歌过渡：封面和歌名轻微上浮淡入，避免硬切 */
+  if (UI.cardPlayer) {
+    UI.cardPlayer.classList.remove("trackSwap");
+    void UI.cardPlayer.offsetWidth;
+    UI.cardPlayer.classList.add("trackSwap");
+    setTimeout(() => { if (UI.cardPlayer) UI.cardPlayer.classList.remove("trackSwap"); }, 520);
+  }
   applyCoverUI(t);
   queueCover(t, true);
   UI.seek.value = 0;
@@ -8805,6 +9087,9 @@ function setSpeed(v, silent) {
   APP.speed = normSpeed(v);
   APP.tempSpeed = null;
   try { localStorage.setItem(SPEED_KEY, JSON.stringify(APP.speed)); } catch (e) {}
+  /* 同时记在这首歌名下：下次再放到这首还是这个速度 */
+  const cur = findTrack(APP.curId);
+  if (cur) { cur.spd = APP.speed; saveTrack(cur); }
   applySpeedToAudio();
   renderSpeed();
   if (!silent) publish({ k: "speed", from: APP.me, v: APP.speed, ts: Date.now() });
@@ -9563,6 +9848,7 @@ UI.playlist.addEventListener("click", (e) => {
     const pact = pactEl ? pactEl.getAttribute("data-pact") : "";
     if (pact === "rename") renamePlaylist(pid);
     else if (pact === "del") deletePlaylist(pid);
+    else if (pact === "cover") pickPlaylistCover(pid);
     else if (pid) openPlaylist(pid);
     return;
   }
@@ -9591,6 +9877,14 @@ UI.playlist.addEventListener("click", (e) => {
 
   if (e.target.closest('[data-act="addall"]')) { addAllToQueue(); return; }
 
+  /* 共用视图的分组按钮在行外，要在「必须点在行内」之前拦下来 */
+  const mergeBtn = e.target.closest('[data-act="msendall"],[data-act="mpullall"]');
+  if (mergeBtn) {
+    if (mergeBtn.getAttribute("data-act") === "msendall") mergeSendAll();
+    else mergePullAll();
+    return;
+  }
+
   const item = e.target.closest(".plItem");
   if (!item) return;
   const id = item.getAttribute("data-id");
@@ -9606,6 +9900,9 @@ UI.playlist.addEventListener("click", (e) => {
   }
 
   if (act === "biadd") { addBuiltin(id); return; }
+  if (act === "msendall") { mergeSendAll(); return; }
+  if (act === "mpullall") { mergePullAll(); return; }
+  if (act === "mno") return;
   if (act === "up") moveTrack(id, -1);
   else if (act === "down") moveTrack(id, 1);
   else if (act === "del") deleteTrack(id);
@@ -9959,6 +10256,33 @@ if (UI.chatQuick) {
     c.onclick = () => { UI.chatInput.value = c.dataset.t || ""; sendChat(); };
   });
 }
+/* 表情面板：点一下追加到输入框，顺手聚焦，不打断正在打的字 */
+(function bindChatExtras() {
+  const EMOJI = ["😀", "😄", "😁", "😆", "🥰", "😍", "😘", "😂", "🤣", "😅", "😭", "😢",
+    "😡", "🤔", "😴", "🥳", "👍", "👌", "✌️", "🙏", "💪", "🎵", "🎶", "❤️", "💔", "🌙",
+    "☀️", "🔥", "✨", "🍻"];
+  const panel = $("#emojiPanel");
+  const btn = $("#chatEmojiBtn");
+  if (panel) {
+    panel.innerHTML = EMOJI.map((e) => '<button type="button" data-e="' + e + '">' + e + "</button>").join("");
+    panel.onclick = (ev) => {
+      const b = ev.target.closest("[data-e]");
+      if (!b) return;
+      UI.chatInput.value = (UI.chatInput.value || "") + b.getAttribute("data-e");
+      try { UI.chatInput.focus(); } catch (e) {}
+    };
+  }
+  if (btn && panel) btn.onclick = () => panel.classList.toggle("hidden");
+  const bar = $("#chatReplyBar");
+  if (bar) $("#chatReplyCancel").onclick = () => clearChatReply();
+  if (UI.chatList) {
+    UI.chatList.addEventListener("click", (e) => {
+      const el = e.target.closest(".chatMsg");
+      if (!el) return;
+      setChatReply({ name: el.getAttribute("data-nm") || "", text: el.getAttribute("data-tx") || "" });
+    });
+  }
+})();
 
 /* 移动网络检测（浏览器只在部分安卓上给 type，拿不到就当作没限制） */
 function onCellular() {
@@ -10054,7 +10378,14 @@ function renderSound() {
 }
 
 /* 「手机存储」只在安卓 App 里出现：显示 App 还压着多少音频副本 */
+function renderDupInfo() {
+  const el = $("#dupDesc");
+  if (!el) return;
+  const n = dupGroups().dup.length;
+  el.textContent = n ? "有 " + n + " 首重复（同名同大小），可合并成一条" : "没有重复歌曲";
+}
 function renderStore() {
+  renderDupInfo();
   const recvBox = $("#recvBox");
   const r = recvInfo();
   if (recvBox) {
