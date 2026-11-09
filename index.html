@@ -184,6 +184,14 @@
   .plMain{flex:1;min-width:0;padding:2px 0}
   .plName{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .plMeta{font-size:11.5px;color:var(--sub);margin-top:3px}
+  /* 听过标记：歌名前一个小绿点 */
+  .plItem.played .plName::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--ok);margin-right:6px;vertical-align:middle}
+  .plNote{font-size:11.5px;color:var(--sub);font-style:italic;margin-top:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .favTags{display:flex;gap:8px;overflow-x:auto;padding:2px 0 9px}
+  .infoActs{display:flex;gap:8px;margin-top:12px}
+  .infoActs .topBtn{flex:1;padding:10px 4px}
   .miniBtn{flex:none;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);
            background:transparent;color:var(--fg);font-size:15px;cursor:pointer}
   .miniBtn:active{transform:scale(.94)}
@@ -454,9 +462,13 @@
   #cardPlayer.trackSwap .heroRow,
   #cardPlayer.trackSwap .songName{animation:trackIn .42s cubic-bezier(.2,.7,.3,1) both}
   @keyframes trackIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
-  .plsCover{flex:none;width:40px;height:40px;border-radius:10px;overflow:hidden;background:#2a2c3a;
+  .plsCover{position:relative;flex:none;width:40px;height:40px;border-radius:10px;overflow:hidden;background:#2a2c3a;
     display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--sub);cursor:pointer}
   .plsCover img{width:100%;height:100%;object-fit:cover;display:block}
+  /* 没设封面时用前 4 首歌的封面拼 2×2 */
+  .cov4{position:absolute;inset:0;display:grid;grid-template:1fr 1fr / 1fr 1fr;gap:1px}
+  .cov4 .cov4c{width:100%;height:100%;border-radius:0;background:#2a2c3a;display:flex;
+    align-items:center;justify-content:center;font-size:12px;color:var(--sub)}
   .plsIntro{font-size:11.5px;color:var(--sub);line-height:1.4;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis}
   .mergeHead{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-size:12px;color:var(--sub)}
@@ -766,6 +778,7 @@
         <button class="chip soloOnly" data-tab="pls">我的歌单</button>
         <button class="chip" data-tab="fav">★ 收藏</button>
         <button class="chip" data-tab="recent">最近</button>
+        <button class="chip" data-tab="unheard">未听</button>
         <span class="tag" id="plFilterCount" style="margin-left:auto"></span>
       </div>
       <div class="xferBar hidden" id="xferBar">
@@ -834,6 +847,20 @@
       <button class="topBtn" id="closeInfo">收起</button>
     </div>
     <div class="sheetBody" id="infoBody"></div>
+  </section>
+
+  <section class="sheet" id="sheetQueue">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">播放队列 <span class="tag" id="queueCount"></span></div>
+      <button class="topBtn" id="closeQueue">收起</button>
+    </div>
+    <div class="sheetBody">
+      <div class="row">
+        <button class="btn" id="queueClear" style="padding:11px;font-size:13.5px">清空后面的歌</button>
+      </div>
+      <div class="playlist" id="queueList"></div>
+    </div>
   </section>
 
   <section class="sheet" id="sheetScan">
@@ -3762,7 +3789,10 @@ const APP = {
   plLimit: 120,          // 长歌单分批渲染：当前已渲染到第几首
   sel: null,             // 批量选择：null=未开，Set=已选歌曲 id
   lrcSize: "m",          // 歌词字号：s|m|l（持久化）
-  plTab: "duet",         // 歌单筛选：duet|lib|all|pls|pl|fav|recent
+  plTab: "duet",         // 歌单筛选：duet|lib|all|pls|pl|fav|recent|unheard
+  favTag: "",            // 收藏页分组筛选：""=全部，"#none"=未分组，其它=标签名
+  shufflePlayed: new Set(),  // 随机播放本轮已经听过的 trackKey（本轮不重复）
+  played: {},            // 听过历史：trackKey → 最近播放时间戳（localStorage）
   reorder: false,        // 歌单排序模式（拖动 / 上下移动）
   sendQueue: [],         // 传歌排队 [{t, pid}]（一次只传一首，不并发）
   sending: false,        // 当前是否正在传某一首
@@ -3786,7 +3816,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.9.0";
+const APP_VER = "1.10.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3856,6 +3886,10 @@ const UI = {
   sheetDiag: $("#sheetDiag"),
   sheetInfo: $("#sheetInfo"),
   infoBody: $("#infoBody"),
+  sheetQueue: $("#sheetQueue"),
+  queueList: $("#queueList"),
+  queueCount: $("#queueCount"),
+  queueClear: $("#queueClear"),
   fadeChips: $("#fadeChips"),
   chatQuick: $("#chatQuick"),
   btnAlignLag: $("#btnAlignLag"),
@@ -4435,11 +4469,12 @@ function playQueueList() {
   if (APP.mode !== "solo") return APP.tracks;
   let list;
   if (APP.plTab === "pl" && APP.plCur) list = plsTracks(APP.plCur);
-  else if (APP.plTab === "fav") list = APP.lib.filter((t) => t.fav);
+  else if (APP.plTab === "fav") list = applyFavTag(APP.lib.filter((t) => t.fav));
   else if (APP.plTab === "recent") list = soloRecentTracks();
+  else if (APP.plTab === "unheard") list = APP.lib.filter((t) => !isPlayed(t));
   else list = APP.lib.slice();
   const q = String(APP.plQuery || "").trim().toLowerCase();
-  if (q) list = list.filter((t) => String(t.name || "").toLowerCase().indexOf(q) >= 0);
+  if (q) list = list.filter((t) => matchQuery(t, q));
   return list;
 }
 function activeTracks() {
@@ -4462,6 +4497,7 @@ function openSheet(which) {
     : which === "update" ? UI.sheetUpdate
     : which === "diag" ? UI.sheetDiag
     : which === "info" ? UI.sheetInfo
+    : which === "queue" ? UI.sheetQueue
     : which === "choose" ? UI.sheetChoose
     : UI.sheetList;
   if (which === "list") renderPlaylist();
@@ -4488,6 +4524,7 @@ function closeSheets() {
   if (UI.sheetUpdate) UI.sheetUpdate.classList.remove("on");
   if (UI.sheetDiag) UI.sheetDiag.classList.remove("on");
   if (UI.sheetInfo) UI.sheetInfo.classList.remove("on");
+  if (UI.sheetQueue) UI.sheetQueue.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
   _maskHideTimer = setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
@@ -4584,6 +4621,7 @@ function saveTrack(t) {
     id: t.id, name: t.name, size: t.size, dur: t.dur, type: t.type,
     blob: keepBlob, ref: ref, missing: !!t.missing,
     mine: !!t.mine, owner: t.owner || "", lrc: t.lrc || null, lrcText: t.lrcText || "", fav: !!t.fav,
+    tag: t.tag || "", note: t.note || "",
     spd: Number(t.spd) || 0, ts: Date.now(),
   })).catch((e) => {
     /* 存储写满：明确告诉用户这首歌没存住，别让它在重启后无声消失 */
@@ -4647,6 +4685,7 @@ async function restorePlaylist() {
         lrc: Array.isArray(r.lrc) && r.lrc.length ? r.lrc : null,
         lrcText: r.lrcText || "",
         fav: !!r.fav,
+        tag: r.tag || "", note: r.note || "",
         spd: Number(r.spd) || 0,     // 这首歌自己的倍速（0 = 跟随全局）
       };
       if (t.blob) t.url = URL.createObjectURL(t.blob);
@@ -5168,6 +5207,7 @@ function onMqttMessage(topic, payload) {
         APP.shuffleVer = m.ver;
         APP.shuffle = !!m.on;
         APP.shuffleSeed = Number(m.seed) || 1;
+        resetShuffleRound();
         if (typeof m.repeat === "number") APP.repeat = clamp(m.repeat, 0, 2);
         saveMode();
         renderShuffleBtn();
@@ -5180,6 +5220,7 @@ function onMqttMessage(topic, payload) {
         APP.shuffleVer = m.ver;
         APP.shuffle = !!m.on;
         APP.shuffleSeed = Number(m.seed) || 1;
+        resetShuffleRound();
         renderShuffleBtn();
         toast(m.on ? "有人开启了随机播放" : "有人切回顺序播放");
       }
@@ -6987,6 +7028,134 @@ function renderNextUp() {
   st.style.color = warn ? "var(--warn)" : "var(--ok)";
 }
 
+/* ---------- 播放队列：手动上移 / 下移 / 移除后面的歌 ---------- */
+function upcomingList() {
+  const list = activeTracks();
+  if (!list.length) return [];
+  if (APP.shuffle) {
+    const perm = shuffleOrder(list);
+    const cur = list.find((t) => t.id === APP.curId);
+    const i = cur ? perm.indexOf(trackKey(cur)) : -1;
+    const out = [];
+    for (let n = 1; n <= perm.length; n++) {
+      const key = perm[(i + n + perm.length) % perm.length];
+      if (cur && key === trackKey(cur)) continue;
+      const t = list.find((x) => trackKey(x) === key);
+      if (t) out.push(t);
+    }
+    return out;
+  }
+  const i = list.findIndex((t) => t.id === APP.curId);
+  return list.slice(i >= 0 ? i + 1 : 0);
+}
+function soloQueueIds() {
+  if (!APP.playQ || !APP.playQ.length) APP.playQ = activeTracks().map((t) => t.id);
+  return APP.playQ;
+}
+function renderQueue() {
+  if (!UI.queueList) return;
+  const list = upcomingList();
+  if (UI.queueCount) UI.queueCount.textContent = list.length ? list.length + " 首待播" : "";
+  if (APP.shuffle) {
+    UI.queueList.innerHTML = '<div class="plEmpty">随机播放中，顺序由随机种子决定，没法手动调<br>想自己排歌就先切回「顺序」</div>';
+    return;
+  }
+  if (!list.length) {
+    UI.queueList.innerHTML = '<div class="plEmpty">后面没有歌了</div>';
+    return;
+  }
+  const shown = list.slice(0, 50);
+  UI.queueList.innerHTML = shown.map((t, i) => {
+    const meta = [];
+    if (t.dur) meta.push(fmtTime(t.dur));
+    if (t.tag) meta.push("标签 " + t.tag);
+    meta.push(t.url || t.ref ? "已就绪" : "还没传到本机");
+    return '<div class="plItem" data-id="' + t.id + '">' +
+      '<div class="plIdx">' + (i + 1) + "</div>" + coverSlot(t) +
+      '<div class="plMain"><div class="plName">' + esc(t.name) + "</div>" + noteHtml(t) +
+      '<div class="plMeta">' + esc(meta.join(" · ")) + "</div></div>" +
+      '<button class="miniBtn" data-qact="up" title="上移">↑</button>' +
+      '<button class="miniBtn" data-qact="down" title="下移">↓</button>' +
+      '<button class="miniBtn del" data-qact="rm" title="从队列移除">✕</button></div>';
+  }).join("") +
+    (list.length > shown.length ? '<p class="plsTip">后面还有 ' + (list.length - shown.length) + " 首</p>" : "");
+  scheduleCovers(shown);
+}
+function openQueue() {
+  renderQueue();
+  openSheet("queue");
+}
+function queueMove(id, dir) {
+  const up = upcomingList();
+  const i = up.findIndex((t) => t.id === id);
+  if (i < 0) return;
+  if (dir < 0 && i === 0) return;   // 第一首待播再往前就压到正在播的歌了
+  if (APP.mode === "solo") {
+    const ids = soloQueueIds();
+    const j = ids.indexOf(id);
+    const k = j + dir;
+    if (j < 0 || k < 0 || k >= ids.length) return;
+    const tmp = ids[j]; ids[j] = ids[k]; ids[k] = tmp;
+    renderPlaylist();
+  } else {
+    moveTrack(id, dir);
+  }
+  renderQueue();
+}
+function queueRemove(id) {
+  if (APP.mode === "solo") {
+    const ids = soloQueueIds();
+    const j = ids.indexOf(id);
+    if (j < 0) return;
+    ids.splice(j, 1);
+    renderPlaylist();
+    renderQueue();
+    toast("已从队列移除");
+    return;
+  }
+  const i = APP.tracks.findIndex((t) => t.id === id);
+  if (i < 0) return;
+  APP.tracks.splice(i, 1);
+  renderPlaylist();
+  syncListCount();
+  if (APP.mqs.length) {
+    APP.plVer++;
+    APP.plBy = APP.me;
+    const msg = { k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "del", id };
+    publish(msg);
+    setTimeout(() => publish(msg), 400);
+  }
+  renderQueue();
+  toast("已从队列移除");
+}
+function queueClear() {
+  const list = upcomingList();
+  if (APP.shuffle) { hint("随机播放中不能清队列，先切回「顺序」", 2600); return; }
+  if (!list.length) { hint("后面没有歌了", 1800); return; }
+  if (!confirm("把后面 " + list.length + " 首歌从队列里清掉？" +
+    (APP.mode === "duet" ? "（两台设备上都会移除，歌还在各自的列表里）" : ""))) return;
+  if (APP.mode === "solo") {
+    const gone = new Set(list.map((t) => t.id));
+    APP.playQ = soloQueueIds().filter((id) => !gone.has(id));
+  } else {
+    list.forEach((t) => {
+      const i = APP.tracks.findIndex((x) => x.id === t.id);
+      if (i >= 0) APP.tracks.splice(i, 1);
+      if (APP.mqs.length) {
+        APP.plVer++;
+        APP.plBy = APP.me;
+        const msg = { k: "pl_op", from: APP.me, ver: APP.plVer, by: APP.plBy, op: "del", id: t.id };
+        publish(msg);
+        setTimeout(() => publish(msg), 400);
+      }
+    });
+    syncListCount();
+  }
+  renderPlaylist();
+  renderQueue();
+  toast("已清掉后面 " + list.length + " 首");
+}
+
 function clearNeedFor(id) {
   const lid = localId(id);
   Object.keys(APP.needTimers).forEach((k) => {
@@ -7044,10 +7213,107 @@ function noteRecent(t) {
   try { localStorage.setItem("duet_recent_v1", JSON.stringify(arr.slice(0, 30))); } catch (e) {}
 }
 
+/* ---------- 听过 / 未听 / 标签 / 备注 ---------- */
+const PLAYED_KEY = "duet_played_v1";
+function loadPlayedMap() {
+  try {
+    const o = JSON.parse(localStorage.getItem(PLAYED_KEY) || "{}");
+    APP.played = o && typeof o === "object" ? o : {};
+  } catch (e) { APP.played = {}; }
+}
+function savePlayedMap() {
+  try { localStorage.setItem(PLAYED_KEY, JSON.stringify(APP.played || {})); } catch (e) {}
+}
+function isPlayed(t) { return !!(t && APP.played && APP.played[trackKey(t)]); }
+function rowById(id) {
+  if (!UI.playlist) return null;
+  return UI.playlist.querySelector('.plItem[data-id="' + String(id).replace(/"/g, "") + '"]');
+}
+function notePlayed(t) {
+  if (!t) return;
+  const k = trackKey(t);
+  if (!k) return;
+  APP.played[k] = Date.now();
+  const keys = Object.keys(APP.played);
+  if (keys.length > 400) {
+    keys.sort((a, b) => (APP.played[a] || 0) - (APP.played[b] || 0));
+    keys.slice(0, keys.length - 400).forEach((x) => { delete APP.played[x]; });
+  }
+  savePlayedMap();
+  const row = rowById(t.id);
+  if (row) row.classList.add("played");
+}
+function togglePlayed(id) {
+  const t = findTrack(id) || findInQueue(id) || APP.lib.find((x) => x.id === id);
+  if (!t) return;
+  const k = trackKey(t);
+  if (APP.played[k]) {
+    delete APP.played[k];
+    savePlayedMap();
+    toast("已标成未听");
+  } else {
+    notePlayed(t);
+    toast("已标成已听");
+  }
+  renderPlaylist();
+}
+/* 每首歌一个标签，用来给收藏分组；和备注一起在「歌曲信息」里编辑 */
+function favTagList() {
+  const m = Object.create(null);
+  APP.lib.forEach((t) => { if (t.fav) { const g = t.tag || ""; m[g] = (m[g] || 0) + 1; } });
+  return Object.keys(m).sort((a, b) => {
+    if (!a) return 1;
+    if (!b) return -1;
+    return (m[b] - m[a]) || a.localeCompare(b, "zh");
+  }).map((g) => ({ tag: g, n: m[g] }));
+}
+function applyFavTag(list) {
+  const f = APP.favTag || "";
+  if (!f) return list;
+  if (f === "#none") return list.filter((t) => !t.tag);
+  return list.filter((t) => (t.tag || "") === f);
+}
+function favTagBarHtml() {
+  const total = APP.lib.filter((t) => t.fav).length;
+  const btn = (v, label) => '<button class="chip' + ((APP.favTag || "") === v ? " on" : "") +
+    '" data-ftag="' + esc(v) + '">' + esc(label) + "</button>";
+  let h = '<div class="favTags">' + btn("", "全部 " + total) + btn("#none", "未分组");
+  favTagList().forEach((x) => { if (x.tag) h += btn(x.tag, x.tag + " " + x.n); });
+  return h + "</div>";
+}
+function editTrackTag(id) {
+  const t = findTrack(id) || findInQueue(id) || APP.lib.find((x) => x.id === id);
+  if (!t) return;
+  const v = prompt("给「" + t.name + "」打一个标签（留空 = 不分组，最多 8 个字）：", t.tag || "");
+  if (v === null) return;
+  t.tag = String(v).trim().slice(0, 8);
+  saveTrack(t);
+  renderPlaylist();
+  toast(t.tag ? "标签：" + t.tag : "已清除标签");
+}
+function editTrackNote(id) {
+  const t = findTrack(id) || findInQueue(id) || APP.lib.find((x) => x.id === id);
+  if (!t) return;
+  const v = prompt("给「" + t.name + "」写一句备注（留空 = 清除，最多 40 字）：", t.note || "");
+  if (v === null) return;
+  t.note = String(v).trim().slice(0, 40);
+  saveTrack(t);
+  renderPlaylist();
+  toast(t.note ? "备注已保存" : "已清除备注");
+}
+function noteHtml(t) {
+  return t && t.note ? '<div class="plNote">🗒 ' + esc(t.note) + "</div>" : "";
+}
+function matchQuery(t, q) {
+  if (!q) return true;
+  return (String(t.name || "") + " " + String(t.tag || "") + " " + String(t.note || ""))
+    .toLowerCase().indexOf(q) >= 0;
+}
+
 function visibleTracks() {
   let list = APP.tracks.slice();
   if (APP.plTab === "fav") {
-    list = list.filter((t) => t.fav);
+    list = applyFavTag(list.filter((t) => t.fav));
   } else if (APP.plTab === "recent") {
     const keys = recentKeys();
     const rank = {};
@@ -7058,16 +7324,18 @@ function visibleTracks() {
       const rb = rank[trackKey(b)];
       return (ra == null ? 999 : ra) - (rb == null ? 999 : rb);
     });
+  } else if (APP.plTab === "unheard") {
+    list = list.filter((t) => !isPlayed(t));
   }
   const q = String(APP.plQuery || "").trim().toLowerCase();
-  if (q) list = list.filter((t) => String(t.name || "").toLowerCase().indexOf(q) >= 0);
+  if (q) list = list.filter((t) => matchQuery(t, q));
   return list;
 }
 
 function visibleLib() {
   let list = APP.lib.slice();
   const q = String(APP.plQuery || "").trim().toLowerCase();
-  if (q) list = list.filter((t) => String(t.name || "").toLowerCase().indexOf(q) >= 0);
+  if (q) list = list.filter((t) => matchQuery(t, q));
   return list;
 }
 
@@ -7082,6 +7350,17 @@ function plHeadHtml() {
     "</div>";
 }
 
+/* 没有自定义封面时，用歌单里前 4 首歌的封面拼成 2×2 */
+function playlistCoverHtml(p) {
+  if (p.cover) return '<img src="' + p.cover + '" alt="" />';
+  const ts = plsTracks(p.id).slice(0, 4);
+  if (!ts.length) return "🎵";
+  const cells = ts.map((t) => '<span class="cov4c plCover" data-id="' + t.id + '">' +
+    (t.coverUrl ? '<img src="' + t.coverUrl + '" alt="">' : "♪") + "</span>");
+  while (cells.length < 4) cells.push('<span class="cov4c">♪</span>');
+  return '<div class="cov4">' + cells.join("") + "</div>";
+}
+
 /* 自建歌单列表（单机模式的「我的歌单」） */
 function renderPlaylistIndex(box) {
   if (UI.plFilterCount) UI.plFilterCount.textContent = APP.pls.length ? APP.pls.length + " 个歌单" : "";
@@ -7091,9 +7370,7 @@ function renderPlaylistIndex(box) {
   }
   box.innerHTML = APP.pls.map((p) => {
     const n = plsTracks(p.id).length;
-    const cov = p.cover
-      ? '<img src="' + p.cover + '" alt="" />'
-      : "🎵";
+    const cov = playlistCoverHtml(p);
     return '<div class="plsItem' + (APP.plCur === p.id ? " cur" : "") + '" data-pid="' + p.id + '">' +
       '<div class="plsCover" data-pact="cover" title="点一下换封面">' + cov + "</div>" +
       '<div class="plMain"><div class="plName">' + esc(p.name) + "</div>" +
@@ -7102,6 +7379,13 @@ function renderPlaylistIndex(box) {
       '<button class="miniBtn" data-pact="rename" title="改名 / 简介">✎</button>' +
       '<button class="miniBtn del" data-pact="del" title="删除歌单">✕</button></div>';
   }).join("") + '<p class="plsTip">点歌单进入；点左边的方块可以给它换一张封面。加歌去「全部音乐」点行尾的 ＋。</p>';
+  /* 四宫格里的歌还没封面时，顺手排队找一下（一批最多 10 张） */
+  const wantCov = [];
+  APP.pls.forEach((p) => {
+    if (p.cover) return;
+    plsTracks(p.id).slice(0, 4).forEach((t) => { if (!t.coverUrl) wantCov.push(t); });
+  });
+  scheduleCovers(wantCov.slice(0, 10));
 }
 
 function renderPlaylist() {
@@ -7377,22 +7661,26 @@ function renderPlaylistBody() {
       list = plsTracks(APP.plCur);
       emptyText = "这个歌单还是空的<br>去「全部音乐」点 ＋ 加进来";
     } else if (APP.plTab === "fav") {
-      list = APP.lib.filter((t) => t.fav);
+      list = applyFavTag(APP.lib.filter((t) => t.fav));
       emptyText = "还没有收藏的歌";
     } else if (APP.plTab === "recent") {
       list = soloRecentTracks();
       emptyText = "还没有最近播放";
+    } else if (APP.plTab === "unheard") {
+      list = APP.lib.filter((t) => !isPlayed(t));
+      emptyText = "每首歌都听过了";
     } else {
       APP.plTab = "all";
       list = visibleLib();
       emptyText = "我的音乐还是空的<br>点上面「添加歌曲 / 扫描本地歌曲」";
     }
-    if (q) list = list.filter((t) => String(t.name || "").toLowerCase().indexOf(q.toLowerCase()) >= 0);
+    if (q) list = list.filter((t) => matchQuery(t, q.toLowerCase()));
     if (UI.plFilterCount) UI.plFilterCount.textContent = q ? "匹配 " + list.length + " 首" : "";
 
-    const head = APP.plTab === "pl" && APP.plCur ? plHeadHtml() : "";
+    const head = (APP.plTab === "pl" && APP.plCur ? plHeadHtml() : "") +
+      (APP.plTab === "fav" ? favTagBarHtml() : "");
     if (!list.length) {
-      box.innerHTML = head + '<div class="plEmpty">' + emptyText + "</div>";
+      box.innerHTML = head + '<div class="plEmpty">' + (APP.plTab === "fav" && APP.favTag ? "这个分组里还没有歌" : emptyText) + "</div>";
       renderNextUp();
       return;
     }
@@ -7404,16 +7692,19 @@ function renderPlaylistBody() {
       if (t.dur) meta.push(fmtTime(t.dur));
       if (t.lrc && t.lrc.length) meta.push("有歌词");
       if (t.state === "sending") meta.push("发送中 " + (t.pct || 0) + "%");
+      const tagBtn = APP.plTab === "fav"
+        ? '<button class="miniBtn" data-act="tag" title="分组标签">🏷</button>' : "";
       const tail = inPl
         ? '<button class="miniBtn del" data-act="plrm" title="移出歌单">✕</button>'
         : '<button class="miniBtn fav ' + (t.fav ? "on" : "off") + '" data-act="fav" title="收藏">' +
             (t.fav ? "★" : "☆") + "</button>" +
-          '<button class="miniBtn" data-act="qadd" title="加入自建歌单">＋</button>';
-      return '<div class="plItem' + (t.id === APP.curId ? " cur" : "") + '" data-id="' + t.id + '">' +
+          '<button class="miniBtn" data-act="qadd" title="加入自建歌单">＋</button>' + tagBtn;
+      return '<div class="plItem' + (t.id === APP.curId ? " cur" : "") + (isPlayed(t) ? " played" : "") +
+        '" data-id="' + t.id + '">' +
         '<div class="plIdx">' + (i + 1) + "</div>" +
         coverSlot(t) +
         '<div class="plMain" data-act="play">' +
-          '<div class="plName">' + esc(t.name) + "</div>" +
+          '<div class="plName">' + esc(t.name) + "</div>" + noteHtml(t) +
           '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
         "</div>" + tail + "</div>";
     }).join("") + moreHtml(pg.rest);
@@ -7448,11 +7739,11 @@ function renderPlaylistBody() {
       if (t.missing) meta.push("文件已释放 · 点一下重选");
       if (!t.mine) meta.push("对方给的");
       if (inQ) meta.push("已在一起听");
-      return '<div class="plItem' + (inQ ? " cur" : "") + '" data-id="' + t.id + '">' +
+      return '<div class="plItem' + (inQ ? " cur" : "") + (isPlayed(t) ? " played" : "") + '" data-id="' + t.id + '">' +
         '<div class="plIdx">' + (i + 1) + "</div>" +
         coverSlot(t) +
         '<div class="plMain" data-act="qadd">' +
-          '<div class="plName">' + esc(t.name) + "</div>" +
+          '<div class="plName">' + esc(t.name) + "</div>" + noteHtml(t) +
           '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
         "</div>" +
         '<button class="miniBtn' + (inQ ? " fav on" : "") + '" data-act="qadd" title="加入一起听">' +
@@ -7480,7 +7771,8 @@ function renderPlaylistBody() {
     return;
   }
   const pg = pageSlice(list);
-  box.innerHTML = pg.shown.map((t, i) => {
+  const favHead = APP.plTab === "fav" ? favTagBarHtml() : "";
+  box.innerHTML = favHead + pg.shown.map((t, i) => {
     const meta = [];
     if (t.dur) meta.push(fmtTime(t.dur));
     if (t.lrc && t.lrc.length) meta.push("有歌词");
@@ -7492,17 +7784,19 @@ function renderPlaylistBody() {
     if (APP.reorder) meta.push("按住 ☰ 上下拖动");
 
     const head = '<div class="plItem' + (t.id === APP.curId ? " cur" : "") + (APP.reorder ? " reorder" : "") +
-      '" data-id="' + t.id + '">' +
+      (isPlayed(t) ? " played" : "") + '" data-id="' + t.id + '">' +
       '<div class="plIdx' + (APP.reorder ? " grip" : "") + '">' + (APP.reorder ? "☰" : i + 1) + "</div>";
     const main = '<div class="plMain" data-act="play">' +
-      '<div class="plName">' + esc(t.name) + "</div>" +
+      '<div class="plName">' + esc(t.name) + "</div>" + noteHtml(t) +
       '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
       "</div>";
+    const tagBtn = APP.plTab === "fav"
+      ? '<button class="miniBtn" data-act="tag" title="分组标签">🏷</button>' : "";
     const tail = APP.reorder
       ? '<button class="miniBtn" data-act="up">↑</button><button class="miniBtn" data-act="down">↓</button>'
       : '<button class="miniBtn fav ' + (t.fav ? "on" : "off") + '" data-act="fav" title="收藏">' +
         (t.fav ? "★" : "☆") + "</button>" +
-        '<button class="miniBtn del" data-act="del" title="从歌单删除">✕</button>';
+        '<button class="miniBtn del" data-act="del" title="从歌单删除">✕</button>' + tagBtn;
     return head + coverSlot(t) + main + tail + "</div>";
   }).join("") + moreHtml(pg.rest);
   scheduleCovers(pg.shown);
@@ -7564,6 +7858,7 @@ function toggleFav(id) {
 function setPlTab(tab) {
   APP.plTab = tab;
   if (tab !== "pl") APP.plCur = "";
+  if (tab !== "fav") APP.favTag = "";
   APP.plLimit = 120;      // 切页回到首屏行数，避免上一页滚到底后新页面一次性画太多
   syncTabs();
   renderPlaylist();
@@ -8733,6 +9028,9 @@ function loadTrackAudio(t, silent) {
   if (!t || !t.url) return;
   t._retried = false;
   APP.curId = t.id;
+  /* 听过历史 + 随机本轮记录 */
+  notePlayed(t);
+  if (APP.shuffle) { APP.shufflePlayed.add(trackKey(t)); renderShuffleBtn(); }
   try { if (!APP.duck) audio.volume = 0; } catch (e) {}  // 新歌从 0 开始，由 playing 事件淡入
   audio.src = t.url;
   audio.load();
@@ -9068,6 +9366,25 @@ function shuffleNeighbor(dir, list) {
   const cur = src.find((t) => t.id === APP.curId);
   let i = cur ? perm.indexOf(trackKey(cur)) : -1;
   if (i < 0) i = dir > 0 ? -1 : 0;
+  /* 随机本轮不重复：向后只挑还没听过的那首；整轮听完就自动重开一轮 */
+  if (dir > 0 && APP.shufflePlayed && APP.shufflePlayed.size) {
+    for (let n = 1; n <= perm.length; n++) {
+      const key = perm[(i + n) % perm.length];
+      if (APP.shufflePlayed.has(key)) continue;
+      const t = src.find((x) => trackKey(x) === key);
+      if (t) return t;
+    }
+    APP.shufflePlayed.clear();
+    if (cur) APP.shufflePlayed.add(trackKey(cur));
+    hint("随机这一轮听完了，重新开始一轮", 2600);
+    for (let n = 1; n <= perm.length; n++) {
+      const key = perm[(i + n) % perm.length];
+      if (cur && key === trackKey(cur)) continue;
+      const t = src.find((x) => trackKey(x) === key);
+      if (t) return t;
+    }
+    return null;
+  }
   for (let n = 0; n < perm.length; n++) {
     i = (i + dir + perm.length) % perm.length;
     const key = perm[i];
@@ -9077,11 +9394,24 @@ function shuffleNeighbor(dir, list) {
   return null;
 }
 
+function shuffleRoundText() {
+  const total = activeTracks().length;
+  const n = Math.min(APP.shufflePlayed ? APP.shufflePlayed.size : 0, total);
+  return "随机播放 · 本轮 " + n + "/" + total;
+}
+/* 随机开启/种子变化时重置本轮，当前这首算已经听过 */
+function resetShuffleRound() {
+  APP.shufflePlayed = new Set();
+  const cur = findTrack(APP.curId);
+  if (APP.shuffle && cur) APP.shufflePlayed.add(trackKey(cur));
+}
+
 function renderShuffleBtn() {
   const b = $("#btnShuffle");
   if (b) {
     b.classList.toggle("on", APP.shuffle);
     b.textContent = APP.shuffle ? "🔀 随机" : "🔀 顺序";
+    b.title = APP.shuffle ? shuffleRoundText() : "随机播放：和对方同步";
   }
   renderModeHint();
 }
@@ -9107,7 +9437,7 @@ function modeText() {
 function renderModeHint() {
   const h = $("#modeHint");
   if (!h) return;
-  h.textContent = APP.shuffle ? "随机播放"
+  h.textContent = APP.shuffle ? shuffleRoundText()
     : APP.repeat === 2 ? "单曲循环"
     : APP.repeat === 1 ? "列表循环"
     : "顺序播放";
@@ -9138,6 +9468,7 @@ function publishMode() {
 function toggleShuffle() {
   APP.shuffle = !APP.shuffle;
   APP.shuffleSeed = APP.shuffle ? (Math.floor(Math.random() * 2147483000) + 1) : 0;
+  resetShuffleRound();
   APP.shuffleVer++;
   renderShuffleBtn();
   saveMode();
@@ -10073,6 +10404,14 @@ UI.playlist.addEventListener("click", (e) => {
   const moreEl = e.target.closest('[data-act="more"]');
   if (moreEl) { APP.plLimit = (APP.plLimit || 120) + 120; renderPlaylist(); return; }
 
+  /* 收藏页的标签筛选条在行外 */
+  const ftEl = e.target.closest("[data-ftag]");
+  if (ftEl) {
+    APP.favTag = ftEl.getAttribute("data-ftag") || "";
+    renderPlaylist();
+    return;
+  }
+
   /* 批量选择模式：点整行就是勾选/取消，不播放 */
   if (selOn()) {
     const selItem = e.target.closest(".plItem");
@@ -10098,6 +10437,7 @@ UI.playlist.addEventListener("click", (e) => {
 
   if (APP.mode === "solo") {
     if (act === "fav") toggleFav(id);
+    else if (act === "tag") editTrackTag(id);
     else if (act === "qadd") openChoose(id);
     else if (act === "plrm") removeFromPlaylist(APP.plCur, id);
     else selectTrack(id, true);
@@ -10112,6 +10452,7 @@ UI.playlist.addEventListener("click", (e) => {
   else if (act === "down") moveTrack(id, 1);
   else if (act === "del") deleteTrack(id);
   else if (act === "fav") toggleFav(id);
+  else if (act === "tag") editTrackTag(id);
   else if (act === "qadd") addToQueue(id);
   else if (APP.plTab === "lib") addToQueue(id);   // 「我的歌曲」里点行 = 加入一起听
   else if (APP.reorder) return;   // 排序模式下点行不播放
@@ -10151,6 +10492,21 @@ $("#btnNext").onclick = () => stepTrack(1);
 $("#btnShuffle").onclick = toggleShuffle;
 $("#btnRepeat").onclick = toggleRepeat;
 $("#btnReorder").onclick = () => setReorder(!APP.reorder);
+/* 队列编辑：点主界面「下一首」预览打开 */
+const _nextUpEl = $("#nextUp");
+if (_nextUpEl) { _nextUpEl.style.cursor = "pointer"; _nextUpEl.onclick = openQueue; }
+if ($("#closeQueue")) $("#closeQueue").onclick = closeSheets;
+if (UI.queueClear) UI.queueClear.onclick = queueClear;
+if (UI.queueList) UI.queueList.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-qact]");
+  const row = e.target.closest(".plItem");
+  if (!b || !row) return;
+  const id = row.getAttribute("data-id");
+  const act = b.getAttribute("data-qact");
+  if (act === "up") queueMove(id, -1);
+  else if (act === "down") queueMove(id, 1);
+  else if (act === "rm") queueRemove(id);
+});
 /* 批量选择 / 排序菜单 */
 if (UI.btnSelect) UI.btnSelect.onclick = () => setSel(!selOn());
 if (UI.selCancel) UI.selCancel.onclick = () => setSel(false);
@@ -10304,6 +10660,7 @@ if ($("#btnLrcPlus")) $("#btnLrcPlus").onclick = () => setLrcOff(APP.lrcOff + 0.
 if ($("#btnLrcReset")) $("#btnLrcReset").onclick = () => setLrcOff(0);
 renderLrcOff();
 loadMode();
+loadPlayedMap();
 renderShuffleBtn();
 renderRepeatBtn();
 
@@ -10668,16 +11025,34 @@ function openTrackInfo(id) {
     ["归属", t.peerId ? "对方" : "本机"],
     ["歌词", Array.isArray(t.lrc) && t.lrc.length ? t.lrc.length + " 行" : "没有"],
     ["收藏", t.fav ? "是" : "否"],
+    ["标签", t.tag || "—"],
+    ["备注", t.note || "—"],
+    ["最近听过", APP.played[trackKey(t)] ? new Date(APP.played[trackKey(t)]).toLocaleString() : "还没听过"],
     ["本机状态", t.missing || !(t.url || t.ref || t.blob) ? "需要重新选文件或等对方传" : "可播放"],
   ];
+  APP.infoId = t.id;
   UI.infoBody.innerHTML =
     '<div class="infoHead"><div class="infoCover">' + (t.coverArt ? '<img src="' + t.coverArt + '" alt="">' : "♪") + "</div>" +
     '<div style="min-width:0"><div class="songName">' + esc(t.name || "—") + "</div>" +
     '<div class="songArtist">' + esc(t.coverArtist || "") + "</div></div></div>" +
     '<div class="infoRows">' + rows.map((r) =>
-      '<div class="infoRow"><span>' + r[0] + "</span><b>" + esc(String(r[1])) + "</b></div>").join("") + "</div>";
+      '<div class="infoRow"><span>' + r[0] + "</span><b>" + esc(String(r[1])) + "</b></div>").join("") + "</div>" +
+    '<div class="infoActs">' +
+      '<button class="topBtn" data-iact="played">' + (isPlayed(t) ? "标成未听" : "标成已听") + "</button>" +
+      '<button class="topBtn" data-iact="tag">🏷 标签</button>' +
+      '<button class="topBtn" data-iact="note">🗒 备注</button>' +
+    "</div>";
   openSheet("info");
 }
+if (UI.infoBody) UI.infoBody.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-iact]");
+  if (!b || !APP.infoId) return;
+  const act = b.getAttribute("data-iact");
+  if (act === "played") togglePlayed(APP.infoId);
+  else if (act === "tag") editTrackTag(APP.infoId);
+  else if (act === "note") editTrackNote(APP.infoId);
+  openTrackInfo(APP.infoId);
+});
 if (UI.playlist) {
   let lpTimer = null;
   const cancelLp = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
