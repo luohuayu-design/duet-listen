@@ -652,6 +652,17 @@
   .storBar{height:8px;border-radius:8px;background:var(--card2);overflow:hidden;margin-top:8px}
   .storBar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));
                transition:width .3s}
+  /* ===== v1.17.0：歌单工具 / 模板 / 备份 ===== */
+  .plsTools{display:flex;gap:8px;margin-top:10px}
+  .plsTools .topBtn{flex:1;padding:9px 8px;text-align:center}
+  .tplCard{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);
+           border-radius:14px;background:var(--card2);margin-bottom:10px}
+  .tplIcon{flex:none;width:42px;height:42px;border-radius:12px;background:rgba(var(--accentRgb),.14);
+           display:flex;align-items:center;justify-content:center;font-size:20px}
+  .tplMain{flex:1;min-width:0}
+  .tplName{font-size:14.5px;font-weight:600}
+  .tplDesc{font-size:12px;color:var(--sub);margin-top:3px;line-height:1.5}
+  .tplMeta{font-size:11.5px;color:var(--accent);margin-top:4px}
   .netTip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#ffd08a;margin:0 0 8px;
           padding:8px 10px;border-radius:10px;background:rgba(255,180,60,.1);
           border:1px solid rgba(255,180,60,.3)}
@@ -867,6 +878,7 @@
       <p><b>12. 外观自定义</b>：设置里点「外观自定义」，可以调全局字号（小/标准/大/特大）、强调色（含自定义取色）、歌单列表密度、播放器封面形状（方形/圆角/圆形/唱片）；还能设定「几点到几点用深色」自动切换，以及长按/切歌/按钮操作的触感反馈开关。主界面新增快捷入口栏，可勾选显示哪些按钮、用 ↑ ↓ 调整顺序。所有设置只保存在本机。</p>
       <p><b>13. 性能与平台</b>：设置页新增「存储用量」，分别显示设置与歌单、浏览器存储、音频副本、封面缓存、接收缓存的占用，可一键清理封面和接收缓存（不会删你的歌曲文件）。几百上千首的超长歌单改用虚拟滚动，只渲染当前看得见的部分，滚动更顺、不再卡顿。<b>启动时先显示骨架屏</b>，歌单在后台异步恢复，打开更快。网络变差（延迟高或 2G）时，播放页会出现提示，并自动降低封面和歌词的加载频率，网络恢复后自动恢复。浏览器的锁屏 / 通知栏会显示歌名、歌手、封面和播放进度，并支持快退 / 快进 10 秒。</p>
       <p><b>14. 记录与分享</b>：一起听时顶栏会显示本次已一起听的时长，点它或成员行可以看到「本次 / 累计 / 连续天数 / 一起听次数」，听满 1 小时、10 小时、100 小时或连续 3 / 7 / 30 天会点亮对应徽章（只记在本机）。传歌时点「队列」可以看到每首歌的发送、接收和续传进度，断线重连会从断点接着传，失败的歌可以点「重试」。播放队列里点「分享卡片」会生成一张歌单图片，可保存或调用系统分享发给朋友。</p>
+      <p><b>15. 歌单工具与数据</b>：「我的歌单」底部可以<b>导出歌单</b>（一个 JSON，含歌单名、简介、封面和歌名）、<b>导入歌单</b>（按歌名匹配曲库，同名歌单会合并），还能用<b>歌单模板</b>按「通勤 / 深夜 / 学习 / 聚会」从曲库自动配一份歌单。设置页新增「数据备份」：可以备份设置、歌单、聊天和一起听统计到文件，也能从备份恢复；最下面的「清空全部数据」会删掉曲库、歌单、聊天和缓存（手机里原来的音乐文件不会被删）。长歌单的封面改成<b>滚到哪加载到哪</b>，只在需要时联网取图。</p>
     </details>
   </section>
 
@@ -1176,6 +1188,30 @@
       <div class="row" style="margin-top:10px">
         <button class="btn" id="btnCleanAll" style="padding:11px;font-size:13.5px">一键清理缓存（封面 + 接收缓存）</button>
       </div>
+      <div class="label" style="margin-top:20px">数据备份</div>
+      <div class="soundRow">
+        <div>
+          <div class="soundName">备份到文件</div>
+          <div class="soundDesc" id="bkDesc">歌单、设置、聊天和一起听统计打包成一个 JSON</div>
+        </div>
+        <button class="topBtn" id="btnBackup" style="flex:none">备份</button>
+      </div>
+      <div class="soundRow" style="margin-top:12px">
+        <div>
+          <div class="soundName">从备份恢复</div>
+          <div class="soundDesc" id="bkRestoreDesc">导入后覆盖当前设置和歌单，歌曲文件需重新添加</div>
+        </div>
+        <button class="topBtn" id="btnRestore" style="flex:none">恢复</button>
+      </div>
+      <p class="plsTip" style="margin-top:10px">备份只包含文字数据（设置 / 歌单 / 聊天 / 一起听统计），不含歌曲文件和封面图片。</p>
+      <div class="soundRow" style="margin-top:12px">
+        <div>
+          <div class="soundName" style="color:var(--err)">清空全部数据</div>
+          <div class="soundDesc">删除曲库、歌单、聊天、设置和缓存，回到刚安装的状态</div>
+        </div>
+        <button class="topBtn" id="btnWipe" style="flex:none;color:var(--err)">清空</button>
+      </div>
+      <p class="plsTip" style="margin-top:10px">清空不会删除手机里原来的音乐文件，但 App 内的曲库条目和接收缓存会一起消失，建议先备份。</p>
       <div class="hidden" id="storeBox">
         <div class="label" style="margin-top:20px">手机存储</div>
         <div class="soundRow">
@@ -1260,6 +1296,15 @@
       <div class="updStatus" id="updStatus"><span class="dot" id="updDot"></span><span id="updStatusText">只在连上校园网、能连到本机服务器时才会去问；连不上不影响听歌。</span></div>
       <div class="verLine" id="verLine">一起听</div>
     </div>
+  </section>
+
+  <section class="sheet" id="sheetTpl">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">歌单模板</div>
+      <button class="topBtn" id="closeTpl">收起</button>
+    </div>
+    <div class="sheetBody" id="tplBody"></div>
   </section>
 
   <section class="sheet" id="sheetLook">
@@ -4151,7 +4196,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.16.0";
+const APP_VER = "1.17.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -4207,6 +4252,8 @@ const UI = {
   sheetQr: $("#sheetQr"),
   sheetSound: $("#sheetSound"),
   sheetLook: $("#sheetLook"),
+  sheetTpl: $("#sheetTpl"),
+  tplBody: $("#tplBody"),
   sheetUpdate: $("#sheetUpdate"),
   updUrl: $("#updUrl"),
   updAuto: $("#updAuto"),
@@ -4916,6 +4963,203 @@ function removeFromPlaylist(pid, tid) {
   toast("已从歌单移出" + (t ? "：「" + t.name + "」" : ""));
 }
 
+/* ===================== v1.17.0 歌单导入导出 / 模板推荐 ===================== */
+/* 存一个文本文件：优先系统分享（安卓可发给微信/QQ），不行就走浏览器下载 */
+function saveTextFile(name, text, mime) {
+  const type = mime || "application/json";
+  try {
+    const blob = new Blob([text], { type: type });
+    const file = new File([blob], name, { type: type });
+    if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).catch(() => {});
+      return true;
+    }
+  } catch (e) {}
+  try {
+    const blob = new Blob([text], { type: type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 5000);
+    return true;
+  } catch (e) {
+    toast("当前环境不能保存文件，可以换用系统分享");
+    return false;
+  }
+}
+function readFileText(f) {
+  return new Promise((res, rej) => {
+    if (f.text) { f.text().then(res).catch(rej); return; }
+    const fr = new FileReader();
+    fr.onload = () => res(String(fr.result || ""));
+    fr.onerror = rej;
+    fr.readAsText(f);
+  });
+}
+function plsStamp() {
+  const d = new Date();
+  return d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+}
+function plsExportData() {
+  return APP.pls.map((p) => ({
+    name: p.name,
+    intro: p.intro || "",
+    cover: p.cover || "",
+    songs: plsTracks(p.id).map((t) => ({ name: t.name, dur: t.dur || 0 })),
+  }));
+}
+function exportPlaylists() {
+  if (!APP.pls.length) { toast("还没有自建歌单可以导出"); return; }
+  const payload = {
+    app: "duet-listen", type: "playlists", version: 1,
+    exportedAt: new Date().toISOString(),
+    playlists: plsExportData(),
+  };
+  if (saveTextFile("一起听-歌单-" + plsStamp() + ".json", JSON.stringify(payload, null, 1))) {
+    toast("已导出 " + APP.pls.length + " 个歌单");
+  }
+}
+/* 歌名归一化：去掉扩展名、空格并转小写，换设备后按歌名重新认歌 */
+function normPlName(s) {
+  return String(s || "").replace(/\.(mp3|m4a|flac|wav|ogg|aac|ape)$/i, "").replace(/\s+/g, "").toLowerCase();
+}
+const plsImportPicker = document.createElement("input");
+plsImportPicker.type = "file";
+plsImportPicker.accept = ".json,application/json";
+plsImportPicker.style.display = "none";
+document.body.appendChild(plsImportPicker);
+function importPlaylistsAsk() {
+  plsImportPicker.value = "";
+  plsImportPicker.click();
+}
+plsImportPicker.onchange = async () => {
+  const f = plsImportPicker.files && plsImportPicker.files[0];
+  if (!f) return;
+  try {
+    const obj = JSON.parse(await readFileText(f));
+    if (!obj || obj.type !== "playlists" || !Array.isArray(obj.playlists)) throw new Error("bad");
+    const byName = Object.create(null);
+    APP.lib.forEach((t) => {
+      const k = normPlName(t.name);
+      if (k && !byName[k]) byName[k] = t.id;
+    });
+    const stat = { pls: 0, songs: 0, miss: 0 };
+    obj.playlists.forEach((raw) => {
+      if (!raw || typeof raw !== "object") return;
+      const name = String(raw.name || "导入歌单").trim().slice(0, 16) || "导入歌单";
+      let p = APP.pls.find((x) => x.name === name);
+      if (!p) {
+        p = { id: "p" + Math.random().toString(36).slice(2, 8), name: name, ids: [] };
+        APP.pls.push(p);
+        stat.pls++;
+      }
+      if (raw.intro && !p.intro) p.intro = String(raw.intro).trim().slice(0, 40);
+      if (raw.cover && !p.cover && /^data:image\//.test(raw.cover) && raw.cover.length < 200000) p.cover = raw.cover;
+      (Array.isArray(raw.songs) ? raw.songs : []).forEach((s) => {
+        const nm = typeof s === "string" ? s : (s && s.name);
+        const id = byName[normPlName(nm)];
+        if (!id) { stat.miss++; return; }
+        if (p.ids.indexOf(id) >= 0) return;
+        p.ids.push(id);
+        stat.songs++;
+      });
+    });
+    savePls();
+    APP.plCur = "";
+    APP.plTab = "pls";
+    syncTabs();
+    renderPlaylist();
+    toast("导入 " + stat.pls + " 个歌单 · 匹配 " + stat.songs + " 首" +
+      (stat.miss ? " · " + stat.miss + " 首曲库里没有" : ""), 4000);
+  } catch (e) {
+    toast("导入失败：文件不是一起听导出的歌单备份", 3500);
+  }
+};
+
+/* 模板：按歌名 / 标签关键词、收藏和时长给曲库打分，凑一批生成新歌单 */
+const PLS_TPL = [
+  { key: "commute", name: "通勤路上", icon: "🚇", desc: "节奏平稳、3-5 分钟，地铁公交上刚刚好",
+    kw: /通勤|路上|city|drive|pop|流行/i, min: 120, max: 330, n: 15 },
+  { key: "night", name: "深夜电台", icon: "🌙", desc: "慢一点、安静一点，睡前和夜里听",
+    kw: /夜|月|雨|慢|眠|sleep|lofi|piano|钢琴|安静|轻音乐/i, max: 330, n: 15 },
+  { key: "study", name: "学习专注", icon: "📚", desc: "纯音乐和轻节奏，写作业不被打扰",
+    kw: /纯音乐|钢琴|轻音乐|instrumental|lofi|study|专注|ambient|雨/i, n: 15 },
+  { key: "party", name: "聚会暖场", icon: "🎉", desc: "热闹有节奏，一起听不冷场",
+    kw: /remix|dj|舞|嗨|party|rock|摇滚|电音|edm|live/i, fav: true, n: 15 },
+];
+function tplScore(t, def) {
+  let s = 0;
+  const text = (t.name || "") + " " + (t.tag || "");
+  if (def.kw.test(text)) s += 3;
+  if (def.fav && t.fav) s += 1.5;
+  const d = Number(t.dur) || 0;
+  if (d && def.min && d < def.min) s -= 1;
+  if (d && def.max && d > def.max) s -= 0.5;
+  return s;
+}
+function tplPick(def) {
+  const all = APP.lib.filter((t) => t && t.id);
+  const hit = all.map((t) => ({ t: t, s: tplScore(t, def) }))
+    .filter((x) => x.s > 0).sort((a, b) => b.s - a.s).map((x) => x.t);
+  const out = hit.slice(0, def.n);
+  if (out.length < def.n) {
+    const used = new Set(out.map((t) => t.id));
+    const rest = all.filter((t) => !used.has(t.id));
+    rest.sort(() => Math.random() - 0.5);
+    for (const t of rest) {
+      if (out.length >= def.n) break;
+      out.push(t);
+    }
+  }
+  return out;
+}
+function renderTplSheet() {
+  if (!UI.tplBody) return;
+  if (!APP.lib.length) {
+    UI.tplBody.innerHTML = '<div class="plEmpty">曲库还是空的<br>先回「全部音乐」添加歌曲，再来用模板</div>';
+    return;
+  }
+  UI.tplBody.innerHTML = PLS_TPL.map((d) => {
+    const n = tplPick(d).length;
+    return '<div class="tplCard" data-tpl="' + d.key + '">' +
+      '<div class="tplIcon">' + d.icon + "</div>" +
+      '<div class="tplMain"><div class="tplName">' + d.name + "</div>" +
+      '<div class="tplDesc">' + d.desc + "</div>" +
+      '<div class="tplMeta">可生成 ' + n + " 首</div></div>" +
+      '<button class="topBtn" data-tpl="' + d.key + '" style="flex:none">生成</button></div>';
+  }).join("") + '<p class="plsTip">模板会按歌曲名、标签、时长和收藏状态从你的曲库里挑歌，生成一个新的自建歌单，不会改动原来的歌单。</p>';
+}
+function openTplSheet() { openSheet("tpl"); }
+function makeFromTemplate(key) {
+  const def = PLS_TPL.find((d) => d.key === key);
+  if (!def) return;
+  const list = tplPick(def);
+  if (!list.length) { toast("曲库里还没有歌，先添加歌曲"); return; }
+  let name = def.name;
+  let i = 2;
+  while (APP.pls.some((p) => p.name === name) && i < 99) name = (def.name.slice(0, 12) + " " + i++).slice(0, 16);
+  const p = {
+    id: "p" + Math.random().toString(36).slice(2, 8),
+    name: name,
+    ids: list.map((t) => t.id),
+    intro: def.desc.slice(0, 40),
+  };
+  APP.pls.push(p);
+  savePls();
+  closeSheets();
+  APP.plCur = p.id;
+  APP.plTab = "pl";
+  APP.plQuery = "";
+  if (UI.plSearch) UI.plSearch.value = "";
+  syncTabs();
+  renderPlaylist();
+  toast("已生成「" + p.name + "」" + list.length + " 首");
+}
+
 /* 单机模式下的连播队列：点歌那一刻看到的列表就是队列 */
 function soloRecentTracks() {
   const keys = recentKeys();
@@ -4966,10 +5210,12 @@ function openSheet(which) {
     : which === "share" ? UI.sheetShare
     : which === "lrc" ? UI.sheetLrc
     : which === "choose" ? UI.sheetChoose
+    : which === "tpl" ? UI.sheetTpl
     : UI.sheetList;
   if (which === "list") renderPlaylist();
   if (which === "diag") DIAG.render();
   if (which === "look") renderLook();
+  if (which === "tpl") renderTplSheet();
   UI.mask.classList.remove("hidden");
   requestAnimationFrame(() => {
     UI.mask.classList.add("on");
@@ -4997,6 +5243,7 @@ function closeSheets() {
   if (UI.sheetQueue) UI.sheetQueue.classList.remove("on");
   if (UI.sheetShare) UI.sheetShare.classList.remove("on");
   if (UI.sheetLrc) UI.sheetLrc.classList.remove("on");
+  if (UI.sheetTpl) UI.sheetTpl.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
   _maskHideTimer = setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
@@ -8166,11 +8413,16 @@ function playlistCoverHtml(p) {
 /* 自建歌单列表（单机模式的「我的歌单」） */
 function renderPlaylistIndex(box) {
   if (UI.plFilterCount) UI.plFilterCount.textContent = APP.pls.length ? APP.pls.length + " 个歌单" : "";
+  const tools = '<div class="plsTools">' +
+    '<button class="topBtn" data-pact="plsexport">导出歌单</button>' +
+    '<button class="topBtn" data-pact="plsimport">导入歌单</button>' +
+    '<button class="topBtn" data-pact="plstpl">模板推荐</button>' +
+    "</div>";
   if (!APP.pls.length) {
-    box.innerHTML = '<div class="plEmpty">还没有自建歌单<br>点右上角「＋ 新建歌单」</div>';
+    box.innerHTML = tools + '<div class="plEmpty">还没有自建歌单<br>点右上角「＋ 新建歌单」</div>';
     return;
   }
-  box.innerHTML = APP.pls.map((p) => {
+  box.innerHTML = tools + APP.pls.map((p) => {
     const n = plsTracks(p.id).length;
     const cov = playlistCoverHtml(p);
     return '<div class="plsItem' + (APP.plCur === p.id ? " cur" : "") + '" data-pid="' + p.id + '">' +
@@ -8181,13 +8433,13 @@ function renderPlaylistIndex(box) {
       '<button class="miniBtn" data-pact="rename" title="改名 / 简介">✎</button>' +
       '<button class="miniBtn del" data-pact="del" title="删除歌单">✕</button></div>';
   }).join("") + '<p class="plsTip">点歌单进入；点左边的方块可以给它换一张封面。加歌去「全部音乐」点行尾的 ＋。</p>';
-  /* 四宫格里的歌还没封面时，顺手排队找一下（一批最多 10 张） */
+  /* 四宫格里的歌还没封面时，滚到哪加载到哪（v1.17.0 懒加载） */
   const wantCov = [];
   APP.pls.forEach((p) => {
     if (p.cover) return;
     plsTracks(p.id).slice(0, 4).forEach((t) => { if (!t.coverUrl) wantCov.push(t); });
   });
-  scheduleCovers(wantCov.slice(0, 10));
+  coverLazy(box, wantCov.slice(0, 12));
 }
 
 function renderPlaylist() {
@@ -8443,7 +8695,7 @@ function renderMergeView(box) {
     sec("只有我有", mine, "msendall", "全部推给对方", "对方还缺文件，推过去就能播") +
     sec("只有对方有", theirs, "mpullall", "全部拉下来", "这边缺文件，向对方要一下") +
     '<p class="plsTip">这里按「本机有没有这份文件」分组。两边都补齐后，任何一首都能直接播放。</p>';
-  scheduleCovers(APP.tracks);
+  coverLazy(box, APP.tracks);
   renderNextUp();
 }
 
@@ -8510,7 +8762,7 @@ function renderPlaylistBody() {
           '<div class="plMeta">' + esc(meta.join(" · ")) + "</div>" +
         "</div>" + tail + "</div>";
     }).join("") + virtBottomHtml(pg) + moreHtml(pg.rest);
-    scheduleCovers(pg.shown);
+    coverLazy(box, pg.shown);
     renderNextUp();
     return;
   }
@@ -8552,7 +8804,7 @@ function renderPlaylistBody() {
           (inQ ? "✓" : "＋") + "</button>" +
         "</div>";
     }).join("") + virtBottomHtml(pg) + moreHtml(pg.rest);
-    scheduleCovers(pg.shown);
+    coverLazy(box, pg.shown);
     renderNextUp();
     return;
   }
@@ -8601,7 +8853,7 @@ function renderPlaylistBody() {
         '<button class="miniBtn del" data-act="del" title="从歌单删除">✕</button>' + tagBtn;
     return head + coverSlot(t) + main + tail + "</div>";
   }).join("") + virtBottomHtml(pg) + moreHtml(pg.rest);
-  scheduleCovers(pg.shown);
+  coverLazy(box, pg.shown);
   renderNextUp();
 }
 
@@ -10529,6 +10781,36 @@ function scheduleCovers(list) {
   }
 }
 
+/* v1.17.0 封面懒加载：只给滚进视口的行取封面，长歌单不再一次性发请求 */
+let _covIO = null;
+function coverLazy(box, list) {
+  if (!box || !list || !list.length) return;
+  if (!("IntersectionObserver" in window) || NETQ.slow) {
+    scheduleCovers(list);
+    return;
+  }
+  const byId = Object.create(null);
+  list.forEach((t) => { if (t && t.id && !byId[t.id]) byId[t.id] = t; });
+  const targets = [];
+  box.querySelectorAll("[data-id]").forEach((el) => {
+    const t = byId[el.getAttribute("data-id")];
+    if (!t || t.coverUrl || t._coverMiss || t._coverBusy) return;
+    targets.push(el);
+  });
+  if (!targets.length) return;
+  try { if (_covIO) _covIO.disconnect(); } catch (e) {}
+  const io = new IntersectionObserver((ents) => {
+    for (const en of ents) {
+      if (!en.isIntersecting) continue;
+      const t = byId[en.target.getAttribute("data-id") || ""];
+      try { io.unobserve(en.target); } catch (e) {}
+      if (t && !t.coverUrl && !t._coverMiss && !t._coverBusy && COVER_Q.length < 12) queueCover(t);
+    }
+  }, { rootMargin: "200px 0px" });
+  _covIO = io;
+  targets.forEach((el) => io.observe(el));
+}
+
 /* 启动时把本地缓存的封面先装回内存，歌单一打开就能看到 */
 async function preloadCovers() {
   try {
@@ -11996,6 +12278,9 @@ UI.playlist.addEventListener("click", (e) => {
       return;
     }
     if (pact === "rename") { renamePlaylist(APP.plCur); return; }
+    if (pact === "plsexport") { exportPlaylists(); return; }
+    if (pact === "plsimport") { importPlaylistsAsk(); return; }
+    if (pact === "plstpl") { openTplSheet(); return; }
   }
 
   const moreEl = e.target.closest('[data-act="more"]');
@@ -12790,6 +13075,94 @@ async function cleanAllCache() {
   hint("已清理封面" + (ci.n ? " " + ci.n + " 张" : "") + (n ? "、接收缓存 " + n + " 首" : ""), 4000);
 }
 if ($("#btnCleanAll")) $("#btnCleanAll").onclick = cleanAllCache;
+
+/* ===================== v1.17.0 数据备份 / 恢复 / 清空 ===================== */
+const BK_PREFIX = "duet_";
+function backupCollect() {
+  const data = Object.create(null);
+  let bytes = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) || "";
+      if (k.indexOf(BK_PREFIX) !== 0) continue;
+      const v = localStorage.getItem(k) || "";
+      data[k] = v;
+      bytes += (k.length + v.length) * 2;
+    }
+  } catch (e) {}
+  return { data: data, bytes: bytes, n: Object.keys(data).length };
+}
+function exportBackup() {
+  const c = backupCollect();
+  if (!c.n) { toast("还没有可以备份的数据"); return; }
+  const payload = {
+    app: "duet-listen", type: "backup", version: 1,
+    appVer: APP_VER, time: Date.now(), data: c.data,
+  };
+  if (saveTextFile("一起听-备份-" + plsStamp() + ".json", JSON.stringify(payload))) {
+    toast("已备份 " + c.n + " 项（约 " + fmtSize(c.bytes) + "）");
+  }
+}
+const bkRestorePicker = document.createElement("input");
+bkRestorePicker.type = "file";
+bkRestorePicker.accept = ".json,application/json";
+bkRestorePicker.style.display = "none";
+document.body.appendChild(bkRestorePicker);
+function restoreBackupAsk() {
+  bkRestorePicker.value = "";
+  bkRestorePicker.click();
+}
+bkRestorePicker.onchange = async () => {
+  const f = bkRestorePicker.files && bkRestorePicker.files[0];
+  if (!f) return;
+  try {
+    const obj = JSON.parse(await readFileText(f));
+    if (!obj || obj.type !== "backup" || !obj.data || typeof obj.data !== "object") throw new Error("bad");
+    const keys = Object.keys(obj.data).filter((k) => k.indexOf(BK_PREFIX) === 0 && typeof obj.data[k] === "string");
+    if (!keys.length) throw new Error("empty");
+    if (!confirm("恢复备份会覆盖当前的设置、歌单和聊天记录（共 " + keys.length + " 项），继续？")) return;
+    let ok = 0;
+    keys.forEach((k) => {
+      try { localStorage.setItem(k, obj.data[k]); ok++; } catch (e) {}
+    });
+    toast("已恢复 " + ok + " 项，正在重新加载…", 2500);
+    setTimeout(() => { try { location.reload(); } catch (e) {} }, 800);
+  } catch (e) {
+    toast("恢复失败：文件不是一起听导出的备份", 3500);
+  }
+};
+function wipeAllData() {
+  if (!confirm("清空全部数据？\n曲库、歌单、聊天、设置、封面和接收缓存都会被删除，回到刚安装的状态。\n手机里原来的音乐文件不会被删。")) return;
+  if (!confirm("再确认一次：清空后无法恢复，建议先「备份到文件」。")) return;
+  try { audio.pause(); } catch (e) {}
+  try {
+    const ks = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) || "";
+      if (k.indexOf(BK_PREFIX) === 0) ks.push(k);
+    }
+    ks.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
+  } catch (e) {}
+  hint("正在清空数据…", 4000);
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    try { location.reload(); } catch (e) {}
+  };
+  try {
+    if (_dbP) _dbP.then((db) => { try { db.close(); } catch (e) {} }).catch(() => {});
+    const rq = indexedDB.deleteDatabase("duetlisten");
+    rq.onsuccess = finish;
+    rq.onerror = finish;
+    rq.onblocked = () => setTimeout(finish, 300);
+    setTimeout(finish, 1500);
+  } catch (e) { finish(); }
+}
+if ($("#btnBackup")) $("#btnBackup").onclick = exportBackup;
+if ($("#btnRestore")) $("#btnRestore").onclick = restoreBackupAsk;
+if ($("#btnWipe")) $("#btnWipe").onclick = wipeAllData;
+
 if ($("#btnFree")) $("#btnFree").onclick = () => { freeLocalCopies().then(renderStore); };
 if ($("#btnCleanCovers")) $("#btnCleanCovers").onclick = () => {
   cleanCovers().then(() => { toast("封面缓存已清理，下次打开会重新获取", 1800); renderStore(); });
@@ -13259,6 +13632,11 @@ if (BG && UI.btnBg) UI.btnBg.onclick = async () => {
 };
 if (BG) refreshBg();
 if ($("#closeSound")) $("#closeSound").onclick = closeSheets;
+if ($("#closeTpl")) $("#closeTpl").onclick = closeSheets;
+if (UI.tplBody) UI.tplBody.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-tpl]");
+  if (el) makeFromTemplate(el.getAttribute("data-tpl"));
+});
 /* 睡眠定时：30 → 60 → 90 → 关 */
 if (UI.btnSleep) UI.btnSleep.onclick = () => {
   const opts = [0, 30, 60, 90];
