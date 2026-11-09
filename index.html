@@ -167,7 +167,7 @@
   .upTip.on{display:flex}
   .upTip button{flex:none;border:none;border-radius:9px;padding:6px 10px;font-size:12px;
                 background:rgba(255,255,255,.22);color:#fff;cursor:pointer;font-family:inherit}
-  .updStatus{margin-top:10px;font-size:12px;line-height:1.6;color:var(--sub)}
+  .updStatus{margin-top:10px;font-size:12px;line-height:1.6;color:var(--sub);display:flex;align-items:center;gap:8px}
   .updVer{font-size:15px;font-weight:700;margin-bottom:8px}
   .updNotes{margin:0;padding-left:18px;color:var(--sub);font-size:13px;line-height:1.8}
   .updProg{height:8px;border-radius:8px;background:var(--card2);overflow:hidden;margin-top:12px}
@@ -188,6 +188,27 @@
            background:transparent;color:var(--fg);font-size:15px;cursor:pointer}
   .miniBtn:active{transform:scale(.94)}
   .miniBtn.del{color:var(--err);border-color:rgba(255,96,96,.35)}
+  /* 批量选择 */
+  #playlist.seling .miniBtn{display:none}
+  #playlist.seling .plItem.seled{border-color:var(--accent);background:rgba(91,140,255,.16)}
+  #playlist.seling .plItem.seled .plIdx{color:var(--accent);font-weight:700}
+  .selBar{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 10px;
+          border-radius:12px;background:var(--card);border:1px solid var(--accent);
+          box-shadow:0 -6px 18px rgba(0,0,0,.35);z-index:3}
+  .selBar > span{flex:1;min-width:0;font-size:12.5px;color:var(--sub)}
+  .selBar .topBtn{flex:none}
+  /* 排序菜单 */
+  .sortWrap{position:relative;flex:none}
+  .sortMenu{position:absolute;right:0;top:100%;margin-top:6px;background:var(--card);border:1px solid var(--line);
+            border-radius:12px;padding:6px;box-shadow:0 10px 26px rgba(0,0,0,.45);z-index:5;min-width:158px}
+  .sortMenu button{display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--fg);
+                   font-family:inherit;font-size:13px;padding:9px 10px;border-radius:8px;cursor:pointer}
+  .sortMenu button:active{background:var(--card2)}
+  /* 进度条上的对方位置 */
+  .seekWrap{position:relative}
+  .peerMark{position:absolute;top:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;
+            background:var(--ok);border:2px solid var(--card);transform:translateY(-50%);pointer-events:none;
+            box-shadow:0 0 0 2px rgba(61,220,132,.25);transition:left .35s linear}
   .lyrics{max-height:150px;overflow-y:auto;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
   .lyrLine{font-size:13px;line-height:1.6;color:var(--sub);padding:3px 6px;border-radius:8px;transition:.2s}
   .lyrLine.active{font-weight:600;background:rgba(91,140,255,.14)}
@@ -201,6 +222,11 @@
     transition:background-image .12s linear;
   }
   .lyrLine.active{color:var(--fg)}
+  /* 歌词字号三档 */
+  .lyrics.lyrS{max-height:126px}
+  .lyrics.lyrS .lyrLine{font-size:11.5px;line-height:1.55}
+  .lyrics.lyrL{max-height:196px}
+  .lyrics.lyrL .lyrLine{font-size:15px;line-height:1.75}
   .chatList{margin-top:10px;max-height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
   .chatEmpty{color:var(--sub);font-size:12.5px;text-align:center;padding:6px}
   .chatMsg{max-width:82%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.5;word-break:break-word}
@@ -511,7 +537,10 @@
     <div class="offlineTip hidden" id="offlineTip">
       <span class="psDot"></span><span id="offlineText">对方已离线…</span>
     </div>
-    <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
+    <div class="seekWrap">
+      <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
+      <span class="peerMark hidden" id="peerMark" title="对方听到的位置"></span>
+    </div>
     <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
     <div class="playRow">
       <button class="btnSkip" id="btnPrev">⏮</button>
@@ -543,6 +572,7 @@
       <button class="chip" id="btnLrcMinus" title="歌词提前 0.1 秒">−0.1s</button>
       <button class="chip" id="btnLrcPlus" title="歌词延后 0.1 秒">+0.1s</button>
       <button class="chip" id="btnLrcReset" title="恢复到 0">归零</button>
+      <button class="chip" id="btnLrcSize" title="歌词字号：小/中/大">字号 中</button>
     </div>
     <div class="row" style="margin-top:12px">
       <button class="btn primary" id="btnAddSongsMain">＋ 添加歌曲</button>
@@ -629,6 +659,16 @@
       <div class="row" style="margin-top:8px">
         <input type="text" id="plSearch" class="chatInput" placeholder="搜索歌曲名…" autocomplete="off" />
         <button class="topBtn duetOnly" id="btnReorder" style="flex:none">排序</button>
+        <div class="sortWrap">
+          <button class="topBtn" id="btnSortMenu" style="padding:8px 10px" title="按名称/时长/最近排序">⇅</button>
+          <div class="sortMenu hidden" id="sortMenu">
+            <button data-sort="name">按名称 A→Z</button>
+            <button data-sort="dur">按时长（短→长）</button>
+            <button data-sort="recent">按最近播放</button>
+            <button data-sort="none">恢复加入顺序</button>
+          </div>
+        </div>
+        <button class="topBtn" id="btnSelect" style="flex:none">选择</button>
         <button class="topBtn soloOnly" id="btnNewPl" style="flex:none">＋ 新建歌单</button>
       </div>
       <div class="plChips">
@@ -645,6 +685,12 @@
         <button class="topBtn" id="btnXferPause" style="flex:none">暂停</button>
       </div>
       <div class="playlist" id="playlist"></div>
+      <div class="selBar hidden" id="selBar">
+        <span id="selCount">已选 0 首</span>
+        <button class="topBtn" id="selAdd" style="padding:7px 9px">加入一起听</button>
+        <button class="topBtn" id="selDel" style="padding:7px 9px;color:var(--err)">删除</button>
+        <button class="topBtn" id="selCancel" style="padding:7px 9px">取消</button>
+      </div>
       <div class="status" id="txtList"><span class="dot warn blink"></span><span id="txtListText">一起听歌单是空的，去「我的歌曲」点 ＋ 添加</span></div>
       <div class="tip hidden" id="tipFallback">
         点对点直连失败时，歌曲没法自动传送。解决办法：让对方用 <b>微信/QQ</b> 把歌发过来，
@@ -811,7 +857,7 @@
         <input type="text" id="updUrl" class="profName" placeholder="http://10.198.98.86:8080" autocomplete="off" />
         <button class="topBtn" id="btnUpdCheck" style="flex:none">检查</button>
       </div>
-      <div class="updStatus" id="updStatus">只在连上校园网、能连到本机服务器时才会去问；连不上不影响听歌。</div>
+      <div class="updStatus" id="updStatus"><span class="dot" id="updDot"></span><span id="updStatusText">只在连上校园网、能连到本机服务器时才会去问；连不上不影响听歌。</span></div>
       <div class="verLine" id="verLine">一起听</div>
     </div>
   </section>
@@ -3565,6 +3611,8 @@ const APP = {
   chooseFor: "",         // 正在「加到哪个歌单」的那首歌 id
   plQuery: "",           // 歌单搜索词
   plLimit: 120,          // 长歌单分批渲染：当前已渲染到第几首
+  sel: null,             // 批量选择：null=未开，Set=已选歌曲 id
+  lrcSize: "m",          // 歌词字号：s|m|l（持久化）
   plTab: "duet",         // 歌单筛选：duet|lib|all|pls|pl|fav|recent
   reorder: false,        // 歌单排序模式（拖动 / 上下移动）
   sendQueue: [],         // 传歌排队 [{t, pid}]（一次只传一首，不并发）
@@ -3589,7 +3637,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.5.0";
+const APP_VER = "1.6.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3659,6 +3707,18 @@ const UI = {
   btnResume: $("#btnResume"),
   peerStat: $("#peerStat"),
   peerStatText: $("#peerStatText"),
+  peerMark: $("#peerMark"),
+  btnSelect: $("#btnSelect"),
+  selBar: $("#selBar"),
+  selCount: $("#selCount"),
+  selAdd: $("#selAdd"),
+  selDel: $("#selDel"),
+  selCancel: $("#selCancel"),
+  btnSortMenu: $("#btnSortMenu"),
+  sortMenu: $("#sortMenu"),
+  btnLrcSize: $("#btnLrcSize"),
+  updDot: $("#updDot"),
+  updStatusText: $("#updStatusText"),
   offlineTip: $("#offlineTip"),
   offlineText: $("#offlineText"),
   xferBar: $("#xferBar"),
@@ -5467,6 +5527,7 @@ function sendTrackToPeer(t, p) {
     const CH = 128 * 1024;
     const HI = 1024 * 1024, LO = 256 * 1024;
     let lastPct = -1, lastDraw = 0;
+    let spAt = Date.now(), spSent = sent;
     try {
       while (sent < total) {
         /* 手动暂停：停在这里等，通道保持开着，继续时从已发位置接上 */
@@ -5490,7 +5551,16 @@ function sendTrackToPeer(t, p) {
           lastPct = pct;
           lastDraw = now;
           paintTrackPct(t);
+          const st = now - spAt;
+          if (st > 200) {
+            const inst = (sent - spSent) * 1000 / st;
+            APP.xferSpeed = APP.xferSpeed ? APP.xferSpeed * 0.7 + inst * 0.3 : inst;
+            spAt = now;
+            spSent = sent;
+          }
         }
+        /* 记录整体传输进度（给进度条与剩余时间估算用） */
+        APP.xfer = { sent: sent, total: total };
       }
       // 关键：等缓冲真正清空，再发“结束标记”，否则 close() 会丢掉尾部字节
       let guard = 0;
@@ -6684,6 +6754,169 @@ function renderPlaylistIndex(box) {
 }
 
 function renderPlaylist() {
+  renderPlaylistBody();
+  applySelMarks();
+}
+
+/* ---------- 批量选择 ---------- */
+function selOn() { return !!APP.sel; }
+function selToggle(id) {
+  if (!APP.sel || !id) return;
+  if (APP.sel.has(id)) APP.sel.delete(id);
+  else APP.sel.add(id);
+  applySelMarks();
+}
+function applySelMarks() {
+  if (!UI.playlist) return;
+  if (APP.plTab === "pls" && APP.sel) APP.sel = null;   // 歌单列表页没有可选行，自动退出选择模式
+  const on = selOn();
+  if (UI.playlist) UI.playlist.classList.toggle("seling", on);
+  if (UI.selBar) UI.selBar.classList.toggle("hidden", !on);
+  const rows = UI.playlist.querySelectorAll(".plItem");
+  rows.forEach((row) => {
+    const id = row.getAttribute("data-id");
+    const picked = on && APP.sel.has(id);
+    row.classList.toggle("seled", picked);
+    const idx = row.querySelector(".plIdx");
+    if (idx && on) idx.textContent = picked ? "✓" : "";
+  });
+  if (UI.selCount) UI.selCount.textContent = "已选 " + (on ? APP.sel.size : 0) + " 首";
+  if (UI.selAdd) {
+    const canAdd = selOn() && APP.mode === "duet" && APP.plTab === "lib";
+    UI.selAdd.classList.toggle("hidden", !canAdd);
+  }
+  if (UI.btnSelect) {
+    UI.btnSelect.classList.toggle("hidden", APP.plTab === "pls");
+    UI.btnSelect.textContent = on ? "完成" : "选择";
+  }
+}
+function setSel(on) {
+  APP.sel = on ? new Set() : null;
+  if (on) {
+    if (APP.reorder) setReorder(false);
+    APP.plQuery = "";
+    if (UI.plSearch) UI.plSearch.value = "";
+    if (UI.selBar) UI.selBar.classList.remove("hidden");
+    if (UI.selAdd) {
+      UI.selAdd.classList.toggle("hidden", !(APP.mode === "duet" && APP.plTab === "lib"));
+    }
+  }
+  renderPlaylist();
+}
+function selIds() {
+  return selOn() ? Array.from(APP.sel) : [];
+}
+/* 批量删除：按当前界面语义移除（一起听=从共享歌单移除；自建歌单=移出；我的音乐=删记录） */
+function selDelete() {
+  const ids = selIds();
+  if (!ids.length) { hint("先点几首歌选中", 2000); return; }
+  const tab = APP.plTab;
+  if (APP.mode === "duet" && tab !== "lib") {
+    const names = ids.length > 2 ? ids.length + " 首" : ids.map((id) => { const t = findInQueue(id); return t ? "「" + t.name + "」" : ""; }).join("");
+    if (!confirm("把 " + names + " 从一起听歌单移除？（两台设备上都会移除，歌仍留在我的列表里）")) return;
+    const gone = new Set(ids);
+    APP.tracks = APP.tracks.filter((t) => !gone.has(t.id));
+    if (gone.has(APP.curId)) stopCurrentAudio();
+    if (gone.has(APP.pendPlayId)) APP.pendPlayId = "";
+    APP.sel = null;
+    renderPlaylist();
+    syncListCount();
+    opSort();
+    toast("已移除 " + ids.length + " 首");
+    return;
+  }
+  if (!confirm("删除选中的 " + ids.length + " 首歌？本机列表里会一起删掉。")) return;
+  if (APP.mode === "solo" && tab === "pl" && APP.plCur) {
+    const p = APP.pls.find((x) => x.id === APP.plCur);
+    if (p) { const gone = new Set(ids); p.ids = p.ids.filter((id) => !gone.has(id)); savePls(); }
+  } else {
+    const gone = new Set(ids.map((id) => localId(id)));
+    APP.lib = APP.lib.filter((t) => !gone.has(t.id));
+    ids.forEach((id) => dropTrackRec(localId(id)));
+    saveOrder();
+    if (APP.mode === "solo" && gone.has(APP.curId)) stopCurrentAudio();
+  }
+  APP.sel = null;
+  renderPlaylist();
+  toast("已删除 " + ids.length + " 首");
+}
+function selAddToQueue() {
+  const ids = selIds();
+  if (!ids.length) { hint("先点几首歌选中", 2000); return; }
+  let n = 0;
+  ids.forEach((id) => {
+    if (findInQueue(id)) return;
+    const t = findTrack(id) || APP.lib.find((x) => x.id === id);
+    if (!t) return;
+    addToQueue(t.id);
+    n++;
+  });
+  APP.sel = null;
+  renderPlaylist();
+  toast(n ? "已加入 " + n + " 首" : "选中的歌都已经在歌单里");
+}
+/* ---------- 排序 ---------- */
+function sortKeyOf(t) {
+  return {
+    name: String(t.name || ""),
+    dur: Number(t.dur) || 0,
+    recent: (function () {
+      const rank = {};
+      recentKeys().forEach((k, i) => { if (!(k in rank)) rank[k] = i; });
+      const r = rank[trackKey(t)];
+      return r == null ? 9999 : r;
+    })(),
+  };
+}
+function applyPlaylistSort(kind) {
+  if (UI.sortMenu) UI.sortMenu.classList.add("hidden");
+  if (!kind) return;
+  /* 第一次排序前先记住「加入顺序」，用来恢复；只留在内存，重开 App 仍是加入顺序 */
+  if (!APP.libOrig) APP.libOrig = APP.lib.map((t) => t.id);
+  const cmpH = (a, b) => {
+    const ka = sortKeyOf(a), kb = sortKeyOf(b);
+    if (kind === "dur") return ka.dur - kb.dur || ka.name.localeCompare(kb.name, "zh");
+    if (kind === "recent") return ka.recent - kb.recent || ka.name.localeCompare(kb.name, "zh");
+    return ka.name.localeCompare(kb.name, "zh");
+  };
+  if (kind === "none") {
+    const rank = {};
+    (APP.libOrig || []).forEach((id, i) => { rank[id] = i; });
+    const cmpId = (a, b) => (rank[a] == null ? 9999 : rank[a]) - (rank[b] == null ? 9999 : rank[b]);
+    const cmpT = (a, b) => cmpId(a.id, b.id);
+    if (APP.mode === "solo" && APP.plTab === "pl" && APP.plCur) {
+      const p = APP.pls.find((x) => x.id === APP.plCur);
+      if (p) { p.ids.sort(cmpId); savePls(); }
+    } else if (APP.mode === "duet" && APP.plTab !== "lib") {
+      APP.tracks.sort(cmpT);
+      opSort();
+    } else {
+      APP.lib.sort(cmpT);
+    }
+    renderPlaylist();
+    toast("已恢复加入顺序");
+    return;
+  }
+  if (APP.mode === "duet" && APP.plTab !== "lib") {
+    if (!APP.tracks.length) return;
+    APP.tracks.sort(cmpH);
+    renderPlaylist();
+    opSort();
+  } else if (APP.mode === "solo" && APP.plTab === "pl" && APP.plCur) {
+    const p = APP.pls.find((x) => x.id === APP.plCur);
+    if (!p) return;
+    const sorted = plsTracks(p.id).slice().sort(cmpH);
+    p.ids = sorted.map((t) => t.id);
+    savePls();
+    renderPlaylist();
+  } else {
+    APP.lib.sort(cmpH);
+    renderPlaylist();
+  }
+  toast(kind === "dur" ? "已按时长排序" : kind === "recent" ? "已按最近播放排序" : "已按名称排序");
+}
+
+function renderPlaylistBody() {
   syncListCount();
   const box = UI.playlist;
   const q = String(APP.plQuery || "").trim();
@@ -7008,8 +7241,24 @@ function sendLrcToPeer(p) {
 
 /* 歌词偏移：正数让歌词延后，负数让歌词提前（只影响本机显示，不改变音频） */
 const LRC_OFF_KEY = "duet_lrcOff_v1";
+const LRC_SIZE_KEY = "duet_lrcsize_v1";
 APP.lrcOff = 0;
 try { APP.lrcOff = clamp(Number(JSON.parse(localStorage.getItem(LRC_OFF_KEY) || "0")) || 0, -5, 5); } catch (e) {}
+try { const v = localStorage.getItem(LRC_SIZE_KEY); if (v === "s" || v === "m" || v === "l") APP.lrcSize = v; } catch (e) {}
+function applyLrcSize() {
+  if (UI.lyrics) {
+    UI.lyrics.classList.remove("lyrS", "lyrL");
+    if (APP.lrcSize === "s") UI.lyrics.classList.add("lyrS");
+    else if (APP.lrcSize === "l") UI.lyrics.classList.add("lyrL");
+  }
+  if (UI.btnLrcSize) UI.btnLrcSize.textContent = "字号 " + ({ s: "小", m: "中", l: "大" }[APP.lrcSize] || "中");
+}
+function cycleLrcSize() {
+  APP.lrcSize = APP.lrcSize === "s" ? "m" : APP.lrcSize === "m" ? "l" : "s";
+  try { localStorage.setItem(LRC_SIZE_KEY, APP.lrcSize); } catch (e) {}
+  applyLrcSize();
+  updateLyric(true);
+}
 
 function renderLrcOff() {
   const el = $("#lrcOff");
@@ -7040,7 +7289,7 @@ function renderLyrics() {
   }
   if (lines) {
     UI.lyrics.innerHTML = lines.map((l, i) =>
-      '<div class="lyrLine" data-i="' + i + '"><span class="lyrFill">' + esc(l.text) + "</span></div>").join("");
+      '<div class="lyrLine" data-i="' + i + '" title="点一下跳到这句"><span class="lyrFill">' + esc(l.text) + "</span></div>").join("");
     show(UI.lyrics, true);
     const tools = $("#lrcTools");
     if (tools) show(tools, true);
@@ -7742,7 +7991,7 @@ function applyStageColor(url) {
 function bindPlayerGestures(el, isStage) {
   if (!el) return;
   let sx = 0, sy = 0, t0 = 0, moved = false, holdTimer = null, holding = false;
-  let volStart = 100, lastTap = 0, tapTimer = null;
+  let volStart = 100, lastTap = 0, tapTimer = null, swipe = 0;
   const skip = (t) => {
     if (!t || !t.closest) return false;
     if (t.closest("input,textarea,select")) return true;
@@ -7753,7 +8002,7 @@ function bindPlayerGestures(el, isStage) {
     if (e.touches.length !== 1 || skip(e.target)) return;
     const tc = e.touches[0];
     sx = tc.clientX; sy = tc.clientY;
-    t0 = Date.now(); moved = false; holding = false;
+    t0 = Date.now(); moved = false; holding = false; swipe = 0;
     volStart = Number((UI.vol && UI.vol.value) || 100);
     clearTimeout(holdTimer);
     const holdZone = isStage ? e.target.closest(".stageCoverBox") : e.target.closest("#coverBox");
@@ -7775,6 +8024,12 @@ function bindPlayerGestures(el, isStage) {
       clearTimeout(holdTimer);
     }
     if (!moved) return;
+    /* 全屏播放页：横向滑动切歌（和双击左右一样，但更顺手） */
+    if (isStage && swipe === 0 && Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      swipe = dx < 0 ? 1 : -1;
+      try { e.preventDefault(); } catch (err) {}
+      return;
+    }
     if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx) * 1.4) {
       const h = Math.max(240, window.innerHeight || 600);   // 按屏幕高度算，小区域滑动也不会太灵敏
       const next = Math.round(Math.max(0, Math.min(100, volStart - dy / h * 100)));
@@ -7791,6 +8046,7 @@ function bindPlayerGestures(el, isStage) {
     APP._tapGuard = Date.now();
     if (holding) { holding = false; holdSpeed2x(false); return; }
     if (moved) {
+      if (swipe) { stepTrack(swipe); hint(swipe > 0 ? "下一首" : "上一首", 900); return; }
       if (UI.vol) hint("音量 " + Math.round(Number(UI.vol.value) || 0) + "%", 1200);
       return;
     }
@@ -8645,12 +8901,22 @@ function pingStat() {
   } catch (e) {}
 }
 
+/* 进度条上标出对方听到的位置（绿点），没对方/不同歌时隐藏 */
+function updatePeerMark(frac) {
+  const el = UI.peerMark;
+  if (!el) return;
+  if (frac == null || !isFinite(frac) || frac < 0 || frac > 1) { el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  el.style.left = (frac * 100).toFixed(2) + "%";
+}
+
 /* 把对方的播放状态显示出来：正常时不打扰，只提示缓冲/卡住/不同步 */
 function renderPeerStat() {
   const box = UI.peerStat, txt = UI.peerStatText;
   if (!box || !txt) return;
+  let frac = null;
   const ids = Object.keys(APP.peers).filter((id) => APP.peers[id] && !APP.peers[id].closing);
-  if (!ids.length) { box.classList.add("hidden"); return; }
+  if (!ids.length) { box.classList.add("hidden"); updatePeerMark(null); return; }
   const now = Date.now();
   const stuck = ids.find((id) => {
     const s = APP.peerStat[id];
@@ -8693,9 +8959,11 @@ function renderPeerStat() {
       pos = Math.max(0, Math.min(pos, s.dur));
       msg = (s.st === "playing" ? "对方正在听 " : "对方停在 ") +
         fmtTime(pos) + " / " + fmtTime(s.dur);
+      if (s.dur > 0) frac = pos / s.dur;
     }
   }
   box.classList.toggle("info", !msg || msg.indexOf("对方正在听") === 0 || msg.indexOf("对方停在") === 0);
+  updatePeerMark(frac);
   if (!msg) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
   txt.textContent = msg;
@@ -8726,7 +8994,7 @@ function renderXferBar() {
   if (!UI.xferBar) return;
   const active = !!(APP.room && (APP.sending || APP.sendQueue.length));
   UI.xferBar.classList.toggle("hidden", !active);
-  if (!active) return;
+  if (!active) { APP.xfer = null; APP.xferSpeed = 0; return; }
   let text = "";
   if (APP.sending && APP.curSend && APP.curSend.t) {
     const t = APP.curSend.t;
@@ -8736,6 +9004,23 @@ function renderXferBar() {
     text = "已暂停 · 排队中 " + APP.sendQueue.length + " 首";
   } else {
     text = "排队中 " + APP.sendQueue.length + " 首";
+  }
+  /* 整体进度 + 剩余时间估算（按最近传输速度算） */
+  if (APP.sending && APP.curSend && APP.curSend.t && APP.xfer && APP.xfer.total > 0) {
+    let rest = 0;
+    APP.sendQueue.forEach((j) => {
+      if (!j || !j.t || !j.t.blob) return;
+      if (!j.t.sentTo || !j.t.sentTo[j.pid]) rest += j.t.blob.size;
+    });
+    const totalAll = APP.xfer.total + rest;
+    const sentAll = Math.max(0, Math.min(APP.xfer.sent, totalAll));
+    const pctAll = Math.round((sentAll / totalAll) * 100);
+    text += " · 共 " + pctAll + "%";
+    const sp = Number(APP.xferSpeed) || 0;
+    if (!APP.sendPaused && sp > 1024) {
+      const left = (totalAll - sentAll) / sp;
+      if (left >= 1) text += " · 约 " + fmtTime(left) + " 后传完";
+    }
   }
   if (UI.xferText) UI.xferText.textContent = text;
   if (UI.btnXferPause) UI.btnXferPause.textContent = APP.sendPaused ? "继续" : "暂停";
@@ -9217,6 +9502,13 @@ UI.playlist.addEventListener("click", (e) => {
   const moreEl = e.target.closest('[data-act="more"]');
   if (moreEl) { APP.plLimit = (APP.plLimit || 120) + 120; renderPlaylist(); return; }
 
+  /* 批量选择模式：点整行就是勾选/取消，不播放 */
+  if (selOn()) {
+    const selItem = e.target.closest(".plItem");
+    if (selItem) { selToggle(selItem.getAttribute("data-id")); return; }
+    return;
+  }
+
   if (e.target.closest('[data-act="addall"]')) { addAllToQueue(); return; }
 
   const item = e.target.closest(".plItem");
@@ -9277,6 +9569,56 @@ $("#btnNext").onclick = () => stepTrack(1);
 $("#btnShuffle").onclick = toggleShuffle;
 $("#btnRepeat").onclick = toggleRepeat;
 $("#btnReorder").onclick = () => setReorder(!APP.reorder);
+/* 批量选择 / 排序菜单 */
+if (UI.btnSelect) UI.btnSelect.onclick = () => setSel(!selOn());
+if (UI.selCancel) UI.selCancel.onclick = () => setSel(false);
+if (UI.selDel) UI.selDel.onclick = selDelete;
+if (UI.selAdd) UI.selAdd.onclick = selAddToQueue;
+if (UI.btnSortMenu) UI.btnSortMenu.onclick = (e) => { e.stopPropagation(); UI.sortMenu.classList.toggle("hidden"); };
+if (UI.sortMenu) {
+  UI.sortMenu.querySelectorAll("button[data-sort]").forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); applyPlaylistSort(b.getAttribute("data-sort")); };
+  });
+}
+document.addEventListener("click", (e) => {
+  if (!UI.sortMenu || UI.sortMenu.classList.contains("hidden")) return;
+  if (UI.sortMenu.contains(e.target) || (UI.btnSortMenu && UI.btnSortMenu.contains(e.target))) return;
+  UI.sortMenu.classList.add("hidden");
+});
+/* 桌面网页快捷键：空格播放/暂停，← → 切歌，↑ ↓ 音量 */
+document.addEventListener("keydown", (e) => {
+  if (!APP.mode) return;
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.code === "Space") { e.preventDefault(); UI.btnPlay.click(); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); stepTrack(1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); stepTrack(-1); }
+  else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    e.preventDefault();
+    const el = $("#vol");
+    if (!el) return;
+    const next = Math.max(0, Math.min(100, Number(el.value) + (e.key === "ArrowUp" ? 5 : -5)));
+    el.value = next;
+    el.dispatchEvent(new Event("input"));
+    hint("音量 " + next + "%", 1200);
+  }
+});
+/* 点歌词跳到那句 */
+if (UI.lyrics) UI.lyrics.onclick = (e) => {
+  const row = e.target.closest(".lyrLine");
+  if (!row) return;
+  const i = Number(row.getAttribute("data-i"));
+  const t = findTrack(APP.curId);
+  if (!t || !Array.isArray(t.lrc) || !t.lrc[i]) return;
+  if (!audio.src || !isFinite(audio.duration) || audio.duration <= 0) return;
+  APP.localIntentTs = Date.now();
+  audio.currentTime = Math.max(0, Math.min(audio.duration, t.lrc[i].t + (APP.lrcOff || 0)));
+  updateLyric(true);
+  onLocalAction();
+};
+if (UI.btnLrcSize) UI.btnLrcSize.onclick = cycleLrcSize;
+applyLrcSize();
 /* 搜索：250ms 防抖，避免每敲一个字都把上百行重画一遍 */
 if (UI.plSearch) {
   let _plQTimer = null;
@@ -9891,9 +10233,17 @@ function saveUpdCfg() {
     localStorage.setItem(UPD_AUTO_KEY, APP.updAuto ? "1" : "0");
   } catch (e) {}
 }
-function setUpdStatus(msg) {
-  if (UI.updStatus) UI.updStatus.textContent = msg;
+function updStamp() {
+  try { return " · " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }); }
+  catch (e) { return ""; }
+}
+function setUpdStatus(msg, state) {
+  if (UI.updStatusText) UI.updStatusText.textContent = msg;
   if (UI.updSheetStatus) UI.updSheetStatus.textContent = msg;
+  if (UI.updDot) {
+    UI.updDot.className = "dot" + (state ? " " + state : "");
+    UI.updDot.classList.toggle("blink", state === "warn");
+  }
 }
 function renderUpdSettings() {
   if (UI.updUrl) UI.updUrl.value = APP.updBase;
@@ -9926,26 +10276,26 @@ async function checkNativeUpdate(manual) {
     return false;
   }
   const base = normUpdBase(UI.updUrl ? UI.updUrl.value : APP.updBase);
-  if (!base) { if (manual) setUpdStatus("请先填写本机服务器地址"); return false; }
+  if (!base) { if (manual) setUpdStatus("请先填写本机服务器地址", "warn"); return false; }
   if (APP.updBusy) return false;
   APP.updBusy = true;
-  if (manual) setUpdStatus("正在连接 " + base + " …");
+  if (manual) setUpdStatus("正在连接 " + base + " …", "warn");
   try {
     const r = await plugin.check({ base: base, timeout: 4000 });
     APP.updLastCheck = Date.now();
     if (!r || !r.ok) {
-      if (manual) setUpdStatus("连不上本机服务器：" + ((r && r.message) || "校园网不可达"));
+      setUpdStatus("连不上本机服务器，暂不更新（不影响听歌）" + updStamp(), "err");
       return false;
     }
     if (!r.hasUpdate) {
-      if (manual) setUpdStatus("已是最新版本 v" + (r.currentVersion || APP_VER));
+      setUpdStatus("服务器已连上 · 已是最新版本 v" + (r.currentVersion || APP_VER) + updStamp(), "ok");
       return false;
     }
     showUpdateSheet(r);
-    setUpdStatus("发现新版本 v" + r.latestVersion);
+    setUpdStatus("发现新版本 v" + r.latestVersion + updStamp(), "ok");
     return true;
   } catch (e) {
-    if (manual) setUpdStatus("检查失败：" + ((e && e.message) || e));
+    setUpdStatus("检查失败：" + ((e && e.message) || e) + updStamp(), "err");
     return false;
   } finally {
     APP.updBusy = false;
@@ -9976,11 +10326,11 @@ async function startNativeUpdate() {
       });
     }
     const d = await plugin.download({ url: url, size: r.size || 0, sha256: r.sha256 || "" });
-    if (d && d.status === "needPermission") setUpdStatus("请允许「安装未知应用」，然后回来再点一次「立即更新」");
-    else if (d && d.ok) setUpdStatus("下载完成，正在打开系统安装器…");
-    else setUpdStatus("更新失败：" + ((d && d.message) || "未知错误"));
+    if (d && d.status === "needPermission") setUpdStatus("请允许「安装未知应用」，然后回来再点一次「立即更新」", "warn");
+    else if (d && d.ok) setUpdStatus("下载完成，正在打开系统安装器…", "ok");
+    else setUpdStatus("更新失败：" + ((d && d.message) || "未知错误"), "err");
   } catch (e) {
-    setUpdStatus("更新失败：" + ((e && e.message) || e));
+    setUpdStatus("更新失败：" + ((e && e.message) || e), "err");
   } finally {
     APP.updBusy = false;
     if (UI.updNow) UI.updNow.disabled = false;
@@ -10017,13 +10367,13 @@ async function checkUpdate(force) {
     if (!m) return false;
     if (cmpVer(m[1], APP_VER) > 0) {
       showUpdateTip(m[1]);
-      if (force) setUpdStatus("网页版有新版本 v" + m[1] + "，点顶部提示刷新");
+      if (force) setUpdStatus("网页版有新版本 v" + m[1] + "，点顶部提示刷新" + updStamp(), "warn");
       return true;
     }
-    if (force) setUpdStatus("网页版已是最新版本 v" + APP_VER);
+    if (force) setUpdStatus("网页版已是最新版本 v" + APP_VER + updStamp(), "ok");
     return false;
   } catch (e) {
-    if (force) setUpdStatus("检查失败：" + ((e && e.message) || e));
+    if (force) setUpdStatus("检查失败：" + ((e && e.message) || e) + updStamp(), "err");
     return false;
   }
 }
