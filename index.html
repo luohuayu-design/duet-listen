@@ -141,6 +141,26 @@
            background:rgba(var(--accentRgb),.1);border:1px solid rgba(var(--accentRgb),.3)}
   .xferBar > span{flex:1;min-width:0;font-size:12px;color:var(--sub);white-space:nowrap;
                   overflow:hidden;text-overflow:ellipsis}
+  .xferList{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+  .xferItem{padding:7px 9px;border:1px solid var(--line);border-radius:10px;background:var(--card2)}
+  .xiTop{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
+  .xiTop b{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .xiTop > span{flex:none;color:var(--sub)}
+  .xiBar{height:4px;border-radius:4px;background:#2a2c3a;margin-top:6px;overflow:hidden}
+  .xiBar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));
+             transition:width .25s}
+  .togetherChip{flex:none;font-size:11px;padding:2px 8px;border-radius:8px;cursor:pointer;white-space:nowrap;
+                background:rgba(var(--accentRgb),.16);color:var(--fg);border:1px solid rgba(var(--accentRgb),.35)}
+  .listenCard{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+  .listenNums{display:flex;gap:8px;text-align:center}
+  .listenNums > div{flex:1;min-width:0}
+  .listenNums b{display:block;font-size:15px}
+  .listenNums span{font-size:11px;color:var(--sub)}
+  .badgeRow{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .badgeChip{font-size:11px;padding:2px 7px;border-radius:8px;border:1px solid var(--line);
+             color:var(--sub);background:transparent;opacity:.55}
+  .badgeChip.on{opacity:1;color:var(--fg);border-color:var(--accent);background:rgba(var(--accentRgb),.22)}
+  .sharePreview img{width:100%;border-radius:14px;border:1px solid var(--line);display:block}
   .chatPeek{display:flex;gap:8px;align-items:flex-start;margin:2px 0 10px;cursor:pointer}
   .chatPeek:active{opacity:.8}
   .cpLabel{flex:none;font-size:11px;padding:2px 7px;border-radius:7px;background:var(--card2);color:var(--sub)}
@@ -746,6 +766,7 @@
     <div class="whoRow duetOnly" id="whoRow">
       <div class="whoItem"><img class="avatar" id="meAvatar" alt="" /><span id="meName">我</span></div>
       <span class="whoCount" id="whoCount">1/4</span>
+      <span class="togetherChip hidden" id="togetherChip">🕒 一起听 0 分</span>
       <div class="whoPeers" id="whoPeers"></div>
     </div>
     <div class="heroRow">
@@ -845,6 +866,7 @@
       <p><b>11. 限制</b>：音量各自独立；聊天记录只保存在本机；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
       <p><b>12. 外观自定义</b>：设置里点「外观自定义」，可以调全局字号（小/标准/大/特大）、强调色（含自定义取色）、歌单列表密度、播放器封面形状（方形/圆角/圆形/唱片）；还能设定「几点到几点用深色」自动切换，以及长按/切歌/按钮操作的触感反馈开关。主界面新增快捷入口栏，可勾选显示哪些按钮、用 ↑ ↓ 调整顺序。所有设置只保存在本机。</p>
       <p><b>13. 性能与平台</b>：设置页新增「存储用量」，分别显示设置与歌单、浏览器存储、音频副本、封面缓存、接收缓存的占用，可一键清理封面和接收缓存（不会删你的歌曲文件）。几百上千首的超长歌单改用虚拟滚动，只渲染当前看得见的部分，滚动更顺、不再卡顿。<b>启动时先显示骨架屏</b>，歌单在后台异步恢复，打开更快。网络变差（延迟高或 2G）时，播放页会出现提示，并自动降低封面和歌词的加载频率，网络恢复后自动恢复。浏览器的锁屏 / 通知栏会显示歌名、歌手、封面和播放进度，并支持快退 / 快进 10 秒。</p>
+      <p><b>14. 记录与分享</b>：一起听时顶栏会显示本次已一起听的时长，点它或成员行可以看到「本次 / 累计 / 连续天数 / 一起听次数」，听满 1 小时、10 小时、100 小时或连续 3 / 7 / 30 天会点亮对应徽章（只记在本机）。传歌时点「队列」可以看到每首歌的发送、接收和续传进度，断线重连会从断点接着传，失败的歌可以点「重试」。播放队列里点「分享卡片」会生成一张歌单图片，可保存或调用系统分享发给朋友。</p>
     </details>
   </section>
 
@@ -938,7 +960,9 @@
       <div class="xferBar hidden" id="xferBar">
         <span id="xferText">正在传…</span>
         <button class="topBtn" id="btnXferPause" style="flex:none">暂停</button>
+        <button class="topBtn" id="btnXferMore" style="flex:none">队列</button>
       </div>
+      <div class="xferList hidden" id="xferList"></div>
       <div class="playlist" id="playlist"></div>
       <div class="selBar hidden" id="selBar">
         <span id="selCount">已选 0 首</span>
@@ -995,6 +1019,7 @@
       <button class="topBtn" id="closeMembers">收起</button>
     </div>
     <div class="sheetBody">
+      <div class="listenCard" id="listenCard"></div>
       <div class="memList" id="memList"></div>
       <div class="memTip" id="memTip">房间里最多 4 人；房主可以把房主移交给其他人。</div>
     </div>
@@ -1013,6 +1038,7 @@
     <div class="sheetHandle"></div>
     <div class="sheetHead">
       <div class="sheetTitle">播放队列 <span class="tag" id="queueCount"></span></div>
+      <button class="topBtn" id="btnShareCard">分享卡片</button>
       <button class="topBtn" id="closeQueue">收起</button>
     </div>
     <div class="sheetBody">
@@ -1020,6 +1046,21 @@
         <button class="btn" id="queueClear" style="padding:11px;font-size:13.5px">清空后面的歌</button>
       </div>
       <div class="playlist" id="queueList"></div>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetShare">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">分享卡片</div>
+      <button class="topBtn" id="closeShare">收起</button>
+    </div>
+    <div class="sheetBody">
+      <div class="sharePreview"><img id="shareImg" alt="歌单分享卡片" /></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="shareSave">保存 / 分享</button>
+      </div>
+      <div class="tip" style="margin-top:10px">安卓 App 里若不能直接保存，可以长按上面的图片存到相册。</div>
     </div>
   </section>
 
@@ -4084,6 +4125,12 @@ const APP = {
   sending: false,        // 当前是否正在传某一首
   sendPaused: false,     // 手动暂停传歌（当前这首歌停在中途，继续时接着传）
   curSend: null,         // 当前正在传的 {t, pid}，用于歌单里的传输进度条
+  xferOpen: false,       // 传歌队列是否展开
+  shareCard: "",         // 最近生成的歌单分享卡片（dataURL）
+  tg: { total: 0, streak: 0, last: "", days: {}, sessions: 0 },  // 一起听累计统计（本机）
+  tgSession: 0,          // 本次一起听秒数
+  tgRoom: "",            // 已经计过次数/重置计时的房间
+  tgSavedAt: 0,          // 上次写入统计的时间
   sleepEnd: 0,           // 睡眠定时：到这个时间戳自动暂停
   sleepMin: 0,           // 当前选的定时分钟数（0 = 关）
   speed: 1,              // 倍速播放（两端同步，持久化）
@@ -4104,7 +4151,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.15.0";
+const APP_VER = "1.16.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -4179,6 +4226,12 @@ const UI = {
   queueList: $("#queueList"),
   queueCount: $("#queueCount"),
   queueClear: $("#queueClear"),
+  sheetShare: $("#sheetShare"),
+  shareImg: $("#shareImg"),
+  btnShareCard: $("#btnShareCard"),
+  shareSave: $("#shareSave"),
+  togetherChip: $("#togetherChip"),
+  listenCard: $("#listenCard"),
   sheetLrc: $("#sheetLrc"),
   fadeChips: $("#fadeChips"),
   chatQuick: $("#chatQuick"),
@@ -4207,6 +4260,8 @@ const UI = {
   xferBar: $("#xferBar"),
   xferText: $("#xferText"),
   btnXferPause: $("#btnXferPause"),
+  btnXferMore: $("#btnXferMore"),
+  xferList: $("#xferList"),
   chatPeek: $("#chatPeek"),
   chatPeekList: $("#chatPeekList"),
   themeChips: $("#themeChips"),
@@ -4383,6 +4438,10 @@ function dropRoom() {
   APP.sending = false;
   APP.sendPaused = false;
   APP.curSend = null;
+  APP.xferOpen = false;
+  APP.tgRoom = "";
+  APP.tgSession = 0;
+  try { tgSave(); } catch (e) {}
   APP.hadPeer = false;
   APP.offlineSince = 0;
   APP.chatRecent = [];
@@ -4559,8 +4618,121 @@ function renderMembers() {
       (r.online ? "在线" : "连接中") + ' · <span class="memLat">' + lat + "</span></div></div>" +
       btn + "</div>";
   }).join("");
+  renderTogetherCard();
 }
 function openMembers() { renderMembers(); openSheet("members"); }
+
+/* ===== 一起听计时 / 连续听歌徽章（只在本机累计，跨房间保留） ===== */
+const TOG_KEY = "duet_together_v1";
+function tgDay(ts) {
+  const d = new Date(ts || Date.now());
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function tgLoad() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(TOG_KEY) || "null"); } catch (e) {}
+  if (!o || typeof o !== "object") return;
+  const num = (v) => (typeof v === "number" && isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+  APP.tg.total = num(o.total);
+  APP.tg.streak = num(o.streak);
+  APP.tg.sessions = num(o.sessions);
+  if (typeof o.last === "string") APP.tg.last = o.last;
+  if (o.days && typeof o.days === "object") {
+    const out = {};
+    Object.keys(o.days).forEach((k) => {
+      const v = num(o.days[k]);
+      if (v > 0) out[k] = v;
+    });
+    APP.tg.days = out;
+  }
+}
+function tgSave() {
+  try {
+    const days = APP.tg.days || {};
+    const keys = Object.keys(days).sort();
+    if (keys.length > 120) keys.slice(0, keys.length - 120).forEach((k) => { delete days[k]; });
+    APP.tgSavedAt = Date.now();
+    localStorage.setItem(TOG_KEY, JSON.stringify({
+      total: APP.tg.total || 0, streak: APP.tg.streak || 0, last: APP.tg.last || "",
+      days: days, sessions: APP.tg.sessions || 0,
+    }));
+  } catch (e) {}
+}
+function tgEnsureToday() {
+  const today = tgDay();
+  if (APP.tg.last === today) return;
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  APP.tg.streak = APP.tg.last === tgDay(y) ? (APP.tg.streak || 0) + 1 : 1;
+  APP.tg.last = today;
+}
+function tgNewSession() {
+  if (!APP.room || APP.mode !== "duet") return;
+  if (APP.tgRoom === APP.room) return;
+  APP.tgRoom = APP.room;
+  APP.tgSession = 0;
+  APP.tg.sessions = (APP.tg.sessions || 0) + 1;
+  tgSave();
+}
+function fmtTogether(sec) {
+  sec = Math.max(0, Math.floor(sec || 0));
+  if (sec < 60) return sec + " 秒";
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return h ? h + " 小时" + (m ? " " + m + " 分" : "") : m + " 分";
+}
+function tgBadges() {
+  const t = APP.tg || {};
+  const st = t.streak || 0;
+  return [
+    { n: "首听", on: (t.total || 0) >= 60 },
+    { n: "1 小时", on: (t.total || 0) >= 3600 },
+    { n: "10 小时", on: (t.total || 0) >= 36000 },
+    { n: "100 小时", on: (t.total || 0) >= 360000 },
+    { n: "连续 3 天", on: st >= 3 },
+    { n: "连续 7 天", on: st >= 7 },
+    { n: "连续 30 天", on: st >= 30 },
+  ];
+}
+function renderTogetherChip() {
+  if (!UI.togetherChip) return;
+  const inRoom = !!(APP.room && APP.mode === "duet");
+  UI.togetherChip.classList.toggle("hidden", !inRoom);
+  if (!inRoom) return;
+  UI.togetherChip.textContent = "🕒 一起听 " + fmtTogether(APP.tgSession);
+}
+function renderTogetherCard() {
+  if (!UI.listenCard) return;
+  if (APP.mode !== "duet") { UI.listenCard.classList.add("hidden"); return; }
+  UI.listenCard.classList.remove("hidden");
+  const badges = tgBadges().map((x) =>
+    '<span class="badgeChip' + (x.on ? " on" : "") + '">' + x.n + "</span>").join("");
+  UI.listenCard.innerHTML =
+    '<div class="listenNums">' +
+      "<div><b>" + fmtTogether(APP.tgSession) + "</b><span>本次一起听</span></div>" +
+      "<div><b>" + fmtTogether(APP.tg.total) + "</b><span>累计时长</span></div>" +
+      "<div><b>" + (APP.tg.streak || 0) + " 天</b><span>连续听歌</span></div>" +
+      "<div><b>" + (APP.tg.sessions || 0) + " 次</b><span>一起听次数</span></div>" +
+    "</div><div class=\"badgeRow\">" + badges + "</div>";
+}
+function tgTick() {
+  if (UI.togetherChip) UI.togetherChip.classList.toggle("hidden", !(APP.room && APP.mode === "duet"));
+  const on = !!(APP.room && APP.mode === "duet" && !audio.paused && !audio.ended &&
+    document.visibilityState === "visible");
+  if (!on) { renderTogetherChip(); return; }
+  tgEnsureToday();
+  APP.tgSession = (APP.tgSession || 0) + 1;
+  APP.tg.total = (APP.tg.total || 0) + 1;
+  const k = tgDay();
+  APP.tg.days[k] = (APP.tg.days[k] || 0) + 1;
+  if (Date.now() - (APP.tgSavedAt || 0) > 15000) tgSave();
+  renderTogetherChip();
+}
+tgLoad();
+setInterval(tgTick, 1000);
+window.addEventListener("pagehide", () => { try { tgSave(); } catch (e) {} });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") { try { tgSave(); } catch (e) {} }
+});
 function transferHost(id) {
   if (APP.hostId !== APP.me || !id || id === APP.me || !APP.peers[id]) return;
   const nm = nameOf(id);
@@ -4791,6 +4963,7 @@ function openSheet(which) {
     : which === "diag" ? UI.sheetDiag
     : which === "info" ? UI.sheetInfo
     : which === "queue" ? UI.sheetQueue
+    : which === "share" ? UI.sheetShare
     : which === "lrc" ? UI.sheetLrc
     : which === "choose" ? UI.sheetChoose
     : UI.sheetList;
@@ -4822,6 +4995,7 @@ function closeSheets() {
   if (UI.sheetDiag) UI.sheetDiag.classList.remove("on");
   if (UI.sheetInfo) UI.sheetInfo.classList.remove("on");
   if (UI.sheetQueue) UI.sheetQueue.classList.remove("on");
+  if (UI.sheetShare) UI.sheetShare.classList.remove("on");
   if (UI.sheetLrc) UI.sheetLrc.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
@@ -5096,6 +5270,7 @@ function enterList() {
   UI.topRoomCode.textContent = APP.room || "------";
   renderWho();
   renderPlaylist();
+  tgNewSession();
 }
 
 /* ===== 多人房间的基础设施 ===== */
@@ -6027,6 +6202,7 @@ function queueTrackSend(t, pid) {
   if (t.sentTo[pid]) return;
   if (APP.sendQueue.some((j) => j.t === t && j.pid === pid)) return;
   APP.sendQueue.push({ t: t, pid: pid });
+  t.fail = false;
   pumpSendQueue();
   renderXferBar();
 }
@@ -6049,6 +6225,7 @@ function pumpSendQueue() {
       return;
     }
     APP.sendQueue.shift();
+    job.t.fail = false;
     APP.sending = true;
     APP.curSend = { t: job.t, pid: p.id };
     renderXferBar();
@@ -6115,12 +6292,14 @@ function sendTrackToPeer(t, p) {
       t.state = "local";
       t.pct = 0;
       t.retry = 0;
+      t.fail = false;
       if (!t.sentTo) t.sentTo = {};
       t.sentTo[p.id] = true;
     } else {
       /* 传了一半断掉：只补这一首（最多 5 回），不重传整个歌单 */
       t.state = "waiting";
       t.pct = 0;
+      t.fail = true;
       t.retry = (t.retry || 0) + 1;
       const retry = t.retry;
       if (retry <= 5) {
@@ -6242,6 +6421,7 @@ function receiveTrackChannel(dc, trackId, p) {
     const pct = total ? Math.round((received / total) * 100) : 0;
     t.state = "recv";
     t.pct = pct;
+    if (received > 0) t.resume = true;
     /* 每 128KB 一块就整表重绘会让界面发卡，这里只改这一行，并按时间节流 */
     const now = Date.now();
     if (pct === lastPct && now - lastDraw < 300) return t;
@@ -6302,6 +6482,8 @@ function receiveTrackChannel(dc, trackId, p) {
     t.state = "local";
     t.pct = 0;
     t.synthetic = false;
+    t.resume = false;
+    t.fail = false;
     // 对方先发过歌词的话，文件到了就能用
     if (!t.lrc && APP.lrcCache[trackId]) t.lrc = parseLrc(APP.lrcCache[trackId]);
     // 收到的歌也存进「我的列表」，下次不用再传
@@ -7493,6 +7675,217 @@ function renderQueue() {
 function openQueue() {
   renderQueue();
   openSheet("queue");
+}
+
+/* ===================== 歌单分享图片卡片 ===================== */
+function shareCardList() {
+  const list = APP.mode === "duet" ? (APP.tracks || []) : activeTracks();
+  return (list || []).filter(Boolean).slice(0, 8);
+}
+function shareEllipsis(ctx, text, maxW) {
+  let s = String(text == null ? "" : text);
+  if (ctx.measureText(s).width <= maxW) return s;
+  while (s.length > 1 && ctx.measureText(s + "…").width > maxW) s = s.slice(0, -1);
+  return s + "…";
+}
+function shareRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function shareLoadCover(url) {
+  return new Promise((res) => {
+    if (!url) return res(null);
+    const img = new Image();
+    let done = false;
+    const fin = (v) => { if (!done) { done = true; res(v); } };
+    if (/^https?:/i.test(url)) img.crossOrigin = "anonymous";
+    img.onload = () => fin(img);
+    img.onerror = () => fin(null);
+    try { img.src = url; } catch (e) { fin(null); }
+    setTimeout(() => fin(null), 1500);
+  });
+}
+async function buildShareCard() {
+  const W = 1080, H = 1440, PAD = 80;
+  const duet = APP.mode === "duet";
+  const list = shareCardList();
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  let a1 = "#5b8cff", a2 = "#8a6bff";
+  try { const a = lookAccent(); if (a) { a1 = a.c; a2 = a.c2; } } catch (e) {}
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#14161f");
+  bg.addColorStop(.55, "#1b1e2b");
+  bg.addColorStop(1, "#101119");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W * .2, 0, 0, W * .2, 0, W * .95);
+  glow.addColorStop(0, a1 + "59");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  shareRoundRect(ctx, 48, 64, W - 96, H - 128, 44);
+  ctx.fillStyle = "rgba(255,255,255,.055)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.1)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  /* 顶部：标签 + 标题 + 元信息，右侧封面 */
+  const coverSize = 230, coverX = W - PAD - coverSize, coverY = 120;
+  shareRoundRect(ctx, PAD, 128, 168, 48, 24);
+  const pill = ctx.createLinearGradient(PAD, 0, PAD + 168, 0);
+  pill.addColorStop(0, a1);
+  pill.addColorStop(1, a2);
+  ctx.fillStyle = pill;
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "600 24px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(duet ? "一起听" : "我的歌单", PAD + 84, 160);
+  ctx.textAlign = "left";
+
+  ctx.fillStyle = "#f2f3fa";
+  ctx.font = "700 62px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+  ctx.fillText(shareEllipsis(ctx, duet ? "一起听 · 歌单" : "我的歌单", W - PAD * 2 - coverSize - 28), PAD, 268);
+
+  ctx.fillStyle = "#a7adc4";
+  ctx.font = "400 28px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+  const meta = [];
+  if (duet && APP.room) meta.push("房间 " + APP.room);
+  meta.push(memberCount() + " 人");
+  meta.push(list.length ? "共 " + (APP.mode === "duet" ? APP.tracks.length : list.length) + " 首" : "空歌单");
+  ctx.fillText(meta.join(" · "), PAD, 322);
+  const d = new Date();
+  ctx.fillStyle = "#7f869e";
+  ctx.font = "400 24px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+  ctx.fillText("生成于 " + d.getFullYear() + "." + String(d.getMonth() + 1).padStart(2, "0") + "." +
+    String(d.getDate()).padStart(2, "0"), PAD, 370);
+
+  /* 首曲封面（拿不到就跳过，不影响导出） */
+  const img = await shareLoadCover(list[0] && list[0].coverUrl);
+  if (img) {
+    const s = Math.max(coverSize / img.width, coverSize / img.height);
+    const dw = img.width * s, dh = img.height * s;
+    ctx.save();
+    shareRoundRect(ctx, coverX, coverY, coverSize, coverSize, 28);
+    ctx.clip();
+    ctx.drawImage(img, coverX + (coverSize - dw) / 2, coverY + (coverSize - dh) / 2, dw, dh);
+    ctx.restore();
+    ctx.strokeStyle = "rgba(255,255,255,.14)";
+    ctx.lineWidth = 2;
+    shareRoundRect(ctx, coverX, coverY, coverSize, coverSize, 28);
+    ctx.stroke();
+  }
+
+  /* 分隔线 + 列表标题 */
+  ctx.strokeStyle = "rgba(255,255,255,.1)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(PAD, 438);
+  ctx.lineTo(W - PAD, 438);
+  ctx.stroke();
+  ctx.fillStyle = "#a7adc4";
+  ctx.font = "600 26px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+  ctx.fillText("歌单内容", PAD, 500);
+
+  const rows = list.length ? list : [];
+  const rowTop = 548, rowH = 86;
+  if (!rows.length) {
+    ctx.fillStyle = "#7f869e";
+    ctx.font = "400 30px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+    ctx.fillText("还没有添加歌曲", PAD, rowTop + 40);
+  }
+  rows.forEach((t, i) => {
+    const y = rowTop + i * rowH;
+    ctx.fillStyle = a1;
+    ctx.font = "700 30px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(String(i + 1).padStart(2, "0"), PAD + 52, y + 40);
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#e9eaf2";
+    ctx.font = "500 34px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+    ctx.fillText(shareEllipsis(ctx, t.name || "未命名", 640), PAD + 84, y + 40);
+    if (t.dur) {
+      ctx.fillStyle = "#8b92a8";
+      ctx.font = "400 26px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(fmtTime(t.dur), W - PAD, y + 40);
+      ctx.textAlign = "left";
+    }
+    if (i < rows.length - 1) {
+      ctx.strokeStyle = "rgba(255,255,255,.06)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PAD + 84, y + 64);
+      ctx.lineTo(W - PAD, y + 64);
+      ctx.stroke();
+    }
+  });
+
+  /* 底部品牌 */
+  ctx.strokeStyle = "rgba(255,255,255,.08)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(PAD, H - 190);
+  ctx.lineTo(W - PAD, H - 190);
+  ctx.stroke();
+  ctx.fillStyle = "#e9eaf2";
+  ctx.font = "600 30px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+  ctx.fillText("一起听", PAD, H - 120);
+  ctx.fillStyle = "#7f869e";
+  ctx.font = "400 24px -apple-system,PingFang SC,Microsoft YaHei,sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("双人同步播放器 · 边听边聊", W - PAD, H - 120);
+  ctx.textAlign = "left";
+  return cv.toDataURL("image/png");
+}
+function openShareCard() {
+  const list = shareCardList();
+  if (!list.length) { toast("歌单里还没有歌，先加几首再生成卡片"); return; }
+  APP.shareCard = "";
+  if (UI.shareImg) UI.shareImg.removeAttribute("src");
+  openSheet("share");
+  buildShareCard().then((url) => {
+    APP.shareCard = url;
+    if (UI.shareImg) UI.shareImg.src = url;
+  }).catch(() => toast("生成分享卡片失败，请重试"));
+}
+function saveShareCard() {
+  const url = APP.shareCard || (UI.shareImg && UI.shareImg.getAttribute("src")) || "";
+  if (url.indexOf("data:image") !== 0) { toast("卡片还没生成好，稍等一下"); return; }
+  const d = new Date();
+  const name = "一起听-歌单-" + d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") +
+    String(d.getDate()).padStart(2, "0") + ".png";
+  try {
+    const bin = atob(url.split(",")[1] || "");
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const file = new File([new Blob([u8], { type: "image/png" })], name, { type: "image/png" });
+    if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: "一起听 · 歌单" }).catch(() => {});
+      return;
+    }
+  } catch (e) {}
+  try {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast("已开始下载；看不到的话长按图片保存");
+  } catch (e) {
+    toast("当前环境不能直接保存，长按图片存到相册");
+  }
 }
 function queueMove(id, dir) {
   const up = upcomingList();
@@ -11020,12 +11413,69 @@ function renderOfflineTick() {
     : "对方离线 " + Math.floor(sec / 60) + " 分钟，可能已退出房间；重新进房可恢复";
 }
 
+/* 正在接收 / 带断点的歌：队列可视化用 */
+function xferRecvItems() {
+  const out = [];
+  (APP.tracks || []).forEach((t) => {
+    if (!t) return;
+    const part = APP.partials[localId(t.id)];
+    const recv = (part && part.received) || 0;
+    if (t.state !== "recv" && !recv) return;
+    const total = t.size || recv || 0;
+    const pct = total ? Math.round(Math.min(recv || 0, total) / total * 100) : (t.pct || 0);
+    out.push({ t: t, pct: t.state === "recv" ? Math.max(t.pct || 0, pct) : pct, resume: recv > 0 });
+  });
+  return out;
+}
+function xferSendItems() {
+  const out = [];
+  const cur = APP.curSend && APP.curSend.t;
+  if (APP.sending && cur) {
+    out.push({ t: cur, pct: cur.pct || 0, pid: APP.curSend.pid, state: APP.sendPaused ? "已暂停" : "发送中" });
+  }
+  (APP.sendQueue || []).forEach((j) => {
+    if (!j || !j.t || j.t === cur) return;
+    out.push({ t: j.t, pct: 0, pid: j.pid, state: j.t.fail ? "失败" : "等待", fail: !!j.t.fail });
+  });
+  return out;
+}
+function xferRowHtml(x) {
+  const name = esc((x.t && x.t.name) || "歌曲");
+  const pct = Math.max(0, Math.min(100, Math.round(x.pct || 0)));
+  const showPct = x.state === "发送中" || x.state === "已暂停" || x.state === "接收中" || x.state === "续传中";
+  const retry = x.fail
+    ? '<button class="miniBtn" data-retry="' + esc(x.t.id) + '" data-pid="' + esc(x.pid || "") + '">重试</button>'
+    : "";
+  return '<div class="xferItem"><div class="xiTop"><b>' + name + "</b><span>" + x.state +
+    (showPct ? " " + pct + "%" : "") + "</span>" + retry +
+    '</div><div class="xiBar"><i style="width:' + (showPct ? pct : 0) + '%"></i></div></div>';
+}
+function renderXferList() {
+  if (!UI.xferList) return;
+  const opened = !!(APP.xferOpen && UI.xferBar && !UI.xferBar.classList.contains("hidden"));
+  UI.xferList.classList.toggle("hidden", !opened);
+  if (!opened) return;
+  const rows = xferSendItems().concat(xferRecvItems().map((x) => ({
+    t: x.t, pct: x.pct, pid: x.t.owner || "", state: x.resume ? "续传中" : "接收中", recv: true,
+  })));
+  const shown = rows.slice(0, 10);
+  const sp = Number(APP.xferSpeed) || 0;
+  UI.xferList.innerHTML = shown.map(xferRowHtml).join("") +
+    (rows.length > shown.length ? '<div class="xiTop"><b>还有 ' + (rows.length - shown.length) + " 首</b></div>" : "") +
+    (sp > 1024 ? '<div class="xiTop"><b>速度约 ' + Math.round(sp / 1024) + " KB/s</b></div>" : "");
+}
+
 /* 传歌进度条：显示当前第几首、百分比、还剩几首，可暂停/继续 */
 function renderXferBar() {
   if (!UI.xferBar) return;
-  const active = !!(APP.room && (APP.sending || APP.sendQueue.length));
+  const recv = xferRecvItems();
+  const active = !!(APP.room && (APP.sending || APP.sendQueue.length || recv.length));
   UI.xferBar.classList.toggle("hidden", !active);
-  if (!active) { APP.xfer = null; APP.xferSpeed = 0; return; }
+  if (!active) {
+    APP.xfer = null; APP.xferSpeed = 0; APP.xferOpen = false;
+    if (UI.xferList) UI.xferList.classList.add("hidden");
+    return;
+  }
   let text = "";
   if (APP.sending && APP.curSend && APP.curSend.t) {
     const t = APP.curSend.t;
@@ -11033,8 +11483,10 @@ function renderXferBar() {
     if (APP.sendQueue.length) text += " · 后面还有 " + APP.sendQueue.length + " 首";
   } else if (APP.sendPaused && APP.sendQueue.length) {
     text = "已暂停 · 排队中 " + APP.sendQueue.length + " 首";
-  } else {
+  } else if (APP.sendQueue.length) {
     text = "排队中 " + APP.sendQueue.length + " 首";
+  } else {
+    text = "正在接收 " + recv.length + " 首";
   }
   /* 整体进度 + 剩余时间估算（按最近传输速度算） */
   if (APP.sending && APP.curSend && APP.curSend.t && APP.xfer && APP.xfer.total > 0) {
@@ -11055,6 +11507,8 @@ function renderXferBar() {
   }
   if (UI.xferText) UI.xferText.textContent = text;
   if (UI.btnXferPause) UI.btnXferPause.textContent = APP.sendPaused ? "继续" : "暂停";
+  if (UI.btnXferMore) UI.btnXferMore.textContent = APP.xferOpen ? "收起" : "队列";
+  renderXferList();
 }
 
 /* 睡眠定时：点一下 30 → 60 → 90 → 关，顶部显示剩余分钟 */
@@ -11251,6 +11705,7 @@ $("#closeList").onclick = closeSheets;
 $("#closeChat").onclick = closeSheets;
 $("#closeMembers").onclick = closeSheets;
 if (UI.whoRow) UI.whoRow.onclick = () => openMembers();
+if (UI.togetherChip) UI.togetherChip.onclick = (e) => { e.stopPropagation(); openMembers(); };
 if (UI.memList) {
   UI.memList.addEventListener("click", (e) => {
     const b = e.target.closest("[data-xfer]");
@@ -11639,6 +12094,9 @@ $("#btnReorder").onclick = () => setReorder(!APP.reorder);
 const _nextUpEl = $("#nextUp");
 if (_nextUpEl) { _nextUpEl.style.cursor = "pointer"; _nextUpEl.onclick = openQueue; }
 if ($("#closeQueue")) $("#closeQueue").onclick = closeSheets;
+if ($("#closeShare")) $("#closeShare").onclick = closeSheets;
+if (UI.btnShareCard) UI.btnShareCard.onclick = () => openShareCard();
+if (UI.shareSave) UI.shareSave.onclick = () => saveShareCard();
 if (UI.queueClear) UI.queueClear.onclick = queueClear;
 if (UI.queueList) UI.queueList.addEventListener("click", (e) => {
   const b = e.target.closest("[data-qact]");
@@ -12467,6 +12925,7 @@ const QUICK_DEFS = {
   stage: { label: "全屏", run() { const b = $("#coverBox"); if (b) b.click(); } },
   list: { label: "☰ 歌单", run() { const b = $("#btnOpenList"); if (b) b.click(); } },
   chat: { label: "消息", run() { const b = $("#btnOpenChat"); if (b) b.click(); } },
+  card: { label: "分享卡片", run() { openShareCard(); } },
 };
 function hexRgb(h) {
   const s = String(h || "").replace("#", "");
@@ -12818,6 +13277,23 @@ if (UI.btnXferPause) UI.btnXferPause.onclick = () => {
   else toast("传歌已暂停，点「继续」接着传");
   renderXferBar();
   renderPlaylist();
+};
+/* 传歌队列：展开/收起，失败项可手动重试 */
+if (UI.btnXferMore) UI.btnXferMore.onclick = () => {
+  APP.xferOpen = !APP.xferOpen;
+  renderXferBar();
+};
+if (UI.xferList) UI.xferList.onclick = (e) => {
+  const b = e.target.closest("[data-retry]");
+  if (!b) return;
+  const id = b.getAttribute("data-retry") || "";
+  const pid = b.getAttribute("data-pid") || "";
+  const t = findTrack(localId(id));
+  if (!t) return;
+  t.retry = 0;
+  t.fail = false;
+  queueTrackSend(t, pid);
+  toast("已重新加入传输队列");
 };
 /* ===== 连接诊断面板 ===== */
 if (UI.btnDiag) UI.btnDiag.onclick = () => openSheet("diag");
