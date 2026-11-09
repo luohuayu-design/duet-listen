@@ -906,7 +906,8 @@
     <div class="sheetBody">
       <div class="row">
         <button class="btn primary" id="btnAddSongs">＋ 添加歌曲</button>
-        <button class="btn" id="btnScan" style="flex:0 0 134px;font-size:14px">扫描本地歌曲</button>
+        <button class="btn" id="btnScan" style="flex:0 0 104px;font-size:13.5px">扫描文件</button>
+        <button class="btn hidden" id="btnPhoneMusic" style="flex:0 0 92px;font-size:13.5px">手机音乐</button>
       </div>
       <div class="row" style="margin-top:8px">
         <input type="text" id="plSearch" class="chatInput" placeholder="搜索歌曲名…" autocomplete="off" />
@@ -4103,7 +4104,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.14.0";
+const APP_VER = "1.15.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -6407,6 +6408,7 @@ function loadDuration(url) {
 /* ===== 安卓引用模式：只记手机里文件的位置，不再把音频复制一份进 App ===== */
 const FREF = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.FileRef) || null;
 const MCTL = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MediaCtl) || null;
+const MSCAN = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.MediaScan) || null;
 let _pickBusy = false;
 let _scanDurTimer = 0;
 
@@ -6516,6 +6518,49 @@ async function pickRefFolder() {
   } catch (e) {
     const msg = String((e && e.message) || e);
     if (msg !== "cancelled") hint("扫描文件夹失败：" + msg, 5000);
+    return false;
+  } finally {
+    _pickBusy = false;
+  }
+}
+
+/* 扫描手机媒体库：只读系统索引，拿到的位置直接走引用导入，不复制音频 */
+async function scanPhoneMusic() {
+  if (!MSCAN || _pickBusy) return false;
+  _pickBusy = true;
+  toast("正在读取手机音乐库…");
+  try {
+    const res = await MSCAN.scan({});
+    const files = (res && res.files) || [];
+    if (!files.length) {
+      hint("手机媒体库里没找到歌曲；如果刚下载的歌还没被系统收录，可先在别的播放器里播一下再回来扫", 6000);
+      return false;
+    }
+    files.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    scanItems = files.map((x) => ({
+      name: String(x.name || x.title || "").replace(/\.[^.]+$/, ""),
+      size: Number(x.size) || 0,
+      dur: Number(x.dur) || 0,
+      mime: x.mime || "",
+      artist: x.artist || "",
+      uri: x.uri,
+      on: true,
+    }));
+    renderScanList();
+    const need = files.filter((x) => !Number(x.dur)).map((x) => x.uri);
+    if (need.length && FREF && FREF.durations) {
+      try { FREF.durations({ uris: need }); } catch (e) {}
+    }
+    openSheet("scan");
+    hint("读到 " + files.length + " 首歌，勾选后加入歌单；音频仍留在手机里", 5000);
+    return true;
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (/权限|permission/i.test(msg)) {
+      hint("没有音乐读取权限：请到 系统设置 → 应用 → 一起听 → 权限 里允许「音乐和音频」后重试", 7000);
+    } else {
+      hint("扫描手机音乐库失败：" + msg, 6000);
+    }
     return false;
   } finally {
     _pickBusy = false;
@@ -6943,7 +6988,7 @@ function renderScanList() {
       '<input type="checkbox" data-i="' + i + '"' + (x.on ? " checked" : "") + ">" +
       '<div class="scanMain">' +
       '<div class="plName">' + esc(nm) + "</div>" +
-      '<div class="plMeta">' + esc((dir ? dir + " · " : "") + fmtSize(sz) +
+      '<div class="plMeta">' + esc((x.artist ? x.artist + " · " : (dir ? dir + " · " : "")) + fmtSize(sz) +
         (Number(x.dur) > 0 ? " · " + fmtTime(Number(x.dur)) : "")) + "</div>" +
       "</div></label>";
   }).join("");
@@ -6975,6 +7020,14 @@ $("#btnScan").onclick = () => {
   if (FREF && FREF.pickFolder) { pickRefFolder(); return; }
   scanPicker.click();
 };
+/* 安卓：直接扫系统媒体库（v1.15.0） */
+if (MSCAN) {
+  const _bpm = $("#btnPhoneMusic");
+  if (_bpm) {
+    _bpm.classList.remove("hidden");
+    _bpm.onclick = () => { rememberPlayState(); scanPhoneMusic(); };
+  }
+}
 $("#scanAll").onclick = () => { scanItems.forEach((x) => { x.on = true; }); renderScanList(); };
 $("#scanNone").onclick = () => { scanItems.forEach((x) => { x.on = false; }); renderScanList(); };
 $("#closeScan").onclick = closeSheets;
@@ -9763,6 +9816,7 @@ function applyCoverUI(t) {
   }
   /* 浏览器里同步到系统媒体面板；App 里由原生服务负责 */
   syncMediaSession();
+  if (MCTL) setTimeout(mediaSync, 80);
 }
 
 /* ===================== 系统媒体面板（v1.14.0） ===================== */
@@ -12849,6 +12903,12 @@ if (MCTL) {
       }
       else if (a === "next") stepTrack(1);
       else if (a === "prev") stepTrack(-1);
+      else if (a === "toggle") {
+        /* 耳机线控单击：按真实播放状态切换，避免通知栏状态滞后导致反着来 */
+        if (audio.paused) { APP.wantPlaying = true; playSafe(); }
+        else { APP.wantPlaying = false; try { audio.pause(); } catch (e) {} afRelease(); }
+        setTimeout(onLocalAction, 80);
+      }
       else if (a === "seek") {
         if (audio.src) {
           audio.currentTime = Number(d.pos) || 0;
@@ -12861,6 +12921,17 @@ if (MCTL) {
   } catch (e) {}
   audio.addEventListener("play", mediaSync);
   audio.addEventListener("pause", mediaSync);
+  audio.addEventListener("loadedmetadata", mediaSync);
+  audio.addEventListener("seeked", mediaSync);
+  /* 播放中每 15 秒刷新一次进度：锁屏/通知栏的进度条不会越走越偏 */
+  let _mPosTs = 0;
+  audio.addEventListener("timeupdate", () => {
+    if (audio.paused) return;
+    const now = Date.now();
+    if (now - _mPosTs < 15000) return;
+    _mPosTs = now;
+    mediaSync();
+  });
   mediaSync();
 }
 
