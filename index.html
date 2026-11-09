@@ -414,6 +414,27 @@
   body.light .sheet{box-shadow:0 -12px 40px rgba(0,0,0,.22)}
   body.light .chip.on,body.light .lyrLine.active{color:#1b1d26}
   body.light .modeIcon{background:rgba(63,111,224,.12)}
+
+  /* ===== 纯黑 OLED 主题 ===== */
+  body.oled{
+    --bg:#000000; --card:#0a0a0c; --card2:#151519; --line:#26262d;
+    --fg:#f0f0f4; --sub:#8d8d99;
+    background:#000;
+  }
+  body.oled .mask{background:rgba(0,0,0,.68)}
+  body.oled .plCover,body.oled .avatar,body.oled .chatAva,body.oled .coverBox,
+  body.oled .progress,body.oled input[type=range]::-webkit-slider-runnable-track{background:#151519}
+  body.oled .sheet{box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+  /* ===== 歌曲信息 ===== */
+  .infoHead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .infoCover{width:64px;height:64px;border-radius:14px;background:var(--card2);overflow:hidden;flex:none;
+             display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:22px}
+  .infoCover img{width:100%;height:100%;object-fit:cover;display:block}
+  .infoRows{margin-top:4px}
+  .infoRow{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .infoRow:last-child{border-bottom:none}
+  .infoRow > span{color:var(--sub);flex:none}
+  .infoRow > b{font-weight:600;text-align:right;word-break:break-all;font-size:13px}
 </style>
 </head>
 <body>
@@ -551,7 +572,7 @@
       <button class="chip" id="btnShuffle" title="随机播放：和对方同步">🔀 顺序</button>
       <button class="chip" id="btnRepeat" title="循环模式：顺序 → 列表循环 → 单曲循环">🔁 顺序</button>
       <button class="chip" id="btnSpeed" title="倍速播放：和对方同步">1.0×</button>
-      <div class="syncInfo duetOnly" style="flex:1;justify-content:flex-end"><span>偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span></div>
+      <div class="syncInfo duetOnly" style="flex:1;justify-content:flex-end"><span>偏差 <b id="lagVal">—</b></span><span id="clockVal">对表 —</span><button class="topBtn" id="btnAlignLag" style="padding:3px 8px;font-size:11px;flex:none">对齐</button></div>
     </div>
     <div class="speedRow hidden" id="speedChips">
       <button class="chip" data-speed="0.5">0.5×</button>
@@ -707,11 +728,26 @@
     </div>
     <div class="sheetBody">
       <div class="chatList" id="chatList"><div class="chatEmpty">说点什么，对方马上能看到</div></div>
+      <div class="sndChips" id="chatQuick" style="margin-top:8px">
+        <button class="chip" data-t="好听！">好听！</button>
+        <button class="chip" data-t="等我一下">等我一下</button>
+        <button class="chip" data-t="换这首吧">换这首吧</button>
+        <button class="chip" data-t="先暂停一下">先暂停一下</button>
+      </div>
       <div class="row" style="margin-top:8px">
         <input type="text" id="chatInput" class="chatInput" maxlength="200" placeholder="发句消息…" autocomplete="off" />
         <button class="btn" id="chatSend" style="flex:0 0 76px;padding:12px">发送</button>
       </div>
     </div>
+  </section>
+
+  <section class="sheet" id="sheetInfo">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">歌曲信息</div>
+      <button class="topBtn" id="closeInfo">收起</button>
+    </div>
+    <div class="sheetBody" id="infoBody"></div>
   </section>
 
   <section class="sheet" id="sheetScan">
@@ -786,7 +822,15 @@
       <div class="sndChips" id="themeChips">
         <button class="chip" data-v="dark">深色</button>
         <button class="chip" data-v="light">浅色</button>
+        <button class="chip" data-v="oled">纯黑</button>
         <button class="chip" data-v="auto">跟随系统</button>
+      </div>
+      <div class="label" style="margin-top:20px">音量渐变</div>
+      <div class="sndChips" id="fadeChips">
+        <button class="chip" data-v="0">关闭</button>
+        <button class="chip" data-v="200">0.2 秒</button>
+        <button class="chip" data-v="300">0.3 秒</button>
+        <button class="chip" data-v="800">0.8 秒</button>
       </div>
       <div class="hidden" id="bgBox">
         <div class="label" style="margin-top:20px">后台运行</div>
@@ -815,6 +859,13 @@
             <div class="soundDesc" id="checkDesc">检查手机里的歌还能不能读到</div>
           </div>
           <button class="topBtn" id="btnCheck" style="flex:none">检查</button>
+        </div>
+        <div class="soundRow" style="margin-top:12px">
+          <div>
+            <div class="soundName">封面缓存</div>
+            <div class="soundDesc" id="coverDesc">—</div>
+          </div>
+          <button class="topBtn" id="btnCleanCovers" style="flex:none">清理</button>
         </div>
       </div>
       <div class="hidden" id="recvBox">
@@ -3637,7 +3688,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.6.0";
+const APP_VER = "1.7.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -3700,6 +3751,11 @@ const UI = {
   updNow: $("#updNow"),
   updLater: $("#updLater"),
   sheetDiag: $("#sheetDiag"),
+  sheetInfo: $("#sheetInfo"),
+  infoBody: $("#infoBody"),
+  fadeChips: $("#fadeChips"),
+  chatQuick: $("#chatQuick"),
+  btnAlignLag: $("#btnAlignLag"),
   diagLog: $("#diagLog"),
   btnDiag: $("#btnDiag"),
   upTip: $("#upTip"),
@@ -4229,6 +4285,7 @@ function openSheet(which) {
     : which === "sound" ? UI.sheetSound
     : which === "update" ? UI.sheetUpdate
     : which === "diag" ? UI.sheetDiag
+    : which === "info" ? UI.sheetInfo
     : which === "choose" ? UI.sheetChoose
     : UI.sheetList;
   if (which === "list") renderPlaylist();
@@ -4253,6 +4310,7 @@ function closeSheets() {
   if (UI.sheetSound) UI.sheetSound.classList.remove("on");
   if (UI.sheetUpdate) UI.sheetUpdate.classList.remove("on");
   if (UI.sheetDiag) UI.sheetDiag.classList.remove("on");
+  if (UI.sheetInfo) UI.sheetInfo.classList.remove("on");
   UI.mask.classList.remove("on");
   clearTimeout(_maskHideTimer);
   _maskHideTimer = setTimeout(() => { UI.mask.classList.add("hidden"); }, 220);
@@ -7821,6 +7879,26 @@ function coverPut(k, blob, src, artist) {
 function coverDel(k) {
   dbDo("covers", "readwrite", (st) => st.delete(k)).catch(() => {});
 }
+/* 封面缓存统计：张数 + 总体积 */
+function coversInfo() {
+  return openDB().then((db) => new Promise((res) => {
+    const tx = db.transaction("covers", "readonly");
+    const rq = tx.objectStore("covers").openCursor();
+    let n = 0, bytes = 0;
+    rq.onsuccess = () => {
+      const cur = rq.result;
+      if (!cur) { res({ n: n, bytes: bytes }); return; }
+      const v = cur.value || {};
+      n++;
+      if (v.blob && v.blob.size) bytes += v.blob.size;
+      cur.continue();
+    };
+    rq.onerror = () => res({ n: n, bytes: bytes });
+  })).catch(() => ({ n: 0, bytes: 0 }));
+}
+function cleanCovers() {
+  return dbDo("covers", "readwrite", (st) => st.clear()).catch(() => {});
+}
 
 function coverSlot(t) {
   return '<span class="plCover" data-id="' + t.id + '">' +
@@ -9052,7 +9130,7 @@ function tickSleep() {
 /* 新歌开始播放时把音量淡入；被系统压低音量时保持压低值 */
 audio.addEventListener("playing", () => {
   if (APP.duck) applyVol();
-  else fadeTo(volBase(), 340);
+  else fadeTo(volBase());
 });
 
 /* 每 5 秒补发一次当前状态：只为让对方那边的「差距」数字保持新鲜，不再强制对齐进度 */
@@ -9475,6 +9553,8 @@ UI.lobbyList.onclick = (e) => {
 };
 
 UI.playlist.addEventListener("click", (e) => {
+  /* 长按刚打开过歌曲信息，这次抬手不算点击 */
+  if (APP._lpFired) { APP._lpFired = false; return; }
   /* 自建歌单列表 / 歌单头部的操作按钮 */
   const pItem = e.target.closest(".plsItem");
   if (pItem) {
@@ -9558,7 +9638,7 @@ UI.btnPlay.onclick = () => {
       applyVol();
       setTimeout(onLocalAction, 60);
     };
-    if (!APP.duck && Number(audio.volume) > 0.05) fadeTo(0, 200, done);
+    if (!APP.duck && Number(audio.volume) > 0.05) fadeTo(0, null, done);
     else done();
   }
   setTimeout(onLocalAction, 60);
@@ -9831,11 +9911,33 @@ function applyVol() {
 
 /* 音量渐变：切歌淡入、暂停淡出，避免突然出声 */
 const FADE = { timer: null };
+const FADE_KEY = "duet_fade_v1";
+APP.fadeMs = 300;
+try {
+  const v = Number(localStorage.getItem(FADE_KEY));
+  if (isFinite(v) && v >= 0 && v <= 1200) APP.fadeMs = v;
+} catch (e) {}
+function applyFadeCfg() {
+  if (!UI.fadeChips) return;
+  UI.fadeChips.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", Number(c.dataset.v) === APP.fadeMs));
+}
+function setFadeMs(ms) {
+  APP.fadeMs = Math.max(0, Number(ms) || 0);
+  try { localStorage.setItem(FADE_KEY, APP.fadeMs); } catch (e) {}
+  applyFadeCfg();
+  toast(APP.fadeMs ? "音量渐变 " + (APP.fadeMs / 1000).toFixed(1) + " 秒" : "已关闭音量渐变", 1600);
+}
 function fadeTo(target, ms, cb) {
   if (FADE.timer) { clearInterval(FADE.timer); FADE.timer = null; }
   const to = Math.max(0, Math.min(1, Number(target) || 0));
   const from = Number(audio.volume) || 0;
-  const t0 = Date.now(), dur = Math.max(80, ms || 300);
+  const dur = Math.max(0, Number(ms == null ? APP.fadeMs : ms));
+  if (dur <= 0) {
+    try { audio.volume = to; } catch (e) {}
+    if (cb) cb();
+    return;
+  }
+  const t0 = Date.now();
   const step = () => {
     const k = Math.min(1, (Date.now() - t0) / dur);
     try { audio.volume = from + (to - from) * k; } catch (e) {}
@@ -9847,6 +9949,15 @@ function fadeTo(target, ms, cb) {
   };
   FADE.timer = setInterval(step, 30);
   step();
+}
+if (UI.fadeChips) {
+  UI.fadeChips.querySelectorAll(".chip").forEach((c) => { c.onclick = () => setFadeMs(c.dataset.v); });
+}
+applyFadeCfg();
+if (UI.chatQuick) {
+  UI.chatQuick.querySelectorAll(".chip").forEach((c) => {
+    c.onclick = () => { UI.chatInput.value = c.dataset.t || ""; sendChat(); };
+  });
 }
 
 /* 移动网络检测（浏览器只在部分安卓上给 type，拿不到就当作没限制） */
@@ -9971,11 +10082,89 @@ function renderStore() {
     : "没有引用模式的歌";
   const cb = $("#btnCheck");
   if (cb) cb.style.display = refs.length ? "" : "none";
+  coversInfo().then((ci) => {
+    const cd2 = $("#coverDesc");
+    if (cd2) cd2.textContent = ci.n ? "缓存了 " + ci.n + " 张（约 " + fmtSize(ci.bytes) + "）" : "没有封面缓存";
+    const ccb = $("#btnCleanCovers");
+    if (ccb) ccb.style.display = ci.n ? "" : "none";
+  });
 }
 if ($("#btnFree")) $("#btnFree").onclick = () => { freeLocalCopies().then(renderStore); };
+if ($("#btnCleanCovers")) $("#btnCleanCovers").onclick = () => {
+  cleanCovers().then(() => { toast("封面缓存已清理，下次打开会重新获取", 1800); renderStore(); });
+};
 if ($("#btnCheck")) $("#btnCheck").onclick = checkRefs;
 if ($("#btnCleanRecv")) $("#btnCleanRecv").onclick = cleanRecvCache;
 if (UI.btnResume) UI.btnResume.onclick = () => { resumeLast(); };
+/* ===== 歌曲信息（长按歌单行 / 右键） ===== */
+function trackBlobSize(t) {
+  if (!t) return 0;
+  if (t.blob && t.blob.size) return t.blob.size;
+  if (t.file && t.file.size) return t.file.size;
+  return 0;
+}
+function openTrackInfo(id) {
+  const t = findTrack(id) || findInQueue(id) || APP.lib.find((x) => x.id === id);
+  if (!t || !UI.infoBody) return;
+  const kind = t.blob ? (t.blob.type || "本地副本") : t.file ? "引用原文件" : t.peerId ? "对方传入" : "未知";
+  const size = trackBlobSize(t);
+  const rows = [
+    ["歌名", t.name || "—"],
+    ["封面信息", t.coverArtist || "—"],
+    ["时长", fmtTime(Number(t.dur) || 0)],
+    ["文件大小", size ? fmtSize(size) : "—"],
+    ["来源", kind],
+    ["归属", t.peerId ? "对方" : "本机"],
+    ["歌词", Array.isArray(t.lrc) && t.lrc.length ? t.lrc.length + " 行" : "没有"],
+    ["收藏", t.fav ? "是" : "否"],
+    ["本机状态", t.missing || !(t.url || t.ref || t.blob) ? "需要重新选文件或等对方传" : "可播放"],
+  ];
+  UI.infoBody.innerHTML =
+    '<div class="infoHead"><div class="infoCover">' + (t.coverArt ? '<img src="' + t.coverArt + '" alt="">' : "♪") + "</div>" +
+    '<div style="min-width:0"><div class="songName">' + esc(t.name || "—") + "</div>" +
+    '<div class="songArtist">' + esc(t.coverArtist || "") + "</div></div></div>" +
+    '<div class="infoRows">' + rows.map((r) =>
+      '<div class="infoRow"><span>' + r[0] + "</span><b>" + esc(String(r[1])) + "</b></div>").join("") + "</div>";
+  openSheet("info");
+}
+if (UI.playlist) {
+  let lpTimer = null;
+  const cancelLp = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
+  UI.playlist.addEventListener("touchstart", (e) => {
+    if (selOn() || APP.reorder) return;
+    const row = e.target.closest(".plItem");
+    if (!row) return;
+    const id = row.getAttribute("data-id");
+    lpTimer = setTimeout(() => {
+      lpTimer = null;
+      APP._lpFired = true;
+      openTrackInfo(id);
+    }, 520);
+  }, { passive: true });
+  UI.playlist.addEventListener("touchmove", cancelLp, { passive: true });
+  UI.playlist.addEventListener("touchend", cancelLp);
+  UI.playlist.addEventListener("touchcancel", cancelLp);
+  UI.playlist.addEventListener("contextmenu", (e) => {
+    const row = e.target.closest(".plItem");
+    if (!row) return;
+    e.preventDefault();
+    openTrackInfo(row.getAttribute("data-id"));
+  });
+}
+if ($("#closeInfo")) $("#closeInfo").onclick = closeSheets;
+/* ===== 一键对齐对方进度 ===== */
+function alignToPeer() {
+  const b = APP.remoteBase;
+  if (!b || !b.playing) { toast("现在没有对方的播放进度可对齐", 2000); return; }
+  if (!audio.src || !isFinite(audio.duration) || audio.duration <= 0) { toast("还没有在播放的歌", 2000); return; }
+  const target = b.pos + (Date.now() - b.ts) / 1000 * effectiveSpeed();
+  APP.localIntentTs = Date.now();
+  audio.currentTime = Math.max(0, Math.min(audio.duration, target));
+  if (audio.paused) audio.play().catch(() => {});
+  UI.lagVal.textContent = "0ms";
+  toast("已对齐到对方的位置", 1600);
+}
+if (UI.btnAlignLag) UI.btnAlignLag.onclick = alignToPeer;
 /* ===== 外观主题 ===== */
 const THEME = {
   key: "duet.theme",
@@ -9987,9 +10176,11 @@ const THEME = {
   apply(v) {
     const mode = v || this.get();
     const light = this.isLight(mode);
+    const oled = mode === "oled";
     document.body.classList.toggle("light", light);
+    document.body.classList.toggle("oled", oled);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", light ? "#f3f5fa" : "#12131a");
+    if (meta) meta.setAttribute("content", oled ? "#000000" : light ? "#f3f5fa" : "#12131a");
     if (UI.themeChips) {
       UI.themeChips.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.v === mode));
     }
