@@ -85,6 +85,13 @@
   .volRow input[type=range]::-webkit-slider-thumb{width:18px;height:18px;margin-top:-5px}
   .syncInfo{margin-top:10px;font-size:12px;color:var(--sub);display:flex;justify-content:space-between;gap:8px}
   .syncInfo b{color:var(--fg);font-weight:600}
+  .netGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .netCell{padding:10px;border-radius:12px;background:var(--card2);border:1px solid var(--line)}
+  .netCell .nk{font-size:11.5px;color:var(--sub)}
+  .netCell .nv{font-size:16px;font-weight:700;margin-top:5px;word-break:break-all}
+  .netCell .nv.ok{color:var(--ok)} .netCell .nv.warn{color:var(--warn)} .netCell .nv.err{color:var(--err)}
+  .netCell.wide{grid-column:1 / -1}
+  .netCell .nh{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.5}
   details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
   summary{cursor:pointer;font-size:13px;color:var(--sub);outline:none}
   details p{margin:10px 0 0;font-size:12.5px;line-height:1.7;color:var(--sub)}
@@ -1278,6 +1285,13 @@
       <div class="label" style="margin-top:20px">连接诊断</div>
       <div class="soundRow">
         <div>
+          <div class="soundName">网络质量</div>
+          <div class="soundDesc">延迟、丢包、直连/中转状态，判断是网络还是应用的问题</div>
+        </div>
+        <button class="topBtn" id="btnNet" style="flex:none">查看</button>
+      </div>
+      <div class="soundRow">
+        <div>
           <div class="soundName">连接日志</div>
           <div class="soundDesc">连不上、掉线、卡顿时，把日志复制发给我排查</div>
         </div>
@@ -1441,7 +1455,24 @@
       <pre class="diagLog" id="diagLog"></pre>
       <div class="row" style="margin-top:12px">
         <button class="btn primary" id="btnDiagCopy">复制日志</button>
-        <button class="btn" id="btnDiagClear" style="flex:0 0 110px">清空</button>
+        <button class="btn" id="btnDiagSave" style="flex:0 0 96px">导出文件</button>
+        <button class="btn" id="btnDiagClear" style="flex:0 0 74px">清空</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetNet">
+    <div class="sheetHandle"></div>
+    <div class="sheetHead">
+      <div class="sheetTitle">网络质量</div>
+      <button class="topBtn" id="closeNet">收起</button>
+    </div>
+    <div class="sheetBody">
+      <div class="netGrid" id="netGrid"></div>
+      <p class="plsTip" id="netTip" style="margin-top:10px">连接慢或卡顿时，先看这里的延迟和丢包，再决定换网络还是重启应用。</p>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="btnNetPing">重新测一次</button>
+        <button class="btn" id="btnNetDiag" style="flex:0 0 120px">连接日志</button>
       </div>
     </div>
   </section>
@@ -4199,7 +4230,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.17.5";
+const APP_VER = "1.18.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -4270,6 +4301,12 @@ const UI = {
   updNow: $("#updNow"),
   updLater: $("#updLater"),
   sheetDiag: $("#sheetDiag"),
+  sheetNet: $("#sheetNet"),
+  netGrid: $("#netGrid"),
+  netTip: $("#netTip"),
+  btnNet: $("#btnNet"),
+  btnNetPing: $("#btnNetPing"),
+  btnNetDiag: $("#btnNetDiag"),
   sheetInfo: $("#sheetInfo"),
   infoBody: $("#infoBody"),
   sheetQueue: $("#sheetQueue"),
@@ -5228,6 +5265,7 @@ function openSheet(which) {
     : which === "look" ? UI.sheetLook
     : which === "update" ? UI.sheetUpdate
     : which === "diag" ? UI.sheetDiag
+    : which === "net" ? UI.sheetNet
     : which === "info" ? UI.sheetInfo
     : which === "queue" ? UI.sheetQueue
     : which === "share" ? UI.sheetShare
@@ -5237,6 +5275,7 @@ function openSheet(which) {
     : UI.sheetList;
   if (which === "list") renderPlaylist();
   if (which === "diag") DIAG.render();
+  if (which === "net") renderNetPanel();
   if (which === "look") renderLook();
   if (which === "tpl") renderTplSheet();
   UI.mask.classList.remove("hidden");
@@ -5262,6 +5301,7 @@ function closeSheets() {
   if (UI.sheetLook) UI.sheetLook.classList.remove("on");
   if (UI.sheetUpdate) UI.sheetUpdate.classList.remove("on");
   if (UI.sheetDiag) UI.sheetDiag.classList.remove("on");
+  if (UI.sheetNet) UI.sheetNet.classList.remove("on");
   if (UI.sheetInfo) UI.sheetInfo.classList.remove("on");
   if (UI.sheetQueue) UI.sheetQueue.classList.remove("on");
   if (UI.sheetShare) UI.sheetShare.classList.remove("on");
@@ -5680,7 +5720,9 @@ async function joinRoomChannel(room) {
 
   clearInterval(APP.pingTimer);
   APP.pingTimer = setInterval(() => {
-    publish({ k: "ping", from: APP.me, seq: Math.floor(Math.random() * 1e6), t1: Date.now() });
+    const seq = Math.floor(Math.random() * 1e6);
+    pingLogPush(seq);
+    publish({ k: "ping", from: APP.me, seq: seq, t1: Date.now() });
   }, 4000);
 
   show(UI.rowRetryConn, true);
@@ -6002,6 +6044,23 @@ function onMqttMessage(topic, payload) {
 }
 
 /* ===================== 弱网检测与降载（v1.14.0） ===================== */
+/* 最近 20 轮 ping 的应答情况：网络面板里用来算丢包率 */
+const PINGLOG = [];
+function pingLogPush(seq) {
+  PINGLOG.push({ seq: seq, ts: Date.now(), ok: false });
+  if (PINGLOG.length > 20) PINGLOG.shift();
+}
+function pingLogAck(seq) {
+  for (let i = PINGLOG.length - 1; i >= 0; i--) {
+    if (PINGLOG[i].seq === seq) { PINGLOG[i].ok = true; return; }
+  }
+}
+function pingLossRate() {
+  const now = Date.now();
+  const done = PINGLOG.filter((r) => r.ok || now - r.ts > 6000);
+  if (done.length < 3) return null;
+  return Math.round(done.filter((r) => !r.ok).length / done.length * 100);
+}
 const NETQ = { samples: [], slow: false, good: 0 };
 function netqEval() {
   const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -6030,6 +6089,7 @@ function netqSet(slow) {
 /* ===================== 时钟对表（NTP 思路） ===================== */
 function onPong(m) {
   const t4 = Date.now();
+  pingLogAck(m.seq);
   const rtt = (t4 - m.t1) - (m.t3 - m.t2);
   if (rtt < -50) return;
   if (m.from) APP.latById[m.from] = Math.max(0, rtt);
@@ -6341,6 +6401,8 @@ function bindCtlChannel(p, dc) {
     sendStateNow(p);
     ensureBuffer();
     renderWho();
+    /* 断线重连回来了：明确告诉用户已经续上，不用手动重进房间 */
+    peerRecoveredNotice(p);
   };
   dc.onclose = () => {
     if (p.ctl !== dc) return;    // 主动关闭，不当作掉线
@@ -6367,10 +6429,19 @@ function sendStateNow(p) {
 }
 
 /* 断线自动重连：只重建这一个人，不影响房间里其他成员 */
+function peerRecoveredNotice(p) {
+  if (!p || !p.needNotice) return false;
+  p.needNotice = false;
+  toast("连接已恢复，已自动续上播放", 2400);
+  DIAG.push("直连", "与 " + String(p.id || "").slice(-4) + " 重连成功");
+  return true;
+}
 function reconnectPeer(p) {
   if (!APP.room || !p) return;
   if (p.reconnecting) return;
   p.reconnecting = true;
+  /* 之前是连上的 → 这次属于「断了又连回来」，恢复时给个提示 */
+  if (p.paired) p.needNotice = true;
   p.paired = false;
   p.tryCount = 0;
   refreshPaired();
@@ -11643,14 +11714,15 @@ function applyPeerState(m, force) {
         if (by < APP.lastBy) return;
         if (by === APP.lastBy) {
           /* 对方每 5 秒补发一次同一个状态：只更新基准用于显示差距，
-             绝不拉拽本地进度。中间怎么播是各自的事，只在开播/停播时对齐。 */
+             绝不拉拽本地进度。中间怎么播是各自的事，只在开播/停播时对齐。
+             例外：本地和对方脱节（播放/暂停不一致，或正在播但进度差超过 2 秒），
+             说明是断线重连/被系统挂起后没跟上，这时继续走正式同步把状态拉回来。 */
           APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
-          /* 断线重连/被系统挂起后本地会和对方状态脱节（明明对方在播、这边停着），
-             这种情况下不能再当成“重复补发”丢掉，要继续走正式同步把播放拉回来。
-             本地 2 秒内刚点过按钮则尊重本机操作，避免手一按就被远端抢回去。 */
           const mismatch = !!m.playing !== !audio.paused &&
             Date.now() - (APP.localIntentTs || 0) > 2000;
-          if (!mismatch) return;
+          const farBehind = !audio.paused && !!m.playing &&
+            Math.abs(audio.currentTime - target) > 2;
+          if (!mismatch && !farBehind) return;
         }
       }
     }
@@ -11708,8 +11780,11 @@ function applyPeerState(m, force) {
     }
 
     if (audio.duration) target = Math.min(target, audio.duration);
-    // 只在偏差比较明显时才跳，避免几十毫秒的小误差被反复「拽」出听感上的跳动
-    if (Math.abs(audio.currentTime - target) > 0.35) audio.currentTime = target;
+    /* 新指令（切歌 / 开播 / 停播）要求立刻对齐；
+       5 秒一轮的心跳补发只在偏差超过 2 秒时才跳，几十毫秒到 1 秒多的误差不拉拽，
+       避免中间各自播放时被反复「拽」出听感上的跳动。 */
+    const driftLimit = fresh ? 0.35 : 2.0;
+    if (Math.abs(audio.currentTime - target) > driftLimit) audio.currentTime = target;
     APP.wantPlaying = !!m.playing;
     if (m.playing) {
       playSafe();
@@ -11847,10 +11922,17 @@ function renderOfflineTick() {
   if (!APP.room || !APP.hadPeer) { UI.offlineTip.classList.add("hidden"); return; }
   if (!APP.offlineSince) APP.offlineSince = Date.now();
   const sec = Math.max(1, Math.floor((Date.now() - APP.offlineSince) / 1000));
+  let reconn = false;
+  try {
+    reconn = peerList().some((p) => p && (p.reconnecting ||
+      (p.pc && p.pc.connectionState && p.pc.connectionState !== "connected")));
+  } catch (e) {}
   UI.offlineTip.classList.remove("hidden");
-  UI.offlineText.textContent = sec < 60
-    ? "对方暂时离线 " + sec + " 秒，网络恢复后会自动续上"
-    : "对方离线 " + Math.floor(sec / 60) + " 分钟，可能已退出房间；重新进房可恢复";
+  UI.offlineText.textContent = reconn
+    ? "正在自动重连…（已 " + sec + " 秒），连上后会自己续上"
+    : sec < 60
+      ? "对方暂时离线 " + sec + " 秒，网络恢复后会自动续上"
+      : "对方离线 " + Math.floor(sec / 60) + " 分钟，可能已退出房间；重新进房可恢复";
 }
 
 /* 正在接收 / 带断点的歌：队列可视化用 */
@@ -13878,6 +13960,98 @@ if (UI.xferList) UI.xferList.onclick = (e) => {
 /* ===== 连接诊断面板 ===== */
 if (UI.btnDiag) UI.btnDiag.onclick = () => openSheet("diag");
 if ($("#closeDiag")) $("#closeDiag").onclick = closeSheets;
+if ($("#btnDiagSave")) $("#btnDiagSave").onclick = () => {
+  try {
+    const blob = new Blob([DIAG.text()], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "duet-diag-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("日志文件已导出");
+  } catch (e) {
+    toast("导出失败，可先复制日志");
+  }
+};
+
+/* ===== 网络质量面板（v1.18.0） ===== */
+function netCell(k, v, cls, hint, wide) {
+  return '<div class="netCell' + (wide ? " wide" : "") + '"><div class="nk">' + k +
+    '</div><div class="nv ' + (cls || "") + '">' + v + "</div>" +
+    (hint ? '<div class="nh">' + hint + "</div>" : "") + "</div>";
+}
+function renderNetPanel() {
+  if (!UI.netGrid) return;
+  const peers = peerList().filter((p) => p && !p.closing);
+  const direct = peers.filter((p) => p.paired).length;
+  const alive = (APP.mqs || []).filter((m) => m.alive()).length;
+  const lats = Object.keys(APP.latById || {})
+    .map((id) => APP.latById[id]).filter((v) => v >= 0 && v < 60000);
+  const rtt = lats.length ? Math.round(lats.reduce((a, b) => a + b, 0) / lats.length) : null;
+  const loss = pingLossRate();
+
+  let how, howCls, howHint;
+  if (!APP.room) {
+    how = "未进入房间"; howCls = "";
+    howHint = "先和对方连上，再回来看网络质量";
+  } else if (direct > 0) {
+    how = "直连 · " + direct + " 人"; howCls = "ok";
+    howHint = alive ? "中转服务器 " + alive + " 个在线，仅用于配对" : "已完全绕过服务器，音质和延迟最稳";
+  } else if (alive) {
+    how = "经中转 · " + alive + " 个服务器"; howCls = "warn";
+    howHint = "直连还没建立，声音会经由服务器转发";
+  } else {
+    how = "未连接"; howCls = "err";
+    howHint = "中转和直连都断开了，正在自动重试";
+  }
+
+  const rttCls = rtt == null ? "" : rtt < 80 ? "ok" : rtt < 200 ? "warn" : "err";
+  const lossCls = loss == null ? "" : loss === 0 ? "ok" : loss <= 10 ? "warn" : "err";
+  const lag = (UI.lagVal && UI.lagVal.textContent) || "—";
+  const offset = Math.round(APP.offset || 0);
+
+  UI.netGrid.innerHTML =
+    netCell("连接方式", how, howCls, howHint, true) +
+    netCell("延迟", rtt == null ? "—" : rtt + "ms", rttCls,
+      rtt == null ? "还没有测到对方" : rtt < 80 ? "很流畅" : rtt < 200 ? "略有延迟" : "延迟偏高，建议换网络") +
+    netCell("丢包", loss == null ? "采样中" : loss + "%", lossCls,
+      loss == null ? "等几轮心跳" : loss === 0 ? "最近 20 轮全部收到" : "有丢包，可能偶尔卡一下") +
+    netCell("对表偏差", (offset > 0 ? "+" : "") + offset + "ms", Math.abs(offset) < 200 ? "ok" : "warn",
+      "越大越容易对不齐进度") +
+    netCell("播放偏差", lag, "", "点右下角对齐可立即拉回") +
+    netCell("弱网降载", NETQ.slow ? "已降级" : "正常", NETQ.slow ? "warn" : "ok",
+      NETQ.slow ? "封面和歌词请求已放慢" : "按正常速度加载封面和歌词");
+
+  if (UI.netTip) {
+    UI.netTip.textContent = (!APP.room || !peers.length)
+      ? "还没有配对。双方连上后这里会显示真实的延迟和丢包。"
+      : (loss != null && loss > 10) || (rtt != null && rtt > 200)
+        ? "当前网络不太稳：卡顿时可以换 WiFi/流量，或让双方都重新打开应用。"
+        : "网络正常。播放偏差只显示不拉拽，点「对齐」才会一次性跳位。";
+  }
+}
+if ($("#closeNet")) $("#closeNet").onclick = closeSheets;
+if (UI.btnNet) UI.btnNet.onclick = () => openSheet("net");
+if (UI.btnNetPing) UI.btnNetPing.onclick = () => {
+  const seq = Math.floor(Math.random() * 1e6);
+  pingLogPush(seq);
+  publish({ k: "ping", from: APP.me, seq: seq, t1: Date.now() });
+  toast("已重新测速", 1200);
+  setTimeout(renderNetPanel, 900);
+};
+if (UI.btnNetDiag) UI.btnNetDiag.onclick = () => openSheet("diag");
+if (UI.clockVal) {
+  UI.clockVal.style.cursor = "pointer";
+  UI.clockVal.title = "查看网络质量";
+  UI.clockVal.onclick = () => openSheet("net");
+}
+setInterval(() => {
+  if (UI.sheetNet && UI.sheetNet.classList.contains("on")) renderNetPanel();
+}, 1000);
+
 if ($("#btnDiagClear")) $("#btnDiagClear").onclick = () => {
   DIAG.items.length = 0;
   DIAG.render();
