@@ -4196,7 +4196,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.17.2";
+const APP_VER = "1.17.3";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -9417,9 +9417,16 @@ function lrcSim(a, b) {
 
 /* 歌名像不像（0~1，低于 0.62 直接不算）+ 歌手 + 时长接近程度，综合打分 */
 function lrcScoreOf(item, cand, dur) {
-  const ts = lrcSim(item.trackName, cand.title);
+  let ts = lrcSim(item.trackName, cand.title);
+  let as = cand.artist ? lrcSim(item.artistName, cand.artist) : 0.5;
+  /* 文件名顺序猜错时（歌名-歌手 / 歌手-歌名 都试过），把歌名和歌手交换再算一次，
+     否则明明搜到的是同一首歌，也会因为角色对调被判 0 分 */
+  if (cand.artist) {
+    const ts2 = lrcSim(item.trackName, cand.artist);
+    const as2 = lrcSim(item.artistName, cand.title);
+    if (ts2 * 0.65 + as2 * 0.35 > ts * 0.65 + as * 0.35) { ts = ts2; as = as2; }
+  }
   if (ts < 0.62) return 0;
-  const as = cand.artist ? lrcSim(item.artistName, cand.artist) : 0.5;
   let ds = 0.5;
   const d0 = Number(dur) || 0, d1 = Number(item.duration) || 0;
   if (d0 > 0 && d1 > 0) {
@@ -9571,34 +9578,45 @@ async function matchLyricForTrack(t) {
       if (s > bs) { bs = s; best = item; }
     });
   };
-  /* 1) LRCLIB：按文件名生成的候选逐个搜（最多 4 个，兼顾速度） */
+  /* 1) LRCLIB：按文件名生成的候选逐个搜（最多 6 个，兼顾速度） */
   let tried = 0;
   for (const c of cands) {
-    if (tried >= 4) break;
+    if (tried >= 6) break;
     tried++;
     consider(await lrcSrcLrclib(c.title, c.artist), c);
     if (bs >= 0.9) break;
   }
-  /* 2) LRCLIB 没找到高分版本时，再问 lyrics.ovh / Lyrist 两个纯文本源 */
+  /* 2) LRCLIB 没找到高分版本时，再问 lyrics.ovh / Lyrist 两个纯文本源（试前 2 个带歌手的候选） */
   if (!best || bs < 0.9) {
-    const pc = cands.find((c) => c.artist) || cands[0];
-    if (pc) {
+    const pcs = [];
+    for (const c of cands) {
+      if (!c.artist) continue;
+      pcs.push(c);
+      if (pcs.length >= 2) break;
+    }
+    if (!pcs.length && cands[0]) pcs.push(cands[0]);
+    for (const pc of pcs) {
       const lists = await Promise.all([
         lrcSrcOvh(pc.title, pc.artist).catch(() => []),
         lrcSrcLyrist(pc.title, pc.artist).catch(() => []),
       ]);
       lists.forEach((arr) => consider(arr, pc));
+      if (bs >= 0.9) break;
     }
   }
-  /* 3) 关键词兜底 */
+  /* 3) 关键词兜底：用候选里的纯歌名搜，比拿整串文件名更准（歌名-歌手也能命中） */
   if (!best || bs < LRC_MIN_SCORE) {
-    const kw = String(t.name || "").replace(/\.[A-Za-z0-9]{2,5}$/, "").replace(/[._]+/g, " ")
-      .replace(/\s+/g, " ").trim();
-    if (kw) {
+    const kws = [];
+    cands.forEach((c) => {
+      const k = String(c.title || "").trim();
+      if (k && kws.indexOf(k) < 0) kws.push(k);
+    });
+    for (const kw of kws.slice(0, 3)) {
       const arr = await lrcSearchOnce("https://lrclib.net/api/search?q=" + encodeURIComponent(kw));
       const norm = (arr || []).map((x) =>
         lrcNormItem("lrclib", x.trackName, x.artistName, x.duration, x.syncedLyrics, x.plainLyrics));
-      cands.slice(0, 4).forEach((c) => consider(norm, c));
+      cands.forEach((c) => consider(norm, c));
+      if (bs >= 0.9) break;
     }
   }
   if (!best || bs < LRC_MIN_SCORE) return null;
@@ -9850,7 +9868,7 @@ async function completeAllTracks() {
 /* 自动找歌词：开播就查，下一首提前查；同一首 10 分钟内只试一次，避免反复打接口 */
 const _lrcBusy = new Set();
 async function autoLyric(t, quiet) {
-  if (NETQ.slow) return;      /* 弱网时不主动打歌词接口 */
+  /* 歌词接口只是几百字节的文本，弱网也照样自动查，不再因为 NETQ.slow 直接放弃 */
   if (!t || !t.name) return;
   if ((Array.isArray(t.lrc) && t.lrc.length) || t.lrcText) return;
   if (_lrcBusy.has(t.id)) return;
@@ -9867,7 +9885,10 @@ async function autoLyric(t, quiet) {
           : "找到纯文本歌词：" + (hit.item.trackName || t.name) + "（不滚动）", 5000);
       }
     }
-  } catch (e) {} finally { _lrcBusy.delete(t.id); }
+  } catch (e) {
+    /* 网络异常不算「试过了」，下次开播还能再自动查 */
+    t._lrcTry = 0;
+  } finally { _lrcBusy.delete(t.id); }
 }
 
 /* ===================== 边听边聊 ===================== */
@@ -10335,24 +10356,6 @@ function simRatio(a, b) {
   return (2 * hit) / (a.length + b.length);
 }
 
-/* 给搜索结果打分：歌名必须像，歌手对上再加分；避免张冠李戴 */
-function matchScore(tokens, trackName, artist) {
-  const tn = normTxt(trackName), an = normTxt(artist);
-  if (!tn) return 0;
-  let best = 0;
-  let artistHit = false;
-  tokens.forEach((tk) => {
-    if (!tk) return;
-    if (tn === tk) best = Math.max(best, 1);
-    else if (tn.indexOf(tk) >= 0) best = Math.max(best, 0.85);
-    else if (tk.indexOf(tn) >= 0 && tn.length >= 2) best = Math.max(best, 0.7);
-    else if (tn.length >= 3 && simRatio(tn, tk) >= 0.7) best = Math.max(best, 0.85);
-    else if (an.indexOf(tk) >= 0) best = Math.max(best, 0.45);
-    if (an.indexOf(tk) >= 0 && tk.length >= 2) artistHit = true;
-  });
-  return Math.min(1, best * 0.8 + (artistHit ? 0.2 : 0));
-}
-
 let _coverLast = 0;
 let _coverCool = 0;   /* 被限流时进入冷却，避免一直重试 */
 
@@ -10366,31 +10369,74 @@ async function timedFetch(url, ms) {
   }
 }
 
-async function searchCover(name) {
+/* 封面打分：用「候选歌名 + 候选歌手」判断，歌名对得准就算高，歌手对上再加分 */
+function coverScore(x, title, artist) {
+  const tn = normTxt(x.trackName || "");
+  const ct = normTxt(title || "");
+  if (!tn || !ct) return 0;
+  let ts = 0;
+  if (tn === ct) ts = 1;
+  else if (tn.indexOf(ct) >= 0 || (ct.indexOf(tn) >= 0 && tn.length >= 2)) ts = 0.9;
+  else if (tn.length >= 2 && ct.length >= 2 && simRatio(tn, ct) >= 0.72) ts = 0.84;
+  if (!ts) return 0;
+  const an = normTxt(x.artistName || ""), ca = normTxt(artist || "");
+  let as = 0;
+  if (ca && an) {
+    if (an === ca || an.indexOf(ca) >= 0 || ca.indexOf(an) >= 0) as = 1;
+    else if (simRatio(an, ca) >= 0.6) as = 0.7;
+  }
+  return Math.min(1, ts * 0.8 + as * 0.2);
+}
+
+/* 把文件名拆成「歌名 歌手」的搜索词：带歌手的组合优先，纯歌名兜底，两种顺序都试 */
+function coverQueries(t) {
+  const name = typeof t === "string" ? t : ((t && t.name) || "");
+  const cands = lyricCandidates(name);
+  const out = [];
+  const seen = Object.create(null);
+  const add = (title, artist) => {
+    const tt = String(title || "").trim();
+    if (!tt) return;
+    const q = (tt + " " + String(artist || "").trim()).trim();
+    const k = q.toLowerCase();
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push({ q, title: tt, artist: String(artist || "").trim() });
+  };
+  cands.forEach((c) => { if (c.artist) add(c.title, c.artist); });
+  cands.forEach((c) => add(c.title, ""));
+  return out.slice(0, 3);
+}
+
+async function searchCover(t) {
   if (Date.now() < _coverCool) throw new Error("HTTP 429");
-  const term = biPretty(name).replace(/[_\-–—]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!term) return null;
-  const tokens = term.split(/\s+/).map(normTxt).filter((x) => x.length > 0);
-  let best = null, bs = 0;
+  const queries = coverQueries(t);
+  if (!queries.length) return null;
+  let best = null, bs = 0, reqs = 0;
   /* 台区/港区的中文曲库最全，美区兜底；找到很匹配的就提前收工 */
-  for (const country of ["tw", "us"]) {
-    const wait = Math.max(0, 320 - (Date.now() - _coverLast));
-    if (wait) await new Promise((r) => setTimeout(r, wait));
-    _coverLast = Date.now();
-    const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(term) +
-      "&entity=song&limit=6&country=" + country + "&lang=zh_cn";
-    const r = await timedFetch(url, 8000);
-    if (r.status === 403 || r.status === 429) {
-      _coverCool = Date.now() + 90000;
-      throw new Error("HTTP " + r.status);
+  for (const q of queries) {
+    for (const country of ["tw", "us"]) {
+      if (reqs >= 5) break;
+      const wait = Math.max(0, 320 - (Date.now() - _coverLast));
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+      _coverLast = Date.now();
+      reqs++;
+      const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(q.q) +
+        "&entity=song&limit=6&country=" + country + "&lang=zh_cn";
+      const r = await timedFetch(url, 8000);
+      if (r.status === 403 || r.status === 429) {
+        _coverCool = Date.now() + 90000;
+        throw new Error("HTTP " + r.status);
+      }
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      ((j && j.results) || []).forEach((x) => {
+        if (!x || !x.artworkUrl100) return;
+        const score = coverScore(x, q.title, q.artist);
+        if (score > bs) { bs = score; best = x; }
+      });
+      if (bs >= 0.9) break;
     }
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const j = await r.json();
-    ((j && j.results) || []).forEach((x) => {
-      if (!x || !x.artworkUrl100) return;
-      const score = matchScore(tokens, x.trackName, x.artistName);
-      if (score > bs) { bs = score; best = x; }
-    });
     if (bs >= 0.9) break;
   }
   if (!best || bs < 0.72) return null;
@@ -10449,12 +10495,12 @@ function coverPut(k, blob, src, artist) {
 function coverDel(k) {
   dbDo("covers", "readwrite", (st) => st.delete(k)).catch(() => {});
 }
-/* v1.17.1 找不到封面的歌记 7 天，避免每次冷启动都重新联网试一遍 */
+/* 1.17.3 起换用 covmiss2 前缀：旧的「找不到封面」记录是按老逻辑写的，不能继续挡住新匹配 */
 const COVER_MISS_DAYS = 7;
 function coverMissGet(k) {
   return openDB().then((db) => new Promise((res) => {
     const tx = db.transaction("meta", "readonly");
-    const rq = tx.objectStore("meta").get("covmiss:" + k);
+    const rq = tx.objectStore("meta").get("covmiss2:" + k);
     rq.onsuccess = () => {
       const rec = rq.result;
       res(!!(rec && rec.at && Date.now() - rec.at < COVER_MISS_DAYS * 86400000));
@@ -10463,10 +10509,10 @@ function coverMissGet(k) {
   })).catch(() => false);
 }
 function coverMissPut(k) {
-  return dbDo("meta", "readwrite", (st) => st.put({ k: "covmiss:" + k, at: Date.now() })).catch(() => {});
+  return dbDo("meta", "readwrite", (st) => st.put({ k: "covmiss2:" + k, at: Date.now() })).catch(() => {});
 }
 function coverMissDel(k) {
-  dbDo("meta", "readwrite", (st) => st.delete("covmiss:" + k)).catch(() => {});
+  dbDo("meta", "readwrite", (st) => st.delete("covmiss2:" + k)).catch(() => {});
 }
 /* 封面缓存统计：张数 + 总体积 */
 function coversInfo() {
@@ -10809,7 +10855,7 @@ async function resolveCover(t) {
     }
     if (t._coverMiss) return;
     if (await coverMissGet(k)) { t._coverMiss = true; return; }
-    const item = await searchCover(t.name);
+    const item = await searchCover(t);
     if (!item) { t._coverMiss = true; coverMissPut(k); return; }
     const blob = await fetchCoverBlob(item.artwork);
     await coverPut(k, blob, "auto", item.artist);
