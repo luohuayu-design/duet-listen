@@ -92,6 +92,11 @@
   .netCell .nv.ok{color:var(--ok)} .netCell .nv.warn{color:var(--warn)} .netCell .nv.err{color:var(--err)}
   .netCell.wide{grid-column:1 / -1}
   .netCell .nh{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.5}
+  .qNow{display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:8px;border-radius:12px;
+        background:rgba(var(--accentRgb),.12);border:1px solid rgba(var(--accentRgb),.32)}
+  .qNowTag{flex:none;font-size:11px;padding:2px 7px;border-radius:7px;background:var(--accent);color:#fff}
+  .qNowName{flex:1;min-width:0;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qNowMeta{flex:none;font-size:11px;color:var(--sub)}
   details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
   summary{cursor:pointer;font-size:13px;color:var(--sub);outline:none}
   details p{margin:10px 0 0;font-size:12.5px;line-height:1.7;color:var(--sub)}
@@ -816,6 +821,9 @@
     <div class="netTip hidden" id="netWeak">
       <span class="ntDot"></span><span id="netWeakText">网络较差：已降低刷新频率</span>
     </div>
+    <div class="offlineTip hidden" id="netOffTip">
+      <span class="psDot"></span><span>离线模式：只播放已保存到本机的歌，联网后自动恢复同步</span>
+    </div>
     <div class="seekWrap">
       <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
       <span class="peerMark hidden" id="peerMark" title="对方听到的位置"></span>
@@ -1076,6 +1084,7 @@
       <button class="topBtn" id="closeQueue">收起</button>
     </div>
     <div class="sheetBody">
+      <div class="qNow" id="queueNow"></div>
       <div class="row">
         <button class="btn" id="queueClear" style="padding:11px;font-size:13.5px">清空后面的歌</button>
       </div>
@@ -4250,7 +4259,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.19.0";
+const APP_VER = "1.20.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -4332,6 +4341,9 @@ const UI = {
   sheetQueue: $("#sheetQueue"),
   queueList: $("#queueList"),
   queueCount: $("#queueCount"),
+  queueNow: $("#queueNow"),
+  nextUp: $("#nextUp"),
+  netOffTip: $("#netOffTip"),
   queueClear: $("#queueClear"),
   sheetShare: $("#sheetShare"),
   shareImg: $("#shareImg"),
@@ -8037,6 +8049,13 @@ function renderQueue() {
   if (!UI.queueList) return;
   const list = upcomingList();
   if (UI.queueCount) UI.queueCount.textContent = list.length ? list.length + " 首待播" : "";
+  const cur = findTrack(APP.curId);
+  if (UI.queueNow) {
+    UI.queueNow.innerHTML = cur
+      ? '<span class="qNowTag">正在播放</span><span class="qNowName">' + esc(cur.name) + "</span>" +
+        '<span class="qNowMeta">' + (cur.dur ? fmtTime(cur.dur) : (audio.paused ? "已暂停" : "播放中")) + "</span>"
+      : '<span class="qNowTag">未开始</span><span class="qNowName">点歌单里任意一首开始</span>';
+  }
   if (APP.shuffle) {
     UI.queueList.innerHTML = '<div class="plEmpty">随机播放中，顺序由随机种子决定，没法手动调<br>想自己排歌就先切回「顺序」</div>';
     return;
@@ -8065,6 +8084,12 @@ function renderQueue() {
 function openQueue() {
   renderQueue();
   openSheet("queue");
+}
+/* 播放页的「接下来」整条可点，直接看完整队列并调整顺序 */
+if (UI.nextUp) {
+  UI.nextUp.style.cursor = "pointer";
+  UI.nextUp.title = "查看完整播放队列";
+  UI.nextUp.onclick = openQueue;
 }
 
 /* ===================== 歌单分享图片卡片 ===================== */
@@ -9045,7 +9070,7 @@ function paintTrackPct(t) {
 
 /* 长歌单：超过阈值时按滚动位置只渲染可视窗口（虚拟滚动）；短列表仍分批 */
 const VIRT_MIN = 200;
-const VIRT = { rowH: 74, on: false };
+const VIRT = { rowH: 74, on: false, mKey: "" };
 function virtBody() {
   return UI.sheetList ? UI.sheetList.querySelector(".sheetBody") : null;
 }
@@ -9054,12 +9079,17 @@ function virtOffset() {
   if (!body || !UI.playlist) return 0;
   return Math.max(0, UI.playlist.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop);
 }
-function virtMeasure() {
+function virtMeasure(total) {
   if (!UI.playlist) return;
+  /* 行高只和「当前页 + 歌曲数量」有关：同一屏滚动时不再重复读取布局，
+     避免每次 scroll 都触发强制回流（长歌单滚动更跟手） */
+  const key = (APP.plTab || "") + "|" + (APP.plCur || "") + "|" + (APP.favTag || "") + "|" + (total || 0);
+  if (key === VIRT.mKey) return;
   const row = UI.playlist.querySelector(".plItem");
   if (!row) return;
   const h = row.offsetHeight + 8;
   if (h > 40 && Math.abs(h - VIRT.rowH) > 3) VIRT.rowH = h;
+  VIRT.mKey = key;
 }
 function pageSlice(list) {
   VIRT.on = false;
@@ -9071,7 +9101,7 @@ function pageSlice(list) {
     return { shown: list.slice(0, lim), rest: Math.max(0, total - lim), virt: null };
   }
   VIRT.on = true;
-  virtMeasure();
+  virtMeasure(total);
   const body = virtBody();
   /* rel = 歌单顶部已经滚出可视区的高度 */
   const rel = Math.max(0, (body ? body.scrollTop : 0) - virtOffset());
@@ -12314,8 +12344,14 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /* ---------- 网络变化 / 回到前台：立刻检查并救连接 ---------- */
-window.addEventListener("online", () => { toast("网络已恢复，正在检查连接…"); netWake(); });
-window.addEventListener("offline", () => { setPill("手机没网了", "err"); setConn("网络已断开，恢复后会自动重连", "err"); });
+/* 手机完全没网时，明确告诉用户现在是离线模式（歌单和已保存的歌仍然能播） */
+function syncOfflineBanner() {
+  if (!UI.netOffTip) return;
+  UI.netOffTip.classList.toggle("hidden", navigator.onLine !== false);
+}
+window.addEventListener("online", () => { syncOfflineBanner(); toast("网络已恢复，正在检查连接…"); netWake(); });
+window.addEventListener("offline", () => { syncOfflineBanner(); setPill("手机没网了", "err"); setConn("网络已断开，恢复后会自动重连", "err"); });
+syncOfflineBanner();
 window.addEventListener("focus", () => { netWake(); if (audioLoadingStuck()) reloadStuckAudio(); });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) return;
@@ -13119,7 +13155,12 @@ applyModeChrome();
 /* 歌单恢复完再收起骨架；至少展示 420ms，避免闪一下 */
 restorePlaylist().then(() => {
   const left = Math.max(0, 420 - (Date.now() - _bootT0));
-  setTimeout(() => { hideBootSkel(); preloadCovers(); }, left);
+  setTimeout(() => {
+    hideBootSkel();
+    /* 首屏先让播放器出来，封面等浏览器空闲再预取，别和启动抢带宽 */
+    if (window.requestIdleCallback) requestIdleCallback(() => preloadCovers(), { timeout: 1500 });
+    else setTimeout(preloadCovers, 1200);
+  }, left);
 });
 /* 兜底：数据库异常时也不能一直卡在骨架 */
 setTimeout(hideBootSkel, 6000);
