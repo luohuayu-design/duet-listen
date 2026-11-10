@@ -871,7 +871,7 @@
       <p><b>5. 控制</b>：房间里人人权力一样，谁都能播放、暂停、拖动、切歌、加歌。安卓 App 还能在锁屏/通知栏控制播放，拔掉耳机会自动暂停。播放页支持手势：<b>双击左侧/右侧切歌、上下滑调音量、长按封面 2× 试听</b>；右下角可以选 0.5–2× 倍速，<b>倍速会同步给房间里所有人</b>。点封面进入全屏播放页，背景颜色会跟着封面变。</p>
       <p><b>6. 歌词与封面</b>：点「找歌词」打开搜索面板，一次查 LRCLIB / lyrics.ovh / Lyrist 三个源，可以填「歌手」过滤同名版本；点结果里任意一条即可套用，「自动选最佳」会直接挑最合适的。歌单里两个按钮：「整单找歌词」只补歌词，「整单补全歌词+封面」两样一起补，进度会显示在按钮下方，再点一次可中途停止。只有纯文本歌词时会先展示、但不滚动。歌词和声音对不上时，点「校准」拖滑块边听边调（只影响自己这边，不会改动对方播放），也可以「以当前句校准」一键对齐；找不到歌词可点「加歌词」手动选 .lrc 文件。播放时会自动联网匹配专辑封面，显示在播放器背景和歌单里；点封面进入全屏页，右上角「换封面」可以手动换一张图。封面会存在本地，之后断网也能显示。</p>
       <p><b>7. 聊天</b>：抽屉里切到「聊天」，发的消息其他人立刻能看到，带头像。可以点「🖼 发图片」直接发压缩后的小图、点任意消息引用回复、点表情飘屏；自己发的消息下面会显示「送达 / 已读」，<b>2 分钟内长按自己的消息可以撤回</b>。下面两个开关分别控制新消息的震动和提示音。聊天记录只存在本机，下次打开还在（最多 80 条，图片最多 8 张）。</p>
-      <p><b>8. 歌单与传输</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、别人传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，所有人按添加顺序看到同一份歌单，并自动互相传文件。<b>中途进来的人只下「当前这首歌 + 下一首」</b>，下完自动对齐、开始播放，不会打断正在放的人；播放过程中会提前把下一首缓冲好。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 已连接 / 重试第几次」。实在卡住就点右上角 ↻。</p>
+      <p><b>8. 歌单与传输</b>：<b>我的歌曲</b>是长期保存的本地列表（自己加的歌、别人传过来的歌都在这里，下次打开还在）；<b>一起听</b>是本次房间的共享歌单，每次进房间从空开始。在「我的歌曲」里点 <b>＋</b> 把歌加进「一起听」，所有人按添加顺序看到同一份歌单，并自动互相传文件。<b>中途进来的人只下「当前这首歌 + 下一首」</b>，下完自动对齐、开始播放，不会打断正在放的人；播放过程中会提前把下一首缓冲好（下一首旁边会显示「已缓冲」，单机播放同样生效，引用模式的歌会先把文件读好）。连接断了会自己一直重连（间隔越来越长），换网 / 锁屏回来也会立刻自检；顶栏小圆点会显示「中转已连 / 已连接 / 重试第几次」。实在卡住就点右上角 ↻。</p>
       <p><b>9. 房主</b>：房主可以先建房、先放歌，别人进来不影响他。房主退出后，<b>房间里来得最早的人自动接任房主</b>，房间照常继续。</p>
       <p><b>10. 个人资料</b>：首页右上角点自己的头像/名字，可以选内置头像、从相册选图、改用户名；进入「一起听」后所有人的顶栏和聊天都会显示头像和名字，不需要密码。</p>
       <p><b>11. 限制</b>：音量各自独立；聊天记录只保存在本机；收藏、「最近播放」和自建歌单只在自己这边生效。</p>
@@ -4196,7 +4196,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.17.1";
+const APP_VER = "1.17.2";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -7819,17 +7819,29 @@ function warmTrack(t) {
   if (!t || !t.url || WARM.url === t.url) return;
   WARM.url = t.url;
   if (!WARM.el) {
-    try { WARM.el = new Audio(); WARM.el.preload = "metadata"; WARM.el.muted = true; } catch (e) { return; }
+    try {
+      WARM.el = new Audio();
+      /* v1.17.2 用 auto 真正把下一首缓冲下来，metadata 只读文件头，切歌照样要等 */
+      WARM.el.preload = "auto";
+      WARM.el.muted = true;
+    } catch (e) { return; }
+    WARM.el.onerror = () => { WARM.url = ""; };
   }
   try { WARM.el.src = t.url; WARM.el.load(); } catch (e) {}
 }
 
 function ensureBuffer() {
-  if (!APP.room || !APP.mqs.length) return;
-  /* 还没人开始放歌时先不下载，等收到「当前放到哪首」再按需拉 */
-  if (!APP.curId && !APP.pendingTarget) return;
   const list = activeTracks();
   if (!list.length) return;
+  /* 单机模式没有房间和 MQ，但下一首同样要提前备：引用歌先读文件，有地址的先缓冲 */
+  if (!APP.room) {
+    warmNextTrack();
+    renderNextUp();
+    return;
+  }
+  if (!APP.mqs.length) return;
+  /* 还没人开始放歌时先不下载，等收到「当前放到哪首」再按需拉 */
+  if (!APP.curId && !APP.pendingTarget) return;
   let idx = list.findIndex((t) => t.id === APP.curId);
   /* 刚进房间、还在等当前歌传过来时，按「未来要播的那首」来缓冲 */
   if (APP.pendingTarget) {
@@ -7847,12 +7859,26 @@ function ensureBuffer() {
   const nx = peekNext();
   if (nx && nx.id !== need[0].id) need.push(nx);
   need.forEach((t) => {
-    if (!t || t.url || t.ref || adoptLocal(t)) return;
+    if (!t || t.url || adoptLocal(t)) return;
+    /* 引用模式（安卓文件夹导入）：先把文件读成 blob，别等轮到才现读 */
+    if (t.ref) {
+      ensureUrl(t).then((u) => { if (u) { warmTrack(t); renderNextUp(); } });
+      return;
+    }
     requestTrackFile(t.id, t.owner || "");
   });
-  /* 下一首的封面、歌词、解码器也顺手备好，切过去就能直接显示 */
-  if (nx) { queueCover(nx, true); autoLyric(nx, true); warmTrack(nx); }
+  warmNextTrack();
   renderNextUp();
+}
+
+/* 下一首的封面、歌词、音频缓冲都先备好，切过去直接出声 */
+function warmNextTrack() {
+  const nx = peekNext();
+  if (!nx || nx.id === APP.curId) return;
+  queueCover(nx, true);
+  autoLyric(nx, true);
+  if (nx.url) warmTrack(nx);
+  else if (nx.ref) ensureUrl(nx).then((u) => { if (u) { warmTrack(nx); renderNextUp(); } });
 }
 
 /* 下一首是谁（显示用，也用于提前缓冲）：顺序 / 随机 / 单曲循环都算上 */
@@ -7878,6 +7904,7 @@ function renderNextUp() {
   nm.textContent = biPretty(nx.name);
   let s, warn = false;
   if (APP.repeat === 2) s = "单曲循环";
+  else if (nx.url && WARM.url === nx.url) s = "已缓冲";
   else if (nx.url || nx.ref) s = "已就绪";
   else if (nx.state === "recv") { s = "下载中 " + (nx.pct || 0) + "%"; warn = true; }
   else { s = "正在加载…"; warn = true; }
