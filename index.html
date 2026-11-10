@@ -4196,7 +4196,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.17.0";
+const APP_VER = "1.17.1";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -5045,9 +5045,11 @@ plsImportPicker.onchange = async () => {
     const byName = Object.create(null);
     APP.lib.forEach((t) => {
       const k = normPlName(t.name);
-      if (k && !byName[k]) byName[k] = t.id;
+      if (!k) return;
+      if (!byName[k]) byName[k] = [];
+      byName[k].push(t);
     });
-    const stat = { pls: 0, songs: 0, miss: 0 };
+    const stat = { pls: 0, songs: 0, miss: 0, dur: 0, ambig: 0 };
     obj.playlists.forEach((raw) => {
       if (!raw || typeof raw !== "object") return;
       const name = String(raw.name || "导入歌单").trim().slice(0, 16) || "导入歌单";
@@ -5061,10 +5063,25 @@ plsImportPicker.onchange = async () => {
       if (raw.cover && !p.cover && /^data:image\//.test(raw.cover) && raw.cover.length < 200000) p.cover = raw.cover;
       (Array.isArray(raw.songs) ? raw.songs : []).forEach((s) => {
         const nm = typeof s === "string" ? s : (s && s.name);
-        const id = byName[normPlName(nm)];
-        if (!id) { stat.miss++; return; }
-        if (p.ids.indexOf(id) >= 0) return;
-        p.ids.push(id);
+        const cand = byName[normPlName(nm)] || [];
+        let pick = null;
+        if (cand.length === 1) {
+          pick = cand[0];
+        } else if (cand.length > 1) {
+          /* 同名多版本（Live / Remix）：按时长 ±3 秒挑最接近的那首 */
+          const d = Number(s && s.dur) || 0;
+          let best = null, bestDiff = 99;
+          cand.forEach((t) => {
+            if (!d || !t.dur) return;
+            const diff = Math.abs(Number(t.dur) - d);
+            if (diff <= 3 && diff < bestDiff) { best = t; bestDiff = diff; }
+          });
+          pick = best || cand[0];
+          if (best) stat.dur++; else stat.ambig++;
+        }
+        if (!pick) { stat.miss++; return; }
+        if (p.ids.indexOf(pick.id) >= 0) return;
+        p.ids.push(pick.id);
         stat.songs++;
       });
     });
@@ -5074,7 +5091,9 @@ plsImportPicker.onchange = async () => {
     syncTabs();
     renderPlaylist();
     toast("导入 " + stat.pls + " 个歌单 · 匹配 " + stat.songs + " 首" +
-      (stat.miss ? " · " + stat.miss + " 首曲库里没有" : ""), 4000);
+      (stat.dur ? " · " + stat.dur + " 首按时长对上" : "") +
+      (stat.ambig ? " · " + stat.ambig + " 首同名取了第一首" : "") +
+      (stat.miss ? " · " + stat.miss + " 首曲库里没有" : ""), 4500);
   } catch (e) {
     toast("导入失败：文件不是一起听导出的歌单备份", 3500);
   }
@@ -9847,6 +9866,7 @@ function chatById(id) {
   }
   return null;
 }
+let _chatQuotaWarned = false;
 function chatSave() {
   try {
     const arr = APP.chatMsgs.slice(-CHAT_MAX).map((m) => Object.assign({}, m));
@@ -9859,13 +9879,22 @@ function chatSave() {
     }
     localStorage.setItem(CHAT_KEY, JSON.stringify(arr));
   } catch (e) {
-    /* 空间不足：先丢掉图片再试一次 */
+    /* 空间不足：先丢掉图片再试一次，并明确告诉用户图片被清理了 */
     try {
+      const hadImg = APP.chatMsgs.some((m) => m.img);
       const arr = APP.chatMsgs.slice(-CHAT_MAX).map((m) =>
         Object.assign({}, m, { img: "", imgGone: !!(m.img || m.imgGone) }));
       localStorage.setItem(CHAT_KEY, JSON.stringify(arr));
+      if (hadImg && !_chatQuotaWarned) {
+        _chatQuotaWarned = true;
+        toast("本地空间快满了，聊天里较早的图片已自动清理", 4000);
+      }
     } catch (e2) {
       try { localStorage.removeItem(CHAT_KEY); } catch (e3) {}
+      if (!_chatQuotaWarned) {
+        _chatQuotaWarned = true;
+        toast("本地空间不足，聊天记录这次没能保存", 4000);
+      }
     }
   }
 }
@@ -10393,6 +10422,25 @@ function coverPut(k, blob, src, artist) {
 function coverDel(k) {
   dbDo("covers", "readwrite", (st) => st.delete(k)).catch(() => {});
 }
+/* v1.17.1 找不到封面的歌记 7 天，避免每次冷启动都重新联网试一遍 */
+const COVER_MISS_DAYS = 7;
+function coverMissGet(k) {
+  return openDB().then((db) => new Promise((res) => {
+    const tx = db.transaction("meta", "readonly");
+    const rq = tx.objectStore("meta").get("covmiss:" + k);
+    rq.onsuccess = () => {
+      const rec = rq.result;
+      res(!!(rec && rec.at && Date.now() - rec.at < COVER_MISS_DAYS * 86400000));
+    };
+    rq.onerror = () => res(false);
+  })).catch(() => false);
+}
+function coverMissPut(k) {
+  return dbDo("meta", "readwrite", (st) => st.put({ k: "covmiss:" + k, at: Date.now() })).catch(() => {});
+}
+function coverMissDel(k) {
+  dbDo("meta", "readwrite", (st) => st.delete("covmiss:" + k)).catch(() => {});
+}
 /* 封面缓存统计：张数 + 总体积 */
 function coversInfo() {
   return openDB().then((db) => new Promise((res) => {
@@ -10733,14 +10781,18 @@ async function resolveCover(t) {
       return;
     }
     if (t._coverMiss) return;
+    if (await coverMissGet(k)) { t._coverMiss = true; return; }
     const item = await searchCover(t.name);
-    if (!item) { t._coverMiss = true; return; }
+    if (!item) { t._coverMiss = true; coverMissPut(k); return; }
     const blob = await fetchCoverBlob(item.artwork);
     await coverPut(k, blob, "auto", item.artist);
     setCover(t, blob, "auto", item.artist);
   } catch (e) {
     /* 被限流时先别判死刑，下次打开还能再试 */
-    if (!/HTTP (403|429)/.test(String(e && e.message || e))) t._coverMiss = true;
+    if (!/HTTP (403|429)/.test(String(e && e.message || e))) {
+      t._coverMiss = true;
+      coverMissPut(trackKey(t));
+    }
   } finally {
     t._coverBusy = false;
   }
@@ -12565,6 +12617,7 @@ $("#coverPicker").onchange = async (e) => {
     if (!blob) throw new Error("bad image");
     await coverPut(trackKey(t), blob, "manual", t.coverArtist || "");
     t._coverMiss = false;
+    coverMissDel(trackKey(t));
     setCover(t, blob, "manual", t.coverArtist || "");
     toast("封面已更新");
   } catch (err) {
@@ -13096,10 +13149,15 @@ function exportBackup() {
   const c = backupCollect();
   if (!c.n) { toast("还没有可以备份的数据"); return; }
   const payload = {
-    app: "duet-listen", type: "backup", version: 1,
+    app: "duet-listen", type: "backup", schema: 1, version: 1,
     appVer: APP_VER, time: Date.now(), data: c.data,
   };
-  if (saveTextFile("一起听-备份-" + plsStamp() + ".json", JSON.stringify(payload))) {
+  const text = JSON.stringify(payload);
+  let bytes = text.length * 2;
+  try { bytes = new Blob([text]).size; } catch (e) {}
+  const mb = bytes / 1048576;
+  if (mb > 4 && !confirm("备份约 " + mb.toFixed(1) + " MB，主要是聊天图片。\n恢复时会慢一些，建议先清理聊天图片。仍然继续？")) return;
+  if (saveTextFile("一起听-备份-" + plsStamp() + ".json", text)) {
     toast("已备份 " + c.n + " 项（约 " + fmtSize(c.bytes) + "）");
   }
 }
