@@ -4244,6 +4244,9 @@ const APP = {
   speed: 1,              // 倍速播放（两端同步，持久化）
   hadPeer: false,        // 本房间曾经连上过人（用来判断「对方离线」）
   offlineSince: 0,       // 对方掉线的起始时间
+  peerDead: false,       // 对方长时间无响应，已降级为单机播放
+  peerDeadAt: 0,         // 开始降级的时间
+  bgSince: 0,            // 进入后台的时间（回前台时统一补一次界面）
   chatRecent: [],        // 最近两条聊天，显示在主界面聊天入口下方
   chatMsgs: [],          // 本机聊天记录（持久化，最近 80 条）
   notify: { vib: true, snd: true },  // 新消息震动/提示音开关（持久化）
@@ -4259,7 +4262,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.20.0";
+const APP_VER = "1.21.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -6429,8 +6432,10 @@ function bindCtlChannel(p, dc) {
     publish(helloMsg());
     syncQueueToPeer();
     sendLrcToPeer(p);
-    /* 新进来的人要马上知道当前放到哪首歌，好把这首歌下下来对齐 */
-    sendStateNow(p);
+    /* 新进来的人要马上知道当前放到哪首歌，好把这首歌下下来对齐；
+       断线重连回来时带上 rc 标记：对方只补进度，不会把同一首歌从头加载 */
+    const wasRe = !!p.needNotice;
+    sendStateNow(p, wasRe);
     ensureBuffer();
     renderWho();
     /* 断线重连回来了：明确告诉用户已经续上，不用手动重进房间 */
@@ -6448,16 +6453,19 @@ function bindCtlChannel(p, dc) {
 }
 
 /* 把「我现在放到哪、是否在播」单独发给某个人 */
-function sendStateNow(p) {
+function sendStateNow(p, reconn) {
   if (!audio.src) return;
   /* 重连瞬间可能还在缓冲，别把 paused 当成暂停发给对方 */
   const loadingIntent = APP.wantPlaying !== false && !audio.ended && !audio.error && audio.readyState < 3;
-  publish({
+  const msg = {
     k: "state", from: APP.me, ver: APP.stateVer, by: APP.lastBy || APP.me,
     to: (p && p.id) || undefined,
     trk: APP.curId, pos: audio.currentTime, playing: !audio.paused || loadingIntent, ts: Date.now(),
     spd: APP.speed,
-  });
+  };
+  /* rc = 断线重连后的补发：对方收到后只补进度，不会把同一首歌重新加载 */
+  if (reconn) msg.rc = 1;
+  publish(msg);
 }
 
 /* 断线自动重连：只重建这一个人，不影响房间里其他成员 */
@@ -7954,6 +7962,8 @@ function ensureBuffer() {
   let idx = list.findIndex((t) => t.id === APP.curId);
   /* 刚进房间、还在等当前歌传过来时，按「未来要播的那首」来缓冲 */
   if (APP.pendingTarget) {
+    /* 对方长时间无响应已降级为单机：不再干等这首传过来 */
+    if (APP.peerDead) { renderNextUp(); return; }
     const pid = localId(APP.pendingTarget.trk);
     const pi = list.findIndex((t) => t.id === pid);
     if (pi >= 0) { idx = pi; }
@@ -11139,6 +11149,7 @@ function coverLazy(box, list) {
 
 /* 启动时把本地缓存的封面先装回内存，歌单一打开就能看到 */
 async function preloadCovers() {
+  if (document.hidden) return;   /* 后台不预取封面：省流量、省电 */
   try {
     const db = await openDB();
     const recs = await new Promise((res) => {
@@ -11827,8 +11838,10 @@ function applyPeerState(m, force) {
 
   const prevVer = APP.stateVer;
   const prevBy = APP.lastBy;
+  /* 断线重连后的补发（rc）：不走版本号去重，只用来把两边进度补齐 */
+  const reconn = !!m.rc;
 
-  if (!force) {
+  if (!force && !reconn) {
     if (m.ver < APP.stateVer) return;
     if (m.ver === APP.stateVer) {
       const by = m.by || "";
@@ -11852,7 +11865,7 @@ function applyPeerState(m, force) {
     }
   }
   /* 是不是一条新的指令（用来决定要不要弹提示，重试时不再重复弹） */
-  const fresh = !!force || m.ver > prevVer || (m.by || "") !== (prevBy || "");
+  const fresh = !!force || reconn || m.ver > prevVer || (m.by || "") !== (prevBy || "");
 
   /* ver 是各自设备累加的，不能直接拿来比大小，否则谁的数字大谁就永远压死对方。
      这里按 Lamport 时钟处理：收到对方的版本就「只升不降」，自己再动作时在更高的基数上加一。 */
@@ -11868,7 +11881,7 @@ function applyPeerState(m, force) {
   // 让对方那边看到「对方在干什么」
   const prevId = APP.curId;
   const prevPlaying = !audio.paused;
-  if (fresh) {
+  if (fresh && !reconn) {
     if (m.trk && wantId !== prevId) {
       hint("房间切到「" + (t ? t.name : "另一首歌") + "」");
       addSys(nameOf(m.from) + " 切到「" + (t ? t.name : "另一首歌") + "」");
@@ -11879,6 +11892,7 @@ function applyPeerState(m, force) {
   }
 
   try {
+    /* 还是同一首歌（包括重连回来）：绝不重新 load，只在下面按偏差 seek 补进度 */
     if (wantId && wantId !== APP.curId) {
       if (t && !t.url) adoptLocal(t);
       if (!t || !t.url) {
@@ -12040,6 +12054,13 @@ function renderOfflineTick() {
   if (online) {
     APP.hadPeer = true;
     APP.offlineSince = 0;
+    /* 之前长时间没响应已经降级过：对方回来了就解除降级，恢复正常同步 */
+    if (APP.peerDead) {
+      APP.peerDead = false;
+      APP.peerDeadAt = 0;
+      hint("对方已重新连上，已恢复同步", 2600);
+      DIAG.push("同步", "对方恢复在线，解除单机降级");
+    }
     UI.offlineTip.classList.add("hidden");
     return;
   }
@@ -12051,12 +12072,23 @@ function renderOfflineTick() {
     reconn = peerList().some((p) => p && (p.reconnecting ||
       (p.pc && p.pc.connectionState && p.pc.connectionState !== "connected")));
   } catch (e) {}
+  /* 等太久就别干等了：降级为单机继续播，对方回来再自动续上 */
+  if (sec >= 30 && !APP.peerDead) {
+    APP.peerDead = true;
+    APP.peerDeadAt = Date.now();
+    hint("对方已离线超过 30 秒，已转为单机继续播放；对方回来后会自动续上", 4200);
+    DIAG.push("同步", "对方离线 " + sec + " 秒，降级为单机播放");
+    ensureBuffer();
+  }
   UI.offlineTip.classList.remove("hidden");
-  UI.offlineText.textContent = reconn
-    ? "正在自动重连…（已 " + sec + " 秒），连上后会自己续上"
-    : sec < 60
-      ? "对方暂时离线 " + sec + " 秒，网络恢复后会自动续上"
-      : "对方离线 " + Math.floor(sec / 60) + " 分钟，可能已退出房间；重新进房可恢复";
+  const span = sec < 60 ? sec + " 秒" : Math.floor(sec / 60) + " 分钟";
+  UI.offlineText.textContent = APP.peerDead
+    ? "对方离线 " + span + " · 已转为单机继续播放"
+    : reconn
+      ? "正在自动重连…（已 " + sec + " 秒），连上后会自己续上"
+      : sec < 60
+        ? "对方暂时离线 " + sec + " 秒，网络恢复后会自动续上"
+        : "对方离线 " + Math.floor(sec / 60) + " 分钟，可能已退出房间；重新进房可恢复";
 }
 
 /* 正在接收 / 带断点的歌：队列可视化用 */
@@ -12224,6 +12256,8 @@ setInterval(() => {
 /* 进度条 / 时间显示 */
 setInterval(() => {
   if (!audio.src) return;
+  /* 锁屏进度条约每秒更新一次：放在后台判断之前，页面在后台时也保持锁屏进度准确 */
+  if (Date.now() - _posTs > 990) { _posTs = Date.now(); syncMediaPosition(); }
   if (document.hidden) return;       /* 后台不刷新界面：省电，回前台也不会掉帧 */
   const previewing = APP.seekPreview != null;
   if (!previewing) UI.tCur.textContent = fmtTime(audio.currentTime);
@@ -12235,8 +12269,6 @@ setInterval(() => {
   }
   updateLyric(false);
   renderStage();
-  /* 锁屏进度条约每秒更新一次，别每 250ms 都写 */
-  if (Date.now() - _posTs > 990) { _posTs = Date.now(); syncMediaPosition(); }
 }, 250);
 
 /* ===================== 交互绑定 ===================== */
@@ -12354,10 +12386,16 @@ window.addEventListener("offline", () => { syncOfflineBanner(); setPill("手机�
 syncOfflineBanner();
 window.addEventListener("focus", () => { netWake(); if (audioLoadingStuck()) reloadStuckAudio(); });
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) return;
+  if (document.hidden) { APP.bgSince = Date.now(); return; }
   netWake();
   // 页面在后台待过一阵后，音频可能被挂起成「假播放」，回到前台立刻救一次
   if (audioLoadingStuck()) reloadStuckAudio();
+  /* 后台期间界面和锁屏信息都停着更新：回前台补一次，避免进度条/歌词/封面停在旧状态 */
+  APP.bgSince = 0;
+  _posTs = 0;
+  syncMediaSession();
+  updateLyric(true);
+  renderStage();
 });
 if (navigator.connection && navigator.connection.addEventListener) {
   navigator.connection.addEventListener("change", () => netWake());
@@ -13199,8 +13237,17 @@ if ("mediaSession" in navigator && !MCTL) {
   setAct("seekto", (d) => {
     if (d && typeof d.seekTime === "number") {
       audio.currentTime = d.seekTime;
+      syncMediaPosition();
       setTimeout(onLocalAction, 60);
     }
+  });
+  /* 耳机上的「停止」：暂停并回到开头（很多耳机的长按/双击都会发这个） */
+  setAct("stop", () => {
+    try { audio.pause(); } catch (e) {}
+    try { audio.currentTime = 0; } catch (e) {}
+    APP.wantPlaying = false;
+    syncMediaSession();
+    setTimeout(onLocalAction, 60);
   });
 }
 
