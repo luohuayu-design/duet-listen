@@ -259,6 +259,10 @@
     color:transparent;-webkit-text-fill-color:transparent;
     transition:background-image .12s linear;
   }
+  /* 逐字歌词（增强 LRC：<mm:ss.xx>）：按字上色 */
+  .lyrLine.wl .lyrWord{transition:color .12s linear}
+  .lyrLine.wl .lyrWord.done{color:var(--fg)}
+  .lyrLine.wl .lyrWord.now{color:var(--accent);font-weight:700}
   .lyrLine.active{color:var(--fg)}
   /* 歌词字号三档 */
   .lyrics.lyrS{max-height:126px}
@@ -979,6 +983,14 @@
         <button class="chip" data-tab="unheard">未听</button>
         <span class="tag" id="plFilterCount" style="margin-left:auto"></span>
       </div>
+      <div class="plChips" id="plFilterChips">
+        <button class="chip on" data-pf="all">全部</button>
+        <button class="chip" data-pf="cover">有封面</button>
+        <button class="chip" data-pf="nocover">缺封面</button>
+        <button class="chip" data-pf="lrc">有歌词</button>
+        <button class="chip" data-pf="nolrc">缺歌词</button>
+        <button class="chip" data-pf="long">超 5 分钟</button>
+      </div>
       <div class="xferBar hidden" id="xferBar">
         <span id="xferText">正在传…</span>
         <button class="topBtn" id="btnXferPause" style="flex:none">暂停</button>
@@ -1415,6 +1427,13 @@
       <div class="row" style="margin-top:8px">
         <button class="btn" id="btnLrcBest" style="padding:10px;font-size:13px">自动选最佳</button>
         <button class="btn" id="btnLrcFile" style="padding:10px;font-size:13px">从文件选 .lrc</button>
+        <button class="btn" id="btnLrcBatch" style="padding:10px;font-size:13px">批量 .lrc</button>
+      </div>
+      <div class="label" style="margin-top:14px">手动粘贴 / 微调当前这首歌</div>
+      <textarea id="lrcPaste" class="chatInput" rows="4" placeholder="粘贴 .lrc 内容：带 [mm:ss.xx] 会滚动，支持 &lt;mm:ss.xx&gt; 逐字歌词；也可以只贴纯文本" style="width:100%;resize:vertical;letter-spacing:0;text-transform:none;text-align:left;line-height:1.6"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="btnLrcPaste" style="padding:10px;font-size:13px">应用粘贴的歌词</button>
+        <button class="btn" id="btnLrcClear" style="flex:0 0 96px;padding:10px;font-size:13px">清除本曲</button>
       </div>
       <div class="lrcProg hidden" id="lrcSearchProg"><i id="lrcSearchProgBar"></i></div>
       <div class="status" id="lrcSearchStatus" style="margin-top:8px">
@@ -4196,6 +4215,7 @@ const APP = {
   sel: null,             // 批量选择：null=未开，Set=已选歌曲 id
   lrcSize: "m",          // 歌词字号：s|m|l（持久化）
   plTab: "duet",         // 歌单筛选：duet|lib|all|pls|pl|fav|recent|unheard
+  plFilter: "all",       // 歌单附加筛选：all|cover|nocover|lrc|nolrc|long
   favTag: "",            // 收藏页分组筛选：""=全部，"#none"=未分组，其它=标签名
   shufflePlayed: new Set(),  // 随机播放本轮已经听过的 trackKey（本轮不重复）
   played: {},            // 听过历史：trackKey → 最近播放时间戳（localStorage）
@@ -4230,7 +4250,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.18.0";
+const APP_VER = "1.19.0";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -8481,6 +8501,20 @@ function matchQuery(t, q) {
   return (String(t.name || "") + " " + String(t.tag || "") + " " + String(t.note || ""))
     .toLowerCase().indexOf(q) >= 0;
 }
+/* 歌单附加筛选（只影响列表显示，不影响播放队列） */
+function applyPlFilter(list) {
+  const f = APP.plFilter || "all";
+  if (f === "all") return list;
+  return (list || []).filter((t) => {
+    if (!t) return false;
+    if (f === "cover") return !!t.coverUrl;
+    if (f === "nocover") return !t.coverUrl;
+    if (f === "lrc") return !!(t.lrc && t.lrc.length) || !!t.lrcText;
+    if (f === "nolrc") return !(t.lrc && t.lrc.length) && !t.lrcText;
+    if (f === "long") return (Number(t.dur) || 0) >= 300;
+    return true;
+  });
+}
 
 function visibleTracks() {
   let list = APP.tracks.slice();
@@ -8852,12 +8886,16 @@ function renderPlaylistBody() {
       emptyText = "我的音乐还是空的<br>点上面「添加歌曲 / 扫描本地歌曲」";
     }
     if (q) list = list.filter((t) => matchQuery(t, q.toLowerCase()));
+    list = applyPlFilter(list);
     if (UI.plFilterCount) UI.plFilterCount.textContent = q ? "匹配 " + list.length + " 首" : "";
 
     const head = (APP.plTab === "pl" && APP.plCur ? plHeadHtml() : "") +
       (APP.plTab === "fav" ? favTagBarHtml() : "");
     if (!list.length) {
-      box.innerHTML = head + '<div class="plEmpty">' + (APP.plTab === "fav" && APP.favTag ? "这个分组里还没有歌" : emptyText) + "</div>";
+      const noMatch = q || (APP.plFilter && APP.plFilter !== "all");
+      box.innerHTML = head + '<div class="plEmpty">' +
+        (noMatch ? "没有符合条件的歌" : (APP.plTab === "fav" && APP.favTag ? "这个分组里还没有歌" : emptyText)) +
+        "</div>";
       renderNextUp();
       return;
     }
@@ -8893,7 +8931,7 @@ function renderPlaylistBody() {
   /* ---------- 一起听：一起听歌单 / 我的歌曲 / 收藏 / 最近 ---------- */
   /* 「我的歌曲」= 长期保存的本地列表，「一起听」= 本次房间的歌单 */
   if (APP.plTab === "lib") {
-    const list = visibleLib();
+    const list = applyPlFilter(visibleLib());
     if (UI.plFilterCount) UI.plFilterCount.textContent = APP.plQuery ? "匹配 " + list.length + " 首" : "";
     if (!APP.lib.length) {
       box.innerHTML = '<div class="plEmpty">我的列表还是空的，点上面「添加歌曲 / 扫描本地歌曲」</div>';
@@ -8932,7 +8970,7 @@ function renderPlaylistBody() {
     return;
   }
 
-  const list = visibleTracks();
+  const list = applyPlFilter(visibleTracks());
   if (APP.plTab === "merge") { renderMergeView(box); return; }
   if (UI.plFilterCount) {
     UI.plFilterCount.textContent = (APP.plTab === "duet" && !APP.plQuery) ? "" : "显示 " + list.length + " 首";
@@ -9166,18 +9204,50 @@ function opSort() {
 function parseLrc(text) {
   const out = [];
   String(text || "").split(/\r?\n/).forEach((raw) => {
-    const body = raw.replace(/\[[^\]]*\]/g, "").trim();
+    let body = raw.replace(/\[[^\]]*\]/g, "").trim();
+    if (!body) return;
+    /* 增强 LRC：<mm:ss.xx> 是逐字时间轴，用来做逐字高亮；
+       普通 LRC 没有这些标签，words 为 null，退回整行渐变填充 */
+    const words = parseLrcWords(body);
+    if (words) body = body.replace(/<[^>]*>/g, "").trim();
     if (!body) return;
     const re = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
     let mm;
     while ((mm = re.exec(raw))) {
       let t = Number(mm[1]) * 60 + Number(mm[2]);
       if (mm[3]) t += Number("0." + mm[3].slice(0, 2).padEnd(2, "0"));
-      out.push({ t, text: body });
+      out.push({ t, text: body, words: words || undefined, raw: raw.replace(/\[[^\]]*\]/g, "").trim() });
     }
   });
   out.sort((a, b) => a.t - b.t);
   return out.slice(0, 2000);
+}
+
+/* 解析一行里的 <mm:ss.xx> 逐字时间戳；没有两个以上就当作普通歌词 */
+function parseLrcWords(s) {
+  const re = /<(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?>/g;
+  const words = [];
+  let last = 0, cur = null, mm, any = false;
+  const secOf = (a, b, c) => {
+    let t = Number(a) * 60 + Number(b);
+    if (c) t += Number("0." + String(c).slice(0, 2).padEnd(2, "0"));
+    return t;
+  };
+  while ((mm = re.exec(s))) {
+    any = true;
+    if (cur != null) {
+      const w = s.slice(last, mm.index);
+      if (w) words.push({ t: cur, text: w });
+    }
+    cur = secOf(mm[1], mm[2], mm[3]);
+    last = re.lastIndex;
+  }
+  if (!any) return null;
+  if (cur != null) {
+    const tail = s.slice(last);
+    if (tail) words.push({ t: cur, text: tail });
+  }
+  return words.length > 1 ? words : null;
 }
 
 /* 把已解析的歌词还原成 .lrc 文本，用来补给后来进房间的人 */
@@ -9188,7 +9258,7 @@ function lrcStamp(sec) {
 }
 function lrcTextOf(t) {
   if (!t || !Array.isArray(t.lrc) || !t.lrc.length) return "";
-  return t.lrc.map((l) => "[" + lrcStamp(l.t) + "]" + (l.text || "")).join("\n");
+  return t.lrc.map((l) => "[" + lrcStamp(l.t) + "]" + (l.raw != null ? l.raw : (l.text || ""))).join("\n");
 }
 /* 刚连上时把歌单里已有的歌词单独发给对方（新加歌词时也会实时同步） */
 function sendLrcToPeer(p) {
@@ -9305,8 +9375,14 @@ function renderLyrics() {
     return;
   }
   if (lines) {
-    UI.lyrics.innerHTML = lines.map((l, i) =>
-      '<div class="lyrLine" data-i="' + i + '" title="点一下跳到这句"><span class="lyrFill">' + esc(l.text) + "</span></div>").join("");
+    UI.lyrics.innerHTML = lines.map((l, i) => {
+      if (l.words && l.words.length > 1) {
+        return '<div class="lyrLine wl" data-i="' + i + '" title="点一下跳到这句">' +
+          l.words.map((w) => '<span class="lyrWord" data-t="' + w.t + '">' + esc(w.text) + "</span>").join("") +
+          "</div>";
+      }
+      return '<div class="lyrLine" data-i="' + i + '" title="点一下跳到这句"><span class="lyrFill">' + esc(l.text) + "</span></div>";
+    }).join("");
     show(UI.lyrics, true);
     const tools = $("#lrcTools");
     if (tools) show(tools, true);
@@ -9343,7 +9419,10 @@ function updateLyric(force) {
     rows.forEach((el, i) => {
       const on = i === idx;
       el.classList.toggle("active", on);
-      if (!on) el.style.setProperty("--p", "0%");
+      if (!on) {
+        el.style.setProperty("--p", "0%");
+        el.querySelectorAll(".lyrWord").forEach((w) => w.classList.remove("done", "now"));
+      }
     });
     if (idx >= 0 && rows[idx]) {
       try { rows[idx].scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
@@ -9357,6 +9436,18 @@ function updateLyric(force) {
     const pct = Math.max(0, Math.min(100, ((cur - start) / span) * 100));
     const fill = rows[idx].querySelector(".lyrFill");
     if (fill) fill.style.setProperty("--p", pct.toFixed(1) + "%");
+    /* 逐字歌词：已唱过的字变亮，当前字用强调色 */
+    const ws = rows[idx].querySelectorAll(".lyrWord");
+    if (ws.length) {
+      let lastOn = -1;
+      for (let i = 0; i < ws.length; i++) {
+        if (Number(ws[i].getAttribute("data-t")) <= cur + 0.02) lastOn = i;
+      }
+      ws.forEach((el, i) => {
+        el.classList.toggle("done", i < lastOn);
+        el.classList.toggle("now", i === lastOn);
+      });
+    }
     const cbar = $("#lrcCalBarFill");
     if (cbar) cbar.style.width = pct.toFixed(1) + "%";
   }
@@ -9744,6 +9835,9 @@ function openLrcSheet() {
   if (nm) nm.textContent = t ? "当前歌曲：" + biPretty(t.name) : "先点一首歌，再搜歌词";
   const tag = $("#lrcCurTag");
   if (tag) tag.textContent = t ? ((Array.isArray(t.lrc) && t.lrc.length) || t.lrcText ? "已有歌词" : "无歌词") : "";
+  /* 把当前歌词放进粘贴框，方便直接改错字/调时间轴 */
+  const paste = $("#lrcPaste");
+  if (paste) paste.value = t ? (lrcTextOf(t) || String(t.lrcText || "")) : "";
   renderLrcResults([], t ? "点「搜索」查三个源，或直接「自动选最佳」" : "先回到播放页点一首歌", "");
   openSheet("lrc");
   if (t) runLrcSearch();
@@ -12757,6 +12851,19 @@ document.querySelectorAll(".chip[data-tab]").forEach((el) => {
     setPlTab(el.getAttribute("data-tab"));
   };
 });
+/* 附加筛选：有封面 / 缺封面 / 有歌词 / 缺歌词 / 超 5 分钟（v1.19.0） */
+if ($("#plFilterChips")) {
+  $("#plFilterChips").onclick = (e) => {
+    const b = e.target.closest("[data-pf]");
+    if (!b) return;
+    APP.plFilter = b.getAttribute("data-pf") || "all";
+    $("#plFilterChips").querySelectorAll("[data-pf]").forEach((x) => {
+      x.classList.toggle("on", x === b);
+    });
+    APP.plLimit = 120;
+    renderPlaylist();
+  };
+}
 $("#btnLrcAuto").onclick = openLrcSheet;
 $("#btnLrcAll").onclick = findLyricsAll;
 if ($("#btnFillAll2")) $("#btnFillAll2").onclick = completeAllTracks;
@@ -12908,6 +13015,86 @@ lrcPicker.onchange = () => {
     maybeResume();
   }
 };
+
+/* 手动粘贴 / 微调歌词（v1.19.0） */
+if ($("#btnLrcPaste")) $("#btnLrcPaste").onclick = () => {
+  const t = findTrack(APP.curId);
+  if (!t) { hint("先在歌单里点一首歌，再给它加歌词"); return; }
+  const txt = String(($("#lrcPaste") || {}).value || "").trim();
+  if (!txt) { hint("先粘贴歌词内容"); return; }
+  let ok = applyLrcHit(t, txt, true, true);
+  if (!ok) ok = applyLrcHit(t, txt, false, true);
+  if (!ok) { hint("没解析出歌词，检查一下 [mm:ss.xx] 时间轴格式"); return; }
+  if ($("#lrcPaste")) $("#lrcPaste").value = "";
+  hint(t.lrc ? "歌词已套用（" + t.lrc.length + " 行），对方也会看到" : "纯文本歌词已套用，对方也会看到");
+};
+if ($("#btnLrcClear")) $("#btnLrcClear").onclick = () => {
+  const t = findTrack(APP.curId);
+  if (!t) return;
+  if (!(t.lrc && t.lrc.length) && !t.lrcText) { hint("这首歌还没有歌词"); return; }
+  t.lrc = null;
+  t.lrcText = "";
+  try { delete APP.lrcCache[t.id]; } catch (e) {}
+  saveTrack(t);
+  renderLyrics();
+  renderPlaylist();
+  hint("已清除本机这首歌的歌词，可重新搜索或粘贴");
+};
+
+/* 批量导入 .lrc：按文件名自动配给同名歌曲（v1.19.0） */
+const lrcBatchPicker = document.createElement("input");
+lrcBatchPicker.type = "file";
+lrcBatchPicker.multiple = true;
+lrcBatchPicker.accept = "";
+lrcBatchPicker.style.display = "none";
+document.body.appendChild(lrcBatchPicker);
+function normLrcName(s) {
+  return String(s || "").toLowerCase()
+    .replace(/\.[a-z0-9]{1,5}$/, "")
+    .replace(/[\s\-_·.,，。、()（）\[\]【】]/g, "");
+}
+function findTrackByLrcName(fileName) {
+  const target = normLrcName(fileName);
+  if (!target) return null;
+  const all = (APP.tracks || []).concat(APP.lib || []);
+  let best = null;
+  for (const t of all) {
+    if (!t || !t.name) continue;
+    const n = normLrcName(t.name);
+    if (!n) continue;
+    if (n === target) return t;
+    if (!best && (n.indexOf(target) >= 0 || target.indexOf(n) >= 0)) best = t;
+  }
+  return best;
+}
+if ($("#btnLrcBatch")) $("#btnLrcBatch").onclick = () => {
+  if (!APP.tracks.length && !APP.lib.length) { hint("还没有歌曲，先导入歌曲再加歌词"); return; }
+  lrcBatchPicker.click();
+};
+lrcBatchPicker.onchange = async () => {
+  const files = Array.from(lrcBatchPicker.files || []);
+  lrcBatchPicker.value = "";
+  if (!files.length) return;
+  let ok = 0, miss = 0;
+  for (const f of files) {
+    const t = findTrackByLrcName(f.name);
+    if (!t) { miss++; continue; }
+    const text = await new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result || ""));
+      fr.onerror = () => res("");
+      fr.readAsText(f, "utf-8");
+    });
+    if (!text) { miss++; continue; }
+    let done = applyLrcHit(t, text, true, true);
+    if (!done) done = applyLrcHit(t, text, false, true);
+    if (done) ok++; else miss++;
+  }
+  renderLyrics();
+  renderPlaylist();
+  hint("批量导入完成：配上 " + ok + " 首" + (miss ? "，" + miss + " 个没找到同名歌曲" : ""), 5000);
+};
+
 
 /* 边听边聊 */
 $("#chatSend").onclick = sendChat;
