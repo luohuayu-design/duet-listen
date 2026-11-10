@@ -57,7 +57,10 @@
   .progress{height:6px;border-radius:6px;background:#2a2c3a;overflow:hidden;margin-top:10px}
   .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
   .songName{font-size:15px;font-weight:600;margin-bottom:4px;word-break:break-all}
-  .times{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:4px}
+  .times{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);margin-top:4px}
+  .times #tCur.preview{color:var(--accent);font-weight:600}
+  .bufTag{font-size:11px;color:var(--warn);display:flex;align-items:center;gap:5px}
+  .bufTag:before{content:"";width:5px;height:5px;border-radius:50%;background:var(--warn);animation:blink 1s infinite}
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;margin:2px 0}
   input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:8px;background:#2a2c3a}
   input[type=range]::-webkit-slider-thumb{
@@ -806,7 +809,7 @@
       <input type="range" id="seek" min="0" max="1000" value="0" step="1" />
       <span class="peerMark hidden" id="peerMark" title="对方听到的位置"></span>
     </div>
-    <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
+    <div class="times"><span id="tCur">0:00</span><span class="bufTag hidden" id="bufTag">缓冲中…</span><span id="tDur">0:00</span></div>
     <div class="playRow">
       <button class="btnSkip" id="btnPrev">⏮</button>
       <button class="btnPlay" id="btnPlay">▶</button>
@@ -4196,7 +4199,7 @@ const audio = $("#audio");
 audio.setAttribute("playsinline", "true");
 
 /* 版本号：每次发版都必须改这一行，设置里会显示，也方便确认是否更新成功 */
-const APP_VER = "1.17.4";
+const APP_VER = "1.17.5";
 window.APP_VER = APP_VER;
 
 /* ===== 连接诊断：保留最近 120 条事件，出问题时可以导出给开发者看 ===== */
@@ -4356,6 +4359,7 @@ const UI = {
   songName: $("#songName"),
   seek: $("#seek"),
   tCur: $("#tCur"),
+  bufTag: $("#bufTag"),
   tDur: $("#tDur"),
   btnPlay: $("#btnPlay"),
   lagVal: $("#lagVal"),
@@ -6352,10 +6356,12 @@ function bindCtlChannel(p, dc) {
 /* 把「我现在放到哪、是否在播」单独发给某个人 */
 function sendStateNow(p) {
   if (!audio.src) return;
+  /* 重连瞬间可能还在缓冲，别把 paused 当成暂停发给对方 */
+  const loadingIntent = APP.wantPlaying !== false && !audio.ended && !audio.error && audio.readyState < 3;
   publish({
     k: "state", from: APP.me, ver: APP.stateVer, by: APP.lastBy || APP.me,
     to: (p && p.id) || undefined,
-    trk: APP.curId, pos: audio.currentTime, playing: !audio.paused, ts: Date.now(),
+    trk: APP.curId, pos: audio.currentTime, playing: !audio.paused || loadingIntent, ts: Date.now(),
     spd: APP.speed,
   });
 }
@@ -11639,7 +11645,12 @@ function applyPeerState(m, force) {
           /* 对方每 5 秒补发一次同一个状态：只更新基准用于显示差距，
              绝不拉拽本地进度。中间怎么播是各自的事，只在开播/停播时对齐。 */
           APP.remoteBase = { pos: target, ts: Date.now(), playing: m.playing };
-          return;
+          /* 断线重连/被系统挂起后本地会和对方状态脱节（明明对方在播、这边停着），
+             这种情况下不能再当成“重复补发”丢掉，要继续走正式同步把播放拉回来。
+             本地 2 秒内刚点过按钮则尊重本机操作，避免手一按就被远端抢回去。 */
+          const mismatch = !!m.playing !== !audio.paused &&
+            Date.now() - (APP.localIntentTs || 0) > 2000;
+          if (!mismatch) return;
         }
       }
     }
@@ -11969,6 +11980,30 @@ audio.addEventListener("playing", () => {
   else fadeTo(volBase());
 });
 
+/* ===== 缓冲提示：真的在等数据才显示，300ms 内恢复不闪烁 ===== */
+const BUF = { on: false, timer: null };
+function bufShow() {
+  if (BUF.on || !UI.bufTag) return;
+  BUF.on = true;
+  UI.bufTag.classList.remove("hidden");
+}
+function bufHide() {
+  if (BUF.timer) { clearTimeout(BUF.timer); BUF.timer = null; }
+  if (!BUF.on) return;
+  BUF.on = false;
+  if (UI.bufTag) UI.bufTag.classList.add("hidden");
+}
+function bufWait() {
+  if (APP.wantPlaying === false || audio.ended || !audio.src) return;
+  if (BUF.timer) return;
+  BUF.timer = setTimeout(() => {
+    BUF.timer = null;
+    if (!audio.paused && audio.readyState < 3) bufShow();
+  }, 350);
+}
+["waiting", "stalled"].forEach((ev) => audio.addEventListener(ev, bufWait));
+["playing", "canplay", "pause", "ended", "error", "emptied"].forEach((ev) => audio.addEventListener(ev, bufHide));
+
 /* 每 5 秒补发一次当前状态：只为让对方那边的「差距」数字保持新鲜，不再强制对齐进度 */
 setInterval(() => {
   if (!APP.paired || !audio.src || audio.paused) return;
@@ -11984,10 +12019,11 @@ setInterval(() => {
 setInterval(() => {
   if (!audio.src) return;
   if (document.hidden) return;       /* 后台不刷新界面：省电，回前台也不会掉帧 */
-  UI.tCur.textContent = fmtTime(audio.currentTime);
+  const previewing = APP.seekPreview != null;
+  if (!previewing) UI.tCur.textContent = fmtTime(audio.currentTime);
   UI.tDur.textContent = fmtTime(audio.duration);
   UI.btnPlay.textContent = audio.paused ? "▶" : "❚❚";
-  if (document.activeElement !== UI.seek) {
+  if (!previewing && document.activeElement !== UI.seek) {
     const d = audio.duration || 0;
     UI.seek.value = d > 0 ? Math.round((audio.currentTime / d) * 1000) : 0;
   }
@@ -12733,14 +12769,22 @@ loadPlayedMap();
 renderShuffleBtn();
 renderRepeatBtn();
 
-UI.seek.oninput = () => { APP.localIntentTs = Date.now();
+/* 拖动进度条时只预览时间，松手才真正跳转：避免边拖边 seek 造成卡顿和歌词乱跳 */
+UI.seek.oninput = () => {
   if (!audio.src || !audio.duration) return;
-  audio.currentTime = (Number(UI.seek.value) / 1000) * audio.duration;
-  UI.tCur.textContent = fmtTime(audio.currentTime);
-  updateLyric(true);
+  APP.localIntentTs = Date.now();
+  APP.seekPreview = (Number(UI.seek.value) / 1000) * audio.duration;
+  UI.tCur.textContent = fmtTime(APP.seekPreview);
+  UI.tCur.classList.add("preview");
 };
 UI.seek.onchange = () => {
-  if (!audio.src) return;
+  if (!audio.src || !audio.duration) { APP.seekPreview = null; UI.tCur.classList.remove("preview"); return; }
+  const target = APP.seekPreview != null ? APP.seekPreview : (Number(UI.seek.value) / 1000) * audio.duration;
+  APP.seekPreview = null;
+  UI.tCur.classList.remove("preview");
+  try { audio.currentTime = Math.max(0, Math.min(target, audio.duration - 0.05)); } catch (e) {}
+  UI.tCur.textContent = fmtTime(audio.currentTime);
+  updateLyric(true);
   onLocalAction();
 };
 
